@@ -1,0 +1,140 @@
+.container {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.header h1 {
+  font-size: 1.875rem;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: #64748b;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.dimCard {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.dimHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dimName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.dimStatus {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.saludable { background-color: #d1fae5; color: #065f46; }
+.riesgo { background-color: #fef3c7; color: #92400e; }
+.crítico { background-color: #fee2e2; color: #991b1b; }
+
+.dimValue {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.dimTrack {
+  height: 6px;
+  background-color: var(--accent);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dimFill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.chartsRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1000px) {
+  .chartsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartCard, .rulesCard {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  padding: 24px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.chartHeader h3 {
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.chartHeader p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ruleItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background-color: var(--background);
+  border-radius: 12px;
+}
+
+.ruleIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border-radius: 10px;
+  color: #ef4444;
+  box-shadow: var(--shadow-sm);
+}
+
+.ruleInfo h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ruleInfo p {
+  font-size: 0.8rem;
+  color: #64748b;
+}

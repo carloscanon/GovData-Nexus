@@ -1,0 +1,186 @@
+.container {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.header h1 {
+  font-size: 1.875rem;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: #64748b;
+}
+
+.scoreBanner {
+  background: linear-gradient(135deg, var(--primary), #1e40af);
+  color: white;
+  padding: 40px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.bannerInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 800px) {
+  .bannerInfo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+}
+
+.globalScore span {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.globalScore h2 {
+  font-size: 4rem;
+  margin: 8px 0;
+}
+
+.levelBadge {
+  background-color: rgba(255, 255, 255, 0.2);
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.benchmark {
+  max-width: 300px;
+}
+
+.benchmark p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.roadmapBtn {
+  background-color: white;
+  color: var(--primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.dimensionsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.dimCard {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.dimCard:hover {
+  transform: translateX(8px);
+  border-color: var(--primary);
+}
+
+.dimIcon {
+  width: 50px;
+  height: 50px;
+  background-color: var(--accent);
+  color: var(--primary);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dimContent {
+  flex: 1;
+}
+
+.dimContent h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.barContainer {
+  flex: 1;
+  height: 8px;
+  background-color: var(--accent);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  background-color: var(--primary);
+  border-radius: 4px;
+}
+
+.arrow {
+  color: #94a3b8;
+}
+
+.actionsSection h3 {
+  font-size: 1.25rem;
+  margin-bottom: 20px;
+}
+
+.actionsList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .actionsList {
+    grid-template-columns: 1fr;
+  }
+}
+
+.actionItem {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background-color: #f0fdf4;
+  border: 1px solid #dcfce7;
+  border-radius: var(--radius);
+  color: #166534;
+}
+
+.actionText h4 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.actionText p {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}

@@ -1,0 +1,74 @@
+.card {
+  background-color: var(--card);
+  padding: 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.iconContainer {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.positive {
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.negative {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+.value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.title {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.trendLabel {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 8px;
+}
