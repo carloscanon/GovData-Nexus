@@ -1,3 +1,6 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -304,9 +307,6 @@ export default function Catalog() {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
       />
-    </div>
-  );
-}
     </div>
   );
 }

@@ -44,7 +44,11 @@ export default function Sidebar() {
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       <div className={styles.logoContainer}>
         <div className={styles.logo}>
-          <div className={styles.logoIcon}>GN</div>
+          <img 
+            src="/logo.png" 
+            alt="GovData Nexus Logo" 
+            className={styles.logoImg} 
+          />
           {!isCollapsed && <span className={styles.logoText}>GovData Nexus</span>}
         </div>
         <button 
