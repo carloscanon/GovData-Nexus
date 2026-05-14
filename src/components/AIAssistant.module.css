@@ -1,0 +1,171 @@
+.container {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.launcher {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--primary), #1e40af);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 51, 102, 0.3);
+  position: relative;
+}
+
+.launcherBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 2px solid white;
+}
+
+.chatWindow {
+  width: 380px;
+  height: 500px;
+  background-color: var(--card);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chatHeader {
+  padding: 16px 20px;
+  background-color: var(--primary);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.sparkle {
+  color: #fbbf24;
+}
+
+.closeBtn {
+  color: white;
+  opacity: 0.7;
+}
+
+.messageList {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #f8fafc;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  max-width: 85%;
+}
+
+.bot {
+  align-self: flex-start;
+}
+
+.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.msgIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bot .msgIcon {
+  background-color: var(--primary);
+  color: white;
+}
+
+.user .msgIcon {
+  background-color: #e2e8f0;
+  color: #64748b;
+}
+
+.msgText {
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.bot .msgText {
+  background-color: white;
+  color: var(--foreground);
+  border-bottom-left-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.user .msgText {
+  background-color: var(--primary);
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+.inputArea {
+  padding: 16px;
+  background-color: white;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+}
+
+.inputArea input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.inputArea input:focus {
+  border-color: var(--primary);
+}
+
+.sendBtn {
+  width: 40px;
+  height: 40px;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
