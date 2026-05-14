@@ -1,0 +1,175 @@
+.container {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.titleArea h1 {
+  font-size: 1.875rem;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.titleArea p {
+  color: #64748b;
+}
+
+.addBtn {
+  background-color: var(--primary);
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orgStats {
+  display: flex;
+  gap: 24px;
+}
+
+.statCard {
+  flex: 1;
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.statCard svg {
+  color: var(--primary);
+}
+
+.statCard h4 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.statCard p {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.memberCard {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: transform 0.2s;
+}
+
+.memberCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+
+.memberHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--primary), #3b82f6);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.moreBtn {
+  color: #94a3b8;
+}
+
+.memberBody h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.roleBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  background-color: var(--accent);
+  color: var(--primary);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.memberInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.infoItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.memberFooter {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.active { color: #10b981; }
+.active::before { background-color: #10b981; }
+
+.away { color: #94a3b8; }
+.away::before { background-color: #94a3b8; }
+
+.profileBtn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+}

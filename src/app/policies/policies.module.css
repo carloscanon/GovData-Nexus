@@ -1,0 +1,153 @@
+.container {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.header h1 {
+  font-size: 1.875rem;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: #64748b;
+}
+
+.statsRow {
+  display: flex;
+  gap: 24px;
+}
+
+.miniStat {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.statVal {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.policyCard {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: box-shadow 0.2s;
+}
+
+.policyCard:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.iconWrapper {
+  width: 50px;
+  height: 50px;
+  background-color: #f1f5f9;
+  color: var(--primary);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.policyMain {
+  flex: 1;
+}
+
+.policyHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.policyHeader h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.version {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background-color: var(--accent);
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.policyMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.vigente { background-color: #d1fae5; color: #065f46; }
+.enrevisión { background-color: #fef3c7; color: #92400e; }
+.vencida { background-color: #fee2e2; color: #991b1b; }
+
+.policyActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconBtn {
+  color: #64748b;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background-color: var(--accent);
+  color: var(--primary);
+}
+
+.historyBtn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.historyBtn:hover {
+  background-color: var(--accent);
+}
