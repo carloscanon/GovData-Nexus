@@ -1,35 +1,99 @@
 .container {
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  padding: 40px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  margin-bottom: 32px;
 }
 
 .titleArea h1 {
-  font-size: 1.875rem;
+  font-size: 2.25rem;
   color: var(--primary);
-  margin-bottom: 4px;
+  font-weight: 800;
+  margin-bottom: 8px;
 }
 
 .titleArea p {
   color: #64748b;
+  font-size: 1.1rem;
 }
 
-.addBtn {
+.headerActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn {
   background-color: var(--primary);
   color: white;
   padding: 10px 20px;
-  border-radius: var(--radius);
+  border-radius: 10px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
+}
+
+.secondaryBtn {
+  background-color: white;
+  color: var(--primary);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.secondaryBtn:hover {
+  background-color: var(--accent);
+}
+
+/* Dashboard Cards */
+.moduleStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.statCard {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statValue {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 
 .toolbar {
@@ -152,6 +216,21 @@
   color: #94a3b8;
 }
 
+.responsible {
+  display: flex;
+  flex-direction: column;
+}
+
+.ownerName {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.ownerArea {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -203,7 +282,74 @@
   border-radius: 4px;
 }
 
-.actionBtn:hover {
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.iconBtn {
+  padding: 8px;
+  border-radius: 8px;
+  color: #64748b;
+  background-color: #f8fafc;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBtn:hover {
   background-color: var(--accent);
   color: var(--primary);
+  border-color: var(--primary);
+}
+
+.iconBtn.delete:hover {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px;
+  gap: 16px;
+  color: #64748b;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.riskBadge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.riskLow { background-color: #f1f5f9; color: #64748b; }
+.riskMedium { background-color: #fff7ed; color: #f59e0b; }
+.riskHigh { background-color: #fef2f2; color: #ef4444; }
+
+.tagWrapper {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.tag {
+  font-size: 0.65rem;
+  background-color: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
 }

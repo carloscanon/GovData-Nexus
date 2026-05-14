@@ -17,8 +17,11 @@ import {
   Search,
   Zap,
   Lock,
-  BarChart3
+  BarChart3,
+  Box,
+  Building2
 } from 'lucide-react';
+import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './Sidebar.module.css';
 
 const menuItems = [
@@ -35,6 +38,7 @@ const menuItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const { mode, setMode } = usePlatform();
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -49,6 +53,27 @@ export default function Sidebar() {
         >
           {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
+      </div>
+
+      <div className={styles.modeToggleContainer}>
+        <div className={`${styles.toggleWrapper} ${isCollapsed ? styles.collapsedToggle : ''}`}>
+          <button 
+            className={`${styles.modeBtn} ${mode === 'DEMO' ? styles.activeMode : ''}`}
+            onClick={() => setMode('DEMO')}
+            title="Vista Demo"
+          >
+            <Box size={18} />
+            {!isCollapsed && <span>Demo</span>}
+          </button>
+          <button 
+            className={`${styles.modeBtn} ${mode === 'ENTERPRISE' ? styles.activeMode : ''}`}
+            onClick={() => setMode('ENTERPRISE')}
+            title="Vista Empresarial"
+          >
+            <Building2 size={18} />
+            {!isCollapsed && <span>Empresa</span>}
+          </button>
+        </div>
       </div>
 
       <div className={styles.searchContainer}>

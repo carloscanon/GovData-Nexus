@@ -1,8 +1,8 @@
-import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import AIAssistant from '@/components/AIAssistant';
+import { PlatformProvider } from '@/contexts/PlatformContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,19 +19,21 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <Sidebar />
-          <main style={{ 
-            flex: 1, 
-            display: 'flex', 
-            flexDirection: 'column',
-            backgroundColor: 'var(--background)',
-            overflowX: 'hidden'
-          }}>
-            {children}
-          </main>
-          <AIAssistant />
-        </div>
+        <PlatformProvider>
+          <div style={{ display: 'flex', minHeight: '100vh' }}>
+            <Sidebar />
+            <main style={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column',
+              backgroundColor: 'var(--background)',
+              overflowX: 'hidden'
+            }}>
+              {children}
+            </main>
+            <AIAssistant />
+          </div>
+        </PlatformProvider>
       </body>
     </html>
   );
