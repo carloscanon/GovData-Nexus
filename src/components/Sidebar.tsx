@@ -22,7 +22,8 @@ import {
   Building2,
   LogOut,
   Crown,
-  Sparkles
+  Sparkles,
+  LayoutGrid
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -30,6 +31,7 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: LayoutGrid, label: 'Diseño Tableros', href: '/builder' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
   { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
