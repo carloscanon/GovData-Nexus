@@ -33,7 +33,7 @@ export default function Login() {
       if (email === 'admin@govdata.io' && password === 'admin123') {
         localStorage.setItem('govdata_role', 'superadmin');
         localStorage.setItem('govdata_user_name', 'Super Admin');
-        router.push('/');
+        window.location.href = '/';
         return;
       }
 
@@ -55,7 +55,7 @@ export default function Login() {
       localStorage.setItem('govdata_role', 'user');
       localStorage.setItem('govdata_user_name', data.name);
       localStorage.setItem('govdata_current_tenant_id', data.tenant_id);
-      router.push('/');
+      window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
       setIsLoading(false);

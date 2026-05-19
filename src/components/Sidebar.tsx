@@ -20,7 +20,9 @@ import {
   BarChart3,
   Box,
   Building2,
-  LogOut
+  LogOut,
+  Crown,
+  Sparkles
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -57,7 +59,7 @@ export default function Sidebar() {
     localStorage.removeItem('govdata_role');
     localStorage.removeItem('govdata_user_name');
     localStorage.removeItem('govdata_current_tenant_id');
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin (ve todo)
@@ -170,16 +172,6 @@ export default function Sidebar() {
       </nav>
 
       <div className={styles.footer}>
-        {/* Link directo a SuperAdministrador si es admin */}
-        {userRole === 'superadmin' && !isCollapsed && (
-          <Link 
-            href="/superadmin" 
-            className="flex items-center space-x-2 px-4 py-2 mx-2 mb-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transition-all text-center justify-center shadow-sm"
-          >
-            <span>Super Administrador</span>
-          </Link>
-        )}
-
         <Link href="/settings" className={styles.footerLink}>
           <Settings size={22} />
           {!isCollapsed && <span>Configuración</span>}
@@ -188,6 +180,19 @@ export default function Sidebar() {
           <HelpCircle size={22} />
           {!isCollapsed && <span>Ayuda</span>}
         </Link>
+
+        {/* Link directo a SuperAdministrador si es admin - Abajo, llamativo y adaptado */}
+        {userRole === 'superadmin' && (
+          <Link 
+            href="/superadmin" 
+            className={`${styles.superadminLink} ${isCollapsed ? styles.collapsedLink : ''}`}
+            title="Panel de Super Administrador"
+          >
+            <Crown size={22} className="flex-shrink-0" />
+            {!isCollapsed && <span>Super Administrador</span>}
+            {!isCollapsed && <Sparkles size={14} className="ml-auto animate-pulse" />}
+          </Link>
+        )}
 
         {/* User Card */}
         {!isCollapsed && (
