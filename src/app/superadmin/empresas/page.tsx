@@ -10,7 +10,7 @@ const EMPTY_FORM = { name: '', domain: '', nit: '', email: '', phone: '', addres
 
 export default function CompaniesManagementPage() {
   const router = useRouter();
-  const { tenants, currentTenant, setCurrentTenant, addTenant, updateTenant, deleteTenant, toggleTenantStatus } = usePlatform();
+  const { tenants, currentTenant, setCurrentTenant, addTenant, updateTenant, deleteTenant, toggleTenantStatus, updateTenantModules } = usePlatform();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlanFilter, setSelectedPlanFilter] = useState('');
