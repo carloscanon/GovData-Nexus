@@ -30,7 +30,9 @@ import {
   Eye,
   EyeOff,
   Palette,
-  Camera
+  Camera,
+  BarChart3,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -40,9 +42,36 @@ import styles from './settings.module.css';
 type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'notifications' | 'integrations' | 'branding';
 
 export default function Settings() {
-  const { brandColors, setBrandColors, currentTenant } = usePlatform();
+  const { brandColors, setBrandColors, currentTenant, updateTenant } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
+
+  const [selectedDashboardType, setSelectedDashboardType] = useState<'executive' | 'technical' | 'collaborative'>('executive');
+  const [isSavingDashboard, setIsSavingDashboard] = useState(false);
+
+  useEffect(() => {
+    if (currentTenant?.dashboardType) {
+      setSelectedDashboardType(currentTenant.dashboardType);
+    }
+  }, [currentTenant?.id, currentTenant?.dashboardType]);
+
+  const handleDashboardChange = (type: 'executive' | 'technical' | 'collaborative') => {
+    setSelectedDashboardType(type);
+  };
+
+  const saveDashboardSelection = async () => {
+    if (!currentTenant) return;
+    setIsSavingDashboard(true);
+    try {
+      await updateTenant(currentTenant.id, { dashboardType: selectedDashboardType });
+      alert('✅ Estilo de dashboard guardado exitosamente para la organización.');
+    } catch (e: any) {
+      console.error(e);
+      alert('❌ Error al guardar el estilo de dashboard.');
+    } finally {
+      setIsSavingDashboard(false);
+    }
+  };
 
   // Define available roles based on company subscription plan
   const getRolesForPlan = () => {
@@ -403,7 +432,7 @@ export default function Settings() {
                 <div className={styles.section}>
                   <div className={styles.field}>
                     <label>Nombre de la Organización</label>
-                    <input type="text" className={styles.input} defaultValue="GovData Enterprise Corp" />
+                    <input type="text" className={styles.input} defaultValue={currentTenant?.name || "GovData Enterprise Corp"} />
                   </div>
                   <div className={styles.field}>
                     <label>Idioma Predeterminado</label>
@@ -420,6 +449,67 @@ export default function Settings() {
                       <option>(GMT-05:00) Eastern Time (New York)</option>
                       <option>(GMT+01:00) Central European Time (Madrid)</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className={styles.section}>
+                  <h3>Estilo de Dashboard Organizacional</h3>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                    Selecciona el diseño predeterminado para el panel principal de tu organización.
+                  </p>
+                  
+                  <div className={styles.themeGrid}>
+                    <div 
+                      className={`${styles.themeCard} ${selectedDashboardType === 'executive' ? styles.activeTheme : ''}`}
+                      onClick={() => handleDashboardChange('executive')}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <BarChart3 size={32} style={{ color: '#60a5fa' }} />
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Ejecutivo / Negocios</span>
+                      <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
+                        KPIs macro, calidad promedio y evolución de la madurez.
+                      </small>
+                    </div>
+
+                    <div 
+                      className={`${styles.themeCard} ${selectedDashboardType === 'technical' ? styles.activeTheme : ''}`}
+                      onClick={() => handleDashboardChange('technical')}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #090f1d 0%, #14532d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <Cpu size={32} style={{ color: '#a3e635' }} />
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Técnico / Operativo</span>
+                      <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
+                        Escaneo en vivo, base de datos neón, tareas y completitud.
+                      </small>
+                    </div>
+
+                    <div 
+                      className={`${styles.themeCard} ${selectedDashboardType === 'collaborative' ? styles.activeTheme : ''}`}
+                      onClick={() => handleDashboardChange('collaborative')}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #d97706 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <Users size={32} style={{ color: '#78350f' }} />
+                      </div>
+                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Colaborativo / Equipo</span>
+                      <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
+                        Gestión de Stewards, control de tiempo y reuniones.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      className={styles.saveBtn} 
+                      onClick={saveDashboardSelection}
+                      disabled={isSavingDashboard}
+                    >
+                      {isSavingDashboard ? 'Guardando...' : 'Guardar Dashboard'}
+                    </button>
                   </div>
                 </div>
               </>

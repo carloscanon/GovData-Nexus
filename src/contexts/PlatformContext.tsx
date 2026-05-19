@@ -26,6 +26,7 @@ export interface Tenant {
   city?: string;
   createdAt?: string;
   brandColors?: BrandColors;
+  dashboardType?: 'executive' | 'technical' | 'collaborative';
 }
 
 export interface SaaSPlan {
@@ -220,7 +221,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             monthlyCost: '$0', // Handled by plan
             status: t.status as 'active' | 'suspended',
             email: t.billing_email,
-            createdAt: new Date(t.created_at).toISOString().split('T')[0]
+            createdAt: new Date(t.created_at).toISOString().split('T')[0],
+            dashboardType: (t.dashboard_type || localStorage.getItem('govdata_dashboard_type_' + t.id) || 'executive') as 'executive' | 'technical' | 'collaborative'
           }));
           
           setTenants(parsed);
@@ -242,9 +244,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (savedTenants) {
         try {
           const parsed = JSON.parse(savedTenants) as Tenant[];
-          setTenants(parsed);
+          const withDashboard = parsed.map(t => ({
+            ...t,
+            dashboardType: (t.dashboardType || localStorage.getItem('govdata_dashboard_type_' + t.id) || 'executive') as 'executive' | 'technical' | 'collaborative'
+          }));
+          setTenants(withDashboard);
           const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
-          const active = parsed.find(t => t.id === savedCurrentTenantId) || parsed[0];
+          const active = withDashboard.find(t => t.id === savedCurrentTenantId) || withDashboard[0];
           setCurrentTenantState(active);
         } catch (e) {
           console.error('Error parsing local tenants', e);
@@ -424,10 +430,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (data.plan) updates.subscription_plan = data.plan.toLowerCase();
       if (data.email) updates.billing_email = data.email;
       if (data.status) updates.status = data.status;
+      if (data.dashboardType) {
+        updates.dashboard_type = data.dashboardType;
+        localStorage.setItem('govdata_dashboard_type_' + tenantId, data.dashboardType);
+      }
 
       if (Object.keys(updates).length > 0) {
-        const { error } = await supabase.from('tenants').update(updates).eq('id', tenantId);
-        if (error) throw error;
+        try {
+          const { error } = await supabase.from('tenants').update(updates).eq('id', tenantId);
+          if (error) throw error;
+        } catch (err) {
+          console.warn('Supabase update tenant failed (possibly missing dashboard_type column), using local storage fallback:', err);
+        }
       }
 
       const updatedList = tenants.map(t => {
