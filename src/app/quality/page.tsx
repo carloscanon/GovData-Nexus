@@ -295,6 +295,29 @@ export default function QualityModule() {
         console.error('Error guardando incidentes:', insertErr);
       }
 
+      // Enviar alertas al endpoint de notificaciones para Slack / Canales
+      executionResults.forEach(async (result) => {
+        if (parseFloat(result.pct) < 95 && (result.severity === 'Crítica' || result.severity === 'Alta')) {
+          try {
+            await fetch('/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'Incidente de Calidad de Datos',
+                message: `La regla "${result.name}" falló con un porcentaje de cumplimiento del ${result.pct}%.`,
+                severity: result.severity,
+                system: result.system,
+                pct: result.pct,
+                total: result.total,
+                affected: result.affected
+              })
+            });
+          } catch (nErr) {
+            console.error('Error enviando alerta:', nErr);
+          }
+        }
+      });
+
       // Actualizar el estado con los IDs reales de la base de datos
       if (savedData) {
         const incidentsWithDbId = executionResults.map(r => {
