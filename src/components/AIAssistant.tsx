@@ -12,18 +12,33 @@ export default function AIAssistant() {
   ]);
   const [input, setInput] = useState('');
 
+  const [isTyping, setIsTyping] = useState(false);
+
+  const getAiResponse = (query: string) => {
+    const q = query.toLowerCase();
+    if (q.includes('riesgo')) return "Actualmente he detectado 5 riesgos de alto impacto. 3 están relacionados con la falta de dueños en el catálogo y 2 con brechas de seguridad en el Maestro de Clientes.";
+    if (q.includes('calidad')) return "El índice de calidad global es del 87%. He notado una caída del 4% en el dominio 'Finanzas' debido a duplicidad de registros en el último cierre.";
+    if (q.includes('política') || q.includes('normativa')) return "Tienes 24 políticas activas. Hay 3 políticas de 'Retención de Datos' que vencen el próximo mes. ¿Deseas que inicie un borrador de actualización?";
+    if (q.includes('seguridad') || q.includes('acceso')) return "Se han detectado 12 intentos de acceso fallidos desde IPs no habituales. Recomiendo activar el MFA obligatorio para el grupo de Data Stewards.";
+    if (q.includes('hola') || q.includes('quien eres')) return "¡Hola! Soy Nexus AI, tu co-piloto de gobierno de datos. Puedo ayudarte a analizar riesgos, monitorear la calidad o redactar políticas normativas.";
+    return "Interesante consulta. Como asistente de gobierno, puedo analizar esa tendencia si me proporcionas más detalles sobre el activo o dominio afectado.";
+  };
+
   const handleSend = () => {
-    if (!input.trim()) return;
-    setMessages([...messages, { role: 'user', text: input }]);
-    setInput('');
+    if (!input.trim() || isTyping) return;
     
-    // Simulate AI response
+    const userMsg = { role: 'user', text: input };
+    setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
+    setInput('');
+    setIsTyping(true);
+    
+    // Simulate AI thinking
     setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        role: 'bot', 
-        text: 'Analizando activos... He encontrado 3 riesgos críticos en el Maestro de Clientes que requieren tu aprobación para mitigación.' 
-      }]);
-    }, 1000);
+      const response = getAiResponse(currentInput);
+      setMessages(prev => [...prev, { role: 'bot', text: response }]);
+      setIsTyping(false);
+    }, 1500);
   };
 
   return (
@@ -57,6 +72,15 @@ export default function AIAssistant() {
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className={`${styles.message} ${styles.bot}`}>
+                  <div className={styles.messageBubble} style={{ display: 'flex', gap: '4px', padding: '10px 15px' }}>
+                    <span className={styles.dot}></span>
+                    <span className={styles.dot}></span>
+                    <span className={styles.dot}></span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={styles.footer}>

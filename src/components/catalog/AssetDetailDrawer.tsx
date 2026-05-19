@@ -1,5 +1,5 @@
 'use client';
-
+import { supabase } from '@/lib/supabase';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -40,6 +40,31 @@ const TABS = [
 
 export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState('general');
+  const [fields, setFields] = useState<any[]>([]);
+  const [loadingFields, setLoadingFields] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen && asset?.id) {
+      fetchFields();
+    }
+  }, [isOpen, asset?.id]);
+
+  async function fetchFields() {
+    try {
+      setLoadingFields(true);
+      const { data, error } = await supabase
+        .from('asset_fields')
+        .select('*')
+        .eq('asset_id', asset.id);
+      
+      if (error) throw error;
+      setFields(data || []);
+    } catch (err) {
+      console.error("Error fetching fields:", err);
+    } finally {
+      setLoadingFields(false);
+    }
+  }
 
   if (!asset) return null;
 
@@ -107,13 +132,30 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
                     </div>
                     <div className={styles.infoGroup}>
                       <label>Frecuencia de Actualización</label>
-                      <p>Diaria</p>
+                      <p>{asset.update_frequency || 'Diaria'}</p>
                     </div>
                   </div>
                   <div className={styles.description}>
                     <label>Descripción</label>
-                    <p>Este activo contiene la información maestra de todos los clientes corporativos, incluyendo segmentación, datos de contacto y scoring de crédito consolidado desde SAP ERP.</p>
+                    <p>{asset.description || 'Sin descripción disponible.'}</p>
                   </div>
+                  {asset.tags && asset.tags.length > 0 && (
+                    <div className={styles.tagsContainer}>
+                      <label style={{ display: 'block', marginBottom: '12px' }}>Etiquetas</label>
+                      <div className={styles.tagsList} style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {asset.tags.map((tag: string, i: number) => (
+                          <span key={i} className={styles.tag} style={{ 
+                            padding: '4px 12px', 
+                            backgroundColor: '#f1f5f9', 
+                            borderRadius: '100px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 600,
+                            color: '#475569'
+                          }}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -149,27 +191,35 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
                     <Search size={16} />
                     <input placeholder="Buscar campos..." />
                   </div>
-                  <table className={styles.innerTable}>
-                    <thead>
-                      <tr>
-                        <th>Nombre Campo</th>
-                        <th>Tipo</th>
-                        <th>Sensible</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>customer_id</td>
-                        <td>VARCHAR(20)</td>
-                        <td>No</td>
-                      </tr>
-                      <tr>
-                        <td>email_personal</td>
-                        <td>VARCHAR(100)</td>
-                        <td>Sí</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className={styles.tableWrapper}>
+                    {loadingFields ? (
+                      <div className={styles.loadingInner}>Cargando diccionario de datos...</div>
+                    ) : fields.length === 0 ? (
+                      <div className={styles.emptyFields}>
+                        <TableIcon size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                        <p>No se han registrado campos para este activo.</p>
+                      </div>
+                    ) : (
+                      <table className={styles.innerTable}>
+                        <thead>
+                          <tr>
+                            <th>Nombre Campo</th>
+                            <th>Tipo</th>
+                            <th>Sensible</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fields.map((field) => (
+                            <tr key={field.id}>
+                              <td><strong>{field.field_name}</strong></td>
+                              <td><code className={styles.dataType}>{field.data_type}</code></td>
+                              <td>{field.is_sensitive ? 'Sí' : 'No'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -178,7 +228,7 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
                   <div className={styles.kpiGrid}>
                     <div className={styles.kpiCard}>
                       <span>Completitud</span>
-                      <h3>98%</h3>
+                      <h3>{asset.quality_score || 98}%</h3>
                     </div>
                     <div className={styles.kpiCard}>
                       <span>Exactitud</span>
@@ -191,6 +241,27 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
                   </div>
                   <div className={styles.chartPlaceholder}>
                     [ Gráfica de Tendencia Histórica ]
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'riesgos' && (
+                <div className={styles.tabPane}>
+                   <div className={styles.grid}>
+                    <div className={styles.infoGroup}>
+                      <label>Nivel de Riesgo</label>
+                      <p className={`${styles.riskBadge} ${styles[asset.risk_level?.toLowerCase()] || styles.bajo}`} style={{ fontWeight: 800 }}>
+                        {asset.risk_level || 'Bajo'}
+                      </p>
+                    </div>
+                    <div className={styles.infoGroup}>
+                      <label>Clasificación de Sensibilidad</label>
+                      <p>{asset.sensitivity || 'Interno'}</p>
+                    </div>
+                    <div className={styles.infoGroup}>
+                      <label>Criticidad</label>
+                      <p>{asset.criticality || 'Media'}</p>
+                    </div>
                   </div>
                 </div>
               )}

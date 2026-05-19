@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -8,86 +8,652 @@ import {
   Mail, 
   MoreVertical,
   Briefcase,
-  Globe
+  Globe,
+  Activity,
+  CheckCircle,
+  AlertTriangle,
+  BookOpen,
+  GitBranch,
+  ShieldAlert,
+  BarChart3,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Layers,
+  ArrowUpRight,
+  TrendingUp,
+  LayoutGrid,
+  Table as TableIcon,
+  PieChart
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './team.module.css';
 
-const members = [
-  { id: 1, name: 'Carlos Director', role: 'CDO', area: 'Corporativo', status: 'Activo', email: 'carlos@empresa.com' },
-  { id: 2, name: 'Ana Garcia', role: 'Data Steward', area: 'Ventas', status: 'Activo', email: 'ana@empresa.com' },
-  { id: 3, name: 'Luis Martinez', role: 'Data Owner', area: 'Marketing', status: 'Activo', email: 'luis@empresa.com' },
-  { id: 4, name: 'Sofia Rodriguez', role: 'Data Custodian', area: 'TI', status: 'Activo', email: 'sofia@empresa.com' },
-  { id: 5, name: 'Elena Gomez', role: 'Auditor', area: 'Riesgo', status: 'Fuera', email: 'elena@empresa.com' },
+// --- Types ---
+interface GovernanceMember {
+  id: number;
+  name: string;
+  role: string;
+  roleType: 'CDO' | 'Data Owner' | 'Data Steward' | 'Data Custodian' | 'Auditor' | 'CISO';
+  area: string;
+  status: 'Activo' | 'Inactivo' | 'Fuera';
+  email: string;
+  domain: string;
+  country: string;
+  stats: {
+    assetsManaged: number;
+    openIncidents: number;
+    stewardScore: number;
+    slaCompliance: number;
+    qualityAvg: number;
+  };
+  assignments: {
+    assets: string[];
+    policies: string[];
+    workflows: number;
+  };
+}
+
+interface GovernanceDomain {
+  id: string;
+  name: string;
+  description: string;
+  owner: string;
+  steward: string;
+  custodian: string;
+  coverage: number;
+  status: 'Cubierto' | 'Parcial' | 'Huérfano';
+}
+
+// --- Mock Data ---
+const governanceMembers: GovernanceMember[] = [
+  { 
+    id: 1, 
+    name: 'Carlos Director', 
+    role: 'CDO (Chief Data Officer)', 
+    roleType: 'CDO',
+    area: 'Estrategia', 
+    status: 'Activo', 
+    email: 'carlos@govdata.io',
+    domain: 'Corporativo',
+    country: 'México',
+    stats: { assetsManaged: 120, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 95 },
+    assignments: { assets: ['Enterprise Metadata', 'Data Strategy v2'], policies: ['Política Global de Ética IA'], workflows: 5 }
+  },
+  { 
+    id: 2, 
+    name: 'Ana García', 
+    role: 'Senior Data Steward', 
+    roleType: 'Data Steward',
+    area: 'Ventas', 
+    status: 'Activo', 
+    email: 'ana.garcia@govdata.io',
+    domain: 'Comercial',
+    country: 'Colombia',
+    stats: { assetsManaged: 42, openIncidents: 3, stewardScore: 91, slaCompliance: 88, qualityAvg: 91 },
+    assignments: { assets: ['CLIENTES_MASTER', 'VENTAS_ANUAL_2024'], policies: ['Privacidad Clientes'], workflows: 12 }
+  },
+  { 
+    id: 3, 
+    name: 'Luis Martínez', 
+    role: 'Data Owner Business', 
+    roleType: 'Data Owner',
+    area: 'Marketing', 
+    status: 'Activo', 
+    email: 'luis.m@govdata.io',
+    domain: 'Comercial',
+    country: 'Chile',
+    stats: { assetsManaged: 15, openIncidents: 1, stewardScore: 95, slaCompliance: 100, qualityAvg: 88 },
+    assignments: { assets: ['LEADS_GEN_SOCIAL'], policies: ['Uso Ético de Datos Mkt'], workflows: 4 }
+  },
+  { 
+    id: 4, 
+    name: 'Sofía Rodriguez', 
+    role: 'Data Custodian Infra', 
+    roleType: 'Data Custodian',
+    area: 'TI', 
+    status: 'Activo', 
+    email: 'sofia.r@govdata.io',
+    domain: 'Infraestructura',
+    country: 'Perú',
+    stats: { assetsManaged: 250, openIncidents: 7, stewardScore: 85, slaCompliance: 92, qualityAvg: 94 },
+    assignments: { assets: ['DB_PRODUCTION_CLUSTER'], policies: ['Backup & Recovery'], workflows: 18 }
+  },
+  { 
+    id: 5, 
+    name: 'Elena Gómez', 
+    role: 'Compliance Auditor', 
+    roleType: 'Auditor',
+    area: 'Riesgos', 
+    status: 'Fuera', 
+    email: 'elena.g@govdata.io',
+    domain: 'Legal',
+    country: 'España',
+    stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 0, slaCompliance: 0, qualityAvg: 0 },
+    assignments: { assets: [], policies: ['Auditoría ISO 27001'], workflows: 2 }
+  }
+];
+
+const governanceDomains: GovernanceDomain[] = [
+  { id: 'DOM-01', name: 'Finanzas', description: 'Datos contables, tesorería y fiscal.', owner: 'Carlos D.', steward: 'Ana G.', custodian: 'Sofía R.', coverage: 95, status: 'Cubierto' },
+  { id: 'DOM-02', name: 'Ventas', description: 'Transacciones y CRM.', owner: 'Luis M.', steward: 'Ana G.', custodian: 'Sofía R.', coverage: 82, status: 'Parcial' },
+  { id: 'DOM-03', name: 'Recursos Humanos', description: 'Nómina y talento.', owner: 'Por definir', steward: 'Por definir', custodian: 'TI Central', coverage: 0, status: 'Huérfano' },
+  { id: 'DOM-04', name: 'Logística', description: 'Inventarios y despacho.', owner: 'Carlos D.', steward: 'Ana G.', custodian: 'Sofía R.', coverage: 65, status: 'Parcial' },
+];
+
+const raciData = [
+  { process: 'Definición de Glosario', owner: 'A', steward: 'R', custodian: 'C', analyst: 'C' },
+  { process: 'Validación de Calidad', owner: 'A', steward: 'R', custodian: 'I', analyst: 'C' },
+  { process: 'Aprobación de Acceso', owner: 'A', steward: 'C', custodian: 'R', analyst: 'I' },
+  { process: 'Modelado de Datos', owner: 'C', steward: 'C', custodian: 'R', analyst: 'A' },
+  { process: 'Gestión de Incidentes', owner: 'I', steward: 'R', custodian: 'A', analyst: 'C' },
 ];
 
 export default function Team() {
+  const [activeTab, setActiveTab] = useState<'team' | 'domains' | 'raci' | 'coverage'>('team');
+  const [selectedMember, setSelectedMember] = useState<GovernanceMember | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isOrgChartModalOpen, setIsOrgChartModalOpen] = useState(false);
+  const [members, setMembers] = useState<GovernanceMember[]>(governanceMembers);
+
+  const [newMember, setNewMember] = useState({
+    name: '',
+    roleType: 'Data Steward' as any,
+    area: '',
+    domain: 'Comercial',
+    email: '',
+    country: 'México'
+  });
+
+  const handleAddMember = () => {
+    const id = members.length + 1;
+    const memberToAdd: GovernanceMember = {
+      ...newMember,
+      id,
+      role: newMember.roleType,
+      status: 'Activo',
+      stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
+      assignments: { assets: [], policies: [], workflows: 0 }
+    };
+    setMembers([...members, memberToAdd]);
+    setIsAssignModalOpen(false);
+    setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México' });
+  };
+
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className={styles.container}>
+      {/* Header Enterprise */}
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <h1>Roles y Responsables</h1>
-          <p>Gestión del equipo de gobierno y asignación de responsabilidades por dominio.</p>
+          <div className={styles.breadcrumb}>Gobierno &gt; Modelo Operativo</div>
+          <h1>🚀 Centro Operativo de Gobierno de Datos</h1>
+          <p>Gestión de roles, ownership, responsabilidades y capacidad operativa de la red de gobierno.</p>
         </div>
-        <button className={styles.addBtn}>
-          <UserPlus size={18} />
-          Invitar Miembro
-        </button>
+        <div className={styles.headerActions}>
+           <button className={styles.secondaryBtn} onClick={() => setIsOrgChartModalOpen(true)}><Activity size={16} /> Ver Organigrama</button>
+           <button className={styles.addBtn} onClick={() => setIsAssignModalOpen(true)}><UserPlus size={18} /> Asignar Responsable</button>
+        </div>
       </header>
 
-      <div className={styles.orgStats}>
-        <div className={styles.statCard}>
-          <Briefcase size={20} />
-          <div>
-            <h4>8 Dominios</h4>
-            <p>Con dueños asignados</p>
+      {/* KPIs Superiores */}
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#10b981' }}><CheckCircle2 size={24} /></div>
+          <div className={styles.kpiContent}>
+            <span className={styles.kpiLabel}>Ownership Coverage</span>
+            <div className={styles.kpiValueRow}>
+              <span className={styles.kpiValue}>92%</span>
+              <span className={styles.kpiTrend}><TrendingUp size={12} /> +2%</span>
+            </div>
+            <div className={styles.kpiProgress}><div className={styles.progressBar} style={{ width: '92%', background: '#10b981' }} /></div>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <Shield size={20} />
-          <div>
-            <h4>12 Stewards</h4>
-            <p>Operativos hoy</p>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiIcon} style={{ background: '#fffbeb', color: '#f59e0b' }}><Layers size={24} /></div>
+          <div className={styles.kpiContent}>
+            <span className={styles.kpiLabel}>Dominios Cubiertos</span>
+            <div className={styles.kpiValueRow}>
+              <span className={styles.kpiValue}>8 / 10</span>
+            </div>
+            <p className={styles.kpiSub}>2 Dominios huérfanos</p>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <Globe size={20} />
-          <div>
-            <h4>5 Países</h4>
-            <p>Estructura regional</p>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiIcon} style={{ background: '#fef2f2', color: '#ef4444' }}><ShieldAlert size={24} /></div>
+          <div className={styles.kpiContent}>
+            <span className={styles.kpiLabel}>Activos sin Dueño</span>
+            <div className={styles.kpiValueRow}>
+              <span className={styles.kpiValue}>14</span>
+            </div>
+            <p className={styles.kpiSub} style={{ color: '#ef4444' }}>Crítico: 5 activos PII</p>
+          </div>
+        </div>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#3b82f6' }}><TrendingUp size={24} /></div>
+          <div className={styles.kpiContent}>
+            <span className={styles.kpiLabel}>Eficiencia Operativa</span>
+            <div className={styles.kpiValueRow}>
+              <span className={styles.kpiValue}>88%</span>
+            </div>
+            <p className={styles.kpiSub}>SLA de respuesta promedio</p>
           </div>
         </div>
       </div>
 
-      <div className={styles.grid}>
-        {members.map(member => (
-          <div key={member.id} className={styles.memberCard}>
-            <div className={styles.memberHeader}>
-              <div className={styles.avatar}>{member.name.split(' ').map(n => n[0]).join('')}</div>
-              <button className={styles.moreBtn}><MoreVertical size={18} /></button>
-            </div>
-            <div className={styles.memberBody}>
-              <h3>{member.name}</h3>
-              <span className={styles.roleBadge}>{member.role}</span>
-              <div className={styles.memberInfo}>
-                <div className={styles.infoItem}>
-                  <Briefcase size={14} />
-                  <span>{member.area}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <Mail size={14} />
-                  <span>{member.email}</span>
-                </div>
-              </div>
-            </div>
-            <div className={styles.memberFooter}>
-              <div className={`${styles.status} ${member.status === 'Activo' ? styles.active : styles.away}`}>
-                {member.status}
-              </div>
-              <button className={styles.profileBtn}>Ver Perfil</button>
-            </div>
-          </div>
-        ))}
+      {/* Tabs de Navegación */}
+      <div className={styles.tabContainer}>
+        <button className={`${styles.tab} ${activeTab === 'team' ? styles.activeTab : ''}`} onClick={() => setActiveTab('team')}>
+          <Users size={16} /> Red de Gobierno
+        </button>
+        <button className={`${styles.tab} ${activeTab === 'domains' ? styles.activeTab : ''}`} onClick={() => setActiveTab('domains')}>
+          <LayoutGrid size={16} /> Ownership Dominios
+        </button>
+        <button className={`${styles.tab} ${activeTab === 'raci' ? styles.activeTab : ''}`} onClick={() => setActiveTab('raci')}>
+          <TableIcon size={16} /> Matriz RACI
+        </button>
+        <button className={`${styles.tab} ${activeTab === 'coverage' ? styles.activeTab : ''}`} onClick={() => setActiveTab('coverage')}>
+          <PieChart size={16} /> Capacidad y Madurez
+        </button>
       </div>
+
+      <div className={styles.mainContent}>
+        {activeTab === 'team' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={styles.filterArea}>
+              <div className={styles.searchBar}>
+                <Search size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre, rol o dominio..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <button className={styles.filterBtn}><Filter size={16} /> Filtros Avanzados</button>
+            </div>
+
+            <div className={styles.memberGrid}>
+              {filteredMembers.map(member => (
+                <motion.div 
+                  key={member.id} 
+                  className={styles.memberCard}
+                  whileHover={{ y: -5 }}
+                  onClick={() => setSelectedMember(member)}
+                >
+                  <div className={styles.cardStatus} style={{ background: member.status === 'Activo' ? '#10b981' : '#f59e0b' }} />
+                  <div className={styles.memberHeader}>
+                    <div className={styles.avatarArea}>
+                      <div className={styles.avatar}>{member.name.split(' ').map(n => n[0]).join('')}</div>
+                      <div className={styles.scoreBadge} title="Steward Score">{member.stats.stewardScore}%</div>
+                    </div>
+                    <button className={styles.moreBtn} onClick={(e) => e.stopPropagation()}><MoreVertical size={18} /></button>
+                  </div>
+                  <div className={styles.memberBody}>
+                    <h3>{member.name}</h3>
+                    <span className={styles.roleTag} data-role={member.roleType}>{member.role}</span>
+                    
+                    <div className={styles.assignmentSummary}>
+                      <div className={styles.assignItem}>
+                        <Layers size={14} />
+                        <span>{member.stats.assetsManaged} Activos</span>
+                      </div>
+                      <div className={styles.assignItem}>
+                        <Activity size={14} />
+                        <span>{member.stats.openIncidents} Incidentes</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.footerInfo}>
+                      <div className={styles.domainInfo}>
+                        <Globe size={14} />
+                        <span>{member.domain} • {member.country}</span>
+                      </div>
+                      <div className={styles.slaBadge} style={{ color: member.stats.slaCompliance > 90 ? '#10b981' : '#f59e0b' }}>
+                        SLA: {member.stats.slaCompliance}%
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'domains' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.domainView}>
+            <div className={styles.domainTableContainer}>
+              <table className={styles.domainTable}>
+                <thead>
+                  <tr>
+                    <th>Dominio</th>
+                    <th>Data Owner</th>
+                    <th>Data Steward</th>
+                    <th>Data Custodian</th>
+                    <th>Cobertura</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {governanceDomains.map(domain => (
+                    <tr key={domain.id}>
+                      <td>
+                        <div className={styles.domainCol}>
+                          <span className={styles.domainName}>{domain.name}</span>
+                          <span className={styles.domainDesc}>{domain.description}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.userCell}>
+                          <div className={styles.miniAvatar}>{domain.owner === 'Por definir' ? '?' : domain.owner[0]}</div>
+                          <span className={domain.owner === 'Por definir' ? styles.unassigned : ''}>{domain.owner}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.userCell}>
+                          <div className={styles.miniAvatar}>{domain.steward === 'Por definir' ? '?' : domain.steward[0]}</div>
+                          <span className={domain.steward === 'Por definir' ? styles.unassigned : ''}>{domain.steward}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.userCell}>
+                          <div className={styles.miniAvatar}>{domain.custodian === 'Por definir' ? '?' : domain.custodian[0]}</div>
+                          <span className={domain.custodian === 'Por definir' ? styles.unassigned : ''}>{domain.custodian}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.coverageCell}>
+                          <div className={styles.coverageBar}><div style={{ width: `${domain.coverage}%`, background: domain.coverage > 80 ? '#10b981' : domain.coverage > 40 ? '#f59e0b' : '#ef4444' }} /></div>
+                          <span>{domain.coverage}%</span>
+                        </div>
+                      </td>
+                      <td><span className={styles.statusBadge} data-status={domain.status.toLowerCase()}>{domain.status}</span></td>
+                      <td><button className={styles.actionBtn}><ArrowUpRight size={16} /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'raci' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.raciView}>
+             <div className={styles.raciInfo}>
+                <h3>Matriz RACI: Gobierno Operativo</h3>
+                <p>Definición de niveles de responsabilidad por proceso clave de gobierno.</p>
+             </div>
+             <div className={styles.raciLegend}>
+                <div className={styles.legendItem}><span className={styles.raciA}>A</span> Accountable (Rinde cuentas)</div>
+                <div className={styles.legendItem}><span className={styles.raciR}>R</span> Responsible (Ejecuta)</div>
+                <div className={styles.legendItem}><span className={styles.raciC}>C</span> Consulted (Consultado)</div>
+                <div className={styles.legendItem}><span className={styles.raciI}>I</span> Informed (Informado)</div>
+             </div>
+             <table className={styles.raciTable}>
+                <thead>
+                  <tr>
+                    <th>Proceso / Actividad</th>
+                    <th>Data Owner</th>
+                    <th>Data Steward</th>
+                    <th>Data Custodian</th>
+                    <th>Data Analyst</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {raciData.map((row, i) => (
+                    <tr key={i}>
+                      <td className={styles.processName}>{row.process}</td>
+                      <td><span className={styles.raciBadge} data-type={row.owner}>{row.owner}</span></td>
+                      <td><span className={styles.raciBadge} data-type={row.steward}>{row.steward}</span></td>
+                      <td><span className={styles.raciBadge} data-type={row.custodian}>{row.custodian}</span></td>
+                      <td><span className={styles.raciBadge} data-type={row.analyst}>{row.analyst}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+             </table>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Modal de Perfil de Gobierno */}
+      <AnimatePresence>
+        {selectedMember && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedMember(null)}>
+            <motion.div 
+              className={styles.profileDrawer}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.profileHeader}>
+                <button className={styles.closeBtn} onClick={() => setSelectedMember(null)}><XCircle size={24} /></button>
+                <div className={styles.profileBasicInfo}>
+                   <div className={styles.largeAvatar}>{selectedMember.name.split(' ').map(n => n[0]).join('')}</div>
+                   <div>
+                      <h2>{selectedMember.name}</h2>
+                      <span className={styles.roleTag} data-role={selectedMember.roleType}>{selectedMember.role}</span>
+                      <div className={styles.profileSub}>
+                         <Globe size={14} /> {selectedMember.domain} • {selectedMember.country} • {selectedMember.area}
+                      </div>
+                   </div>
+                </div>
+              </div>
+
+              <div className={styles.profileBody}>
+                 <div className={styles.profileStatsGrid}>
+                    <div className={styles.profileStatItem}>
+                       <span className={styles.pStatLabel}>Steward Score</span>
+                       <span className={styles.pStatValue} style={{ color: '#10b981' }}>{selectedMember.stats.stewardScore}%</span>
+                    </div>
+                    <div className={styles.profileStatItem}>
+                       <span className={styles.pStatLabel}>SLA Compliance</span>
+                       <span className={styles.pStatValue}>{selectedMember.stats.slaCompliance}%</span>
+                    </div>
+                    <div className={styles.profileStatItem}>
+                       <span className={styles.pStatLabel}>Calidad Promedio</span>
+                       <span className={styles.pStatValue}>{selectedMember.stats.qualityAvg}%</span>
+                    </div>
+                    <div className={styles.profileStatItem}>
+                       <span className={styles.pStatLabel}>Tickets Hoy</span>
+                       <span className={styles.pStatValue}>{selectedMember.assignments.workflows}</span>
+                    </div>
+                 </div>
+
+                 <div className={styles.profileSection}>
+                    <h4><Layers size={16} /> Activos Asignados ({selectedMember.stats.assetsManaged})</h4>
+                    <div className={styles.assetList}>
+                       {selectedMember.assignments.assets.map((asset, i) => (
+                         <div key={i} className={styles.assetTag}>{asset}</div>
+                       ))}
+                       {selectedMember.stats.assetsManaged > 2 && <div className={styles.moreAssets}>+ {selectedMember.stats.assetsManaged - 2} más</div>}
+                    </div>
+                 </div>
+
+                 <div className={styles.profileSection}>
+                    <h4><BookOpen size={16} /> Políticas Bajo su Responsabilidad</h4>
+                    <div className={styles.policyList}>
+                       {selectedMember.assignments.policies.map((policy, i) => (
+                         <div key={i} className={styles.policyItem}>
+                            <div className={styles.policyIcon}><Shield size={14} /></div>
+                            <span>{policy}</span>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className={styles.profileSection}>
+                    <h4><Activity size={16} /> Incidentes Recientes</h4>
+                    <div className={styles.incidentList}>
+                       <div className={styles.incidentItem} data-severity="alta">
+                          <AlertTriangle size={14} /> <span>Anomalía en CLIENTES_MASTER (PII)</span>
+                       </div>
+                       <div className={styles.incidentItem} data-severity="media">
+                          <Clock size={14} /> <span>SLA excedido en REQ-882</span>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className={styles.profileFooter}>
+                 <button className={styles.secondaryBtn} style={{ width: '100%', justifyContent: 'center' }}><Mail size={16} /> Contactar Responsable</button>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} style={{ justifyContent: 'center' }}>Reasignar</button>
+                    <button className={styles.primaryBtn} style={{ justifyContent: 'center' }}>Editar Perfil</button>
+                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+       </AnimatePresence>
+
+       {/* Modal: Asignar Responsable */}
+       <AnimatePresence>
+         {isAssignModalOpen && (
+           <div className={styles.modalOverlay} onClick={() => setIsAssignModalOpen(false)}>
+              <motion.div 
+                className={styles.assignModal}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={e => e.stopPropagation()}
+              >
+                 <div className={styles.modalHeader} style={{ background: 'var(--primary)', color: 'white', padding: '24px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'white' }}>Asignar Nuevo Responsable de Gobierno</h2>
+                    <button onClick={() => setIsAssignModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
+                 </div>
+                 <div style={{ padding: '32px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre Completo</label>
+                       <input 
+                         type="text" 
+                         className={styles.modalInput} 
+                         value={newMember.name}
+                         onChange={e => setNewMember({...newMember, name: e.target.value})}
+                         placeholder="Ej: Roberto Sánchez"
+                       />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Rol de Gobierno</label>
+                          <select 
+                            className={styles.modalInput}
+                            value={newMember.roleType}
+                            onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
+                          >
+                             <option>Data Owner</option>
+                             <option>Data Steward</option>
+                             <option>Data Custodian</option>
+                             <option>Auditor</option>
+                             <option>CISO</option>
+                          </select>
+                       </div>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Área / Departamento</label>
+                          <input 
+                            type="text" 
+                            className={styles.modalInput}
+                            value={newMember.area}
+                            onChange={e => setNewMember({...newMember, area: e.target.value})}
+                            placeholder="Ej: Operaciones"
+                          />
+                       </div>
+                    </div>
+                    <div style={{ marginBottom: '24px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Correo Electrónico</label>
+                       <input 
+                         type="email" 
+                         className={styles.modalInput}
+                         value={newMember.email}
+                         onChange={e => setNewMember({...newMember, email: e.target.value})}
+                         placeholder="roberto@empresa.com"
+                       />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                       <button className={styles.secondaryBtn} onClick={() => setIsAssignModalOpen(false)}>Cancelar</button>
+                       <button className={styles.primaryBtn} onClick={handleAddMember}>Confirmar Asignación</button>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Modal: Organigrama */}
+       <AnimatePresence>
+         {isOrgChartModalOpen && (
+           <div className={styles.modalOverlay} onClick={() => setIsOrgChartModalOpen(false)}>
+              <motion.div 
+                className={styles.orgChartModal}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                onClick={e => e.stopPropagation()}
+              >
+                 <div className={styles.modalHeader} style={{ background: '#1e293b', color: 'white', padding: '24px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'white' }}>Jerarquía del Modelo Operativo</h2>
+                    <button onClick={() => setIsOrgChartModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
+                 </div>
+                 <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
+                    {/* CDO */}
+                    <div className={styles.orgNode} data-role="CDO">
+                       <strong>CDO</strong>
+                       <span>Carlos Director</span>
+                    </div>
+                    
+                    <div className={styles.orgLine} />
+
+                    {/* Owners */}
+                    <div style={{ display: 'flex', gap: '40px' }}>
+                       <div className={styles.orgNode} data-role="Data Owner">
+                          <strong>Data Owner</strong>
+                          <span>Luis Martínez</span>
+                       </div>
+                       <div className={styles.orgNode} data-role="Data Owner">
+                          <strong>Data Owner</strong>
+                          <span>Marketing</span>
+                       </div>
+                    </div>
+
+                    <div className={styles.orgLine} />
+
+                    {/* Stewards */}
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                       <div className={styles.orgNode} data-role="Data Steward">
+                          <strong>Steward</strong>
+                          <span>Ana García</span>
+                       </div>
+                       <div className={styles.orgNode} data-role="Data Steward">
+                          <strong>Steward</strong>
+                          <span>Elena Gómez</span>
+                       </div>
+                       <div className={styles.orgNode} data-role="Data Custodian">
+                          <strong>Custodian</strong>
+                          <span>Sofía R.</span>
+                       </div>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
     </div>
+  );
+}
+
+function Plus({ size, style }: { size: number, style?: any }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M5 12h14" /><path d="M12 5v14" />
+    </svg>
   );
 }

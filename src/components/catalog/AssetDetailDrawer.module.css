@@ -327,3 +327,37 @@
   border-radius: 12px;
   font-weight: 700;
 }
+
+.tableWrapper {
+  margin-top: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+}
+
+.loadingInner {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.emptyFields {
+  padding: 60px 40px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.emptyFields p {
+  font-size: 0.9rem;
+}
+
+.dataType {
+  background-color: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8rem;
+  color: #475569;
+}

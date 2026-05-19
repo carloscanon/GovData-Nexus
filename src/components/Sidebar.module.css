@@ -1,8 +1,7 @@
 .sidebar {
   width: 280px;
   height: 100vh;
-  background-color: var(--card);
-  border-right: 1px solid var(--border);
+  background: var(--primary-gradient);
   display: flex;
   flex-direction: column;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -10,6 +9,7 @@
   top: 0;
   overflow: hidden;
   z-index: 100;
+  color: white;
 }
 
 .collapsed {
@@ -17,62 +17,61 @@
 }
 
 .logoContainer {
-  padding: 24px;
+  padding: 32px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 80px;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .logoImg {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  border-radius: 12px;
 }
 
 .collapsed .logoImg {
   width: 48px;
   height: 48px;
-  margin-left: -4px;
 }
 
 .logoText {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--primary);
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: white;
   white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 .collapseBtn {
-  color: var(--foreground);
-  opacity: 0.5;
-  transition: opacity 0.2s;
-  padding: 4px;
-  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
+  padding: 6px;
+  border-radius: 10px;
 }
 
 .collapseBtn:hover {
-  opacity: 1;
-  background-color: var(--accent);
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .modeToggleContainer {
-  padding: 0 16px 20px;
+  padding: 0 16px 24px;
 }
 
 .toggleWrapper {
   display: flex;
-  background-color: var(--accent);
+  background-color: rgba(0, 0, 0, 0.2);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: 14px;
   gap: 4px;
 }
 
@@ -85,47 +84,48 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #64748b;
-  transition: all 0.2s;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modeBtn:hover {
-  color: var(--primary);
+  color: white;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .activeMode {
-  background-color: var(--card);
-  color: var(--primary);
-  box-shadow: var(--shadow-sm);
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .searchContainer {
-  padding: 0 16px 24px;
+  padding: 0 16px 32px;
 }
 
 .searchWrapper {
   display: flex;
   align-items: center;
-  background-color: var(--accent);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  gap: 10px;
-  border: 1px solid transparent;
-  transition: border-color 0.2s;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 16px;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s;
 }
 
 .searchWrapper:focus-within {
-  border-color: var(--primary);
-  background-color: var(--card);
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .searchIcon {
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.5);
   flex-shrink: 0;
 }
 
@@ -134,8 +134,12 @@
   border: none;
   outline: none;
   width: 100%;
-  font-size: 0.9rem;
-  color: var(--foreground);
+  font-size: 0.95rem;
+  color: white;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .nav {
@@ -150,85 +154,89 @@
 .navLink {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  color: #64748b;
-  transition: all 0.2s;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .navLink:hover {
-  background-color: var(--accent);
-  color: var(--primary);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: white;
 }
 
 .active {
-  background-color: rgba(0, 51, 102, 0.05);
-  color: var(--primary);
-  font-weight: 600;
+  background: var(--accent-gradient);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.4);
 }
 
 .navIcon {
   flex-shrink: 0;
 }
 
-.activeIndicator {
-  position: absolute;
-  right: 0;
-  width: 4px;
-  height: 20px;
-  background-color: var(--primary);
-  border-radius: 4px 0 0 4px;
-}
-
 .footer {
-  padding: 16px;
-  border-top: 1px solid var(--border);
+  padding: 24px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .footerLink {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  color: #64748b;
-  font-size: 0.9rem;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.95rem;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .footerLink:hover {
-  background-color: var(--accent);
-  color: var(--primary);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: white;
 }
 
 .userProfile {
-  margin-top: 12px;
+  margin-top: 16px;
   padding: 12px;
-  background-color: var(--accent);
-  border-radius: var(--radius);
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.userMain {
   display: flex;
   align-items: center;
   gap: 12px;
+  overflow: hidden;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  background-color: var(--primary);
+  width: 40px;
+  height: 40px;
+  background: var(--accent-gradient);
   color: white;
-  border-radius: 50%;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 800;
+  font-size: 0.9rem;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .userInfo {
@@ -238,14 +246,108 @@
 }
 
 .userName {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: white;
+}
+
+.userRole {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+
+.logoutBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.logoutBtn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.tenantContainer {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tenantLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.05em;
+}
+
+.tenantSelect {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 12px;
+  padding: 10px 12px;
   font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tenantSelect:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tenantSelect option {
+  background: #1e293b;
+  color: white;
+}
+
+.tenantDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tenantName {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.userRole {
-  font-size: 0.75rem;
-  color: #64748b;
+.tenantBadge {
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  color: #10b981;
 }
+

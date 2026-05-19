@@ -1,5 +1,5 @@
 'use client';
-
+import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -19,11 +19,19 @@ import {
   History,
   Share2,
   Archive,
-  Eye
+  Eye,
+  ArrowUpRight,
+  ArrowDownRight,
+  Zap,
+  ShieldCheck,
+  AlertOctagon
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AddAssetModal from '@/components/catalog/AddAssetModal';
 import AssetDetailDrawer from '@/components/catalog/AssetDetailDrawer';
+import AutoScanModal from '@/components/catalog/AutoScanModal';
+import ImportExcelModal from '@/components/catalog/ImportExcelModal';
+import CatalogStatsModal from '@/components/catalog/CatalogStatsModal';
 import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './catalog.module.css';
 
@@ -58,8 +66,21 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isScanOpen, setIsScanOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<DataAsset | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<DataAsset | null>(null);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [statsModalType, setStatsModalType] = useState<'total' | 'documented' | 'owner' | 'quality' | 'critical'>('total');
+  
+  // Filtros Avanzados
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    type: '',
+    sensitivity: '',
+    status: '',
+    criticality: ''
+  });
 
   useEffect(() => {
     if (mode === 'ENTERPRISE') {
@@ -123,11 +144,29 @@ export default function Catalog() {
     setIsDetailOpen(true);
   };
 
-  const filteredAssets = assets.filter(asset => 
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.owner.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const openStatsModal = (type: 'total' | 'documented' | 'owner' | 'quality' | 'critical') => {
+    setStatsModalType(type);
+    setIsStatsModalOpen(true);
+  };
+
+  const filteredAssets = assets.filter(asset => {
+    const matchesSearch = 
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.owner.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = !filters.type || asset.type === filters.type;
+    const matchesSensitivity = !filters.sensitivity || asset.sensitivity === filters.sensitivity;
+    const matchesStatus = !filters.status || asset.status === filters.status;
+    const matchesCriticality = !filters.criticality || asset.risk_level === filters.criticality;
+
+    return matchesSearch && matchesType && matchesSensitivity && matchesStatus && matchesCriticality;
+  });
+
+  const clearFilters = () => {
+    setFilters({ type: '', sensitivity: '', status: '', criticality: '' });
+    setSearchTerm('');
+  };
 
   return (
     <div className={styles.container}>
@@ -141,41 +180,100 @@ export default function Catalog() {
             <Plus size={18} />
             Registrar Activo
           </button>
-          <button className={styles.secondaryBtn}>
+          <a 
+            href="/GovDataNexus_Plantilla_Catalogo_Datos.xlsx" 
+            download 
+            className={styles.secondaryBtn}
+            title="Descargar plantilla Excel profesional"
+          >
+            <Download size={18} />
+            Plantilla Excel
+          </a>
+          <button className={styles.secondaryBtn} onClick={() => setIsImportOpen(true)}>
             <Upload size={18} />
             Importar Excel
           </button>
-          <button className={styles.secondaryBtn}>
+          <button className={styles.secondaryBtn} onClick={() => setIsScanOpen(true)}>
             <Scan size={18} />
             Escaneo Automático
-          </button>
-          <button className={styles.secondaryBtn}>
-            <Download size={18} />
-            Exportar
           </button>
         </div>
       </header>
 
       <div className={styles.moduleStats}>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Total Activos</span>
+        {/* Total Activos */}
+        <div className={styles.statCard} onClick={() => openStatsModal('total')}>
+          <div className={styles.statHeader}>
+            <span>Total Activos</span>
+            <div className={`${styles.trend} ${styles.trendUp}`}>
+              <ArrowUpRight size={14} /> 12%
+            </div>
+          </div>
           <span className={styles.statValue}>{assets.length}</span>
+          <div className={styles.statBar}>
+            <div className={styles.statFill} style={{ width: '100%', backgroundColor: 'var(--primary-brand)' }}></div>
+          </div>
+          <p className={styles.statDesc}>Activos registrados en el inventario.</p>
         </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>% Documentados</span>
+
+        {/* % Documentados */}
+        <div className={styles.statCard} onClick={() => openStatsModal('documented')}>
+          <div className={styles.statHeader}>
+            <span>% Documentados</span>
+            <div className={`${styles.trend} ${styles.trendUp}`}>
+              <ArrowUpRight size={14} /> 5.4%
+            </div>
+          </div>
           <span className={styles.statValue}>84%</span>
+          <div className={styles.statBar}>
+            <div className={styles.statFill} style={{ width: '84%', backgroundColor: '#10b981' }}></div>
+          </div>
+          <p className={styles.statDesc}>Metadatos y linaje completos.</p>
         </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>% con Owner</span>
+
+        {/* % con Owner */}
+        <div className={styles.statCard} onClick={() => openStatsModal('owner')}>
+          <div className={styles.statHeader}>
+            <span>% con Owner</span>
+            <div className={`${styles.trend} ${styles.trendNeutral}`}>
+              0.8%
+            </div>
+          </div>
           <span className={styles.statValue}>92%</span>
+          <div className={styles.statBar}>
+            <div className={styles.statFill} style={{ width: '92%', backgroundColor: '#6366f1' }}></div>
+          </div>
+          <p className={styles.statDesc}>Asignación de responsabilidad.</p>
         </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Calidad Promedio</span>
+
+        {/* Calidad Promedio */}
+        <div className={styles.statCard} onClick={() => openStatsModal('quality')}>
+          <div className={styles.statHeader}>
+            <span>Calidad Promedio</span>
+            <div className={`${styles.trend} ${styles.trendDown}`}>
+              <ArrowDownRight size={14} /> 1.2%
+            </div>
+          </div>
           <span className={styles.statValue}>88.4%</span>
+          <div className={styles.statBar}>
+            <div className={styles.statFill} style={{ width: '88.4%', backgroundColor: '#f59e0b' }}></div>
+          </div>
+          <p className={styles.statDesc}>Puntuación global de integridad.</p>
         </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Activos Críticos</span>
+
+        {/* Activos Críticos */}
+        <div className={styles.statCard} onClick={() => openStatsModal('critical')}>
+          <div className={styles.statHeader}>
+            <span>Activos Críticos</span>
+            <div className={`${styles.trend} ${styles.trendUp}`}>
+              <ArrowUpRight size={14} /> 2
+            </div>
+          </div>
           <span className={styles.statValue}>12</span>
+          <div className={styles.statBar}>
+            <div className={styles.statFill} style={{ width: '35%', backgroundColor: '#ef4444' }}></div>
+          </div>
+          <p className={styles.statDesc}>Activos de alto riesgo de negocio.</p>
         </div>
       </div>
 
@@ -190,7 +288,10 @@ export default function Catalog() {
           />
         </div>
         <div className={styles.filters}>
-          <button className={styles.filterBtn}>
+          <button 
+            className={`${styles.filterBtn} ${showFilters ? styles.activeFilter : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
             <Filter size={18} />
             Filtros Avanzados
           </button>
@@ -200,99 +301,220 @@ export default function Catalog() {
         </div>
       </div>
 
-      <div className={styles.tableCard}>
-        {loading ? (
-          <div className={styles.loadingState}>
-            <Loader2 size={40} className={styles.spin} />
-            <p>Conectando con el catálogo empresarial...</p>
-          </div>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Nombre Activo / ID</th>
-                <th>Tipo</th>
-                <th>Fuente</th>
-                <th>Responsable</th>
-                <th>Sensibilidad</th>
-                <th>Calidad %</th>
-                <th>Estado</th>
-                <th>Riesgo</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAssets.map(asset => (
-                <tr key={asset.id} className={styles.row}>
-                  <td className={styles.nameCell}>
-                    <div className={styles.iconBox}>
-                      {asset.type.includes('Tabla') ? <TableIcon size={16} /> : 
-                       asset.type.includes('API') ? <FileJson size={16} /> : 
-                       <Database size={16} />}
-                    </div>
-                    <div>
-                      <span className={styles.assetName}>{asset.name}</span>
-                      <span className={styles.assetSub}>{asset.code_id || 'AST-00' + asset.id.slice(0,2)}</span>
-                      {asset.tags && (
-                        <div className={styles.tagWrapper}>
-                          {asset.tags.map(tag => <span key={tag} className={styles.tag}>{tag}</span>)}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td>{asset.type}</td>
-                  <td>{asset.source}</td>
-                  <td>
-                    <div className={styles.responsible}>
-                      <span className={styles.ownerName}>{asset.data_owner || asset.owner}</span>
-                      <span className={styles.ownerArea}>{asset.owner}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`${styles.badge} ${styles[asset.sensitivity.toLowerCase().replace(/\s/g, '')] || styles.interno}`}>
-                      <Shield size={12} />
-                      {asset.sensitivity}
-                    </span>
-                  </td>
-                  <td>
-                    <div className={styles.qualityCell}>
-                      <div className={styles.qualityTrack}>
-                        <div className={styles.qualityFill} style={{ 
-                          width: `${asset.quality_score}%`,
-                          backgroundColor: asset.quality_score > 90 ? '#10b981' : asset.quality_score > 80 ? '#f59e0b' : '#ef4444'
-                        }}></div>
-                      </div>
-                      <span>{asset.quality_score}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`${styles.status} ${asset.status === 'Vigente' ? styles.active : styles.pending}`}>
-                      {asset.status}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`${styles.riskBadge} ${asset.risk_level === 'Alto' ? styles.riskHigh : asset.risk_level === 'Medio' ? styles.riskMedium : styles.riskLow}`}>
-                      {asset.risk_level || 'Bajo'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className={styles.actions}>
-                      <button className={styles.iconBtn} onClick={() => openDetail(asset)} title="Ver Detalle">
-                        <Eye size={16} />
-                      </button>
-                      <button className={styles.iconBtn} onClick={() => openEditModal(asset)} title="Editar">
-                        <Edit2 size={16} />
-                      </button>
-                      <button className={`${styles.iconBtn} ${styles.delete}`} onClick={() => handleDelete(asset.id)} title="Eliminar">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className={styles.advancedFilterPanel}
+          >
+            <div className={styles.filterGrid}>
+              <div className={styles.filterGroup}>
+                <label>Tipo de Activo</label>
+                <select value={filters.type} onChange={e => setFilters({...filters, type: e.target.value})}>
+                  <option value="">Todos los tipos</option>
+                  <option value="Tabla SQL">Tabla SQL</option>
+                  <option value="Vista">Vista</option>
+                  <option value="API">API</option>
+                  <option value="Data Lake">Data Lake</option>
+                  <option value="Reporte">Reporte</option>
+                </select>
+              </div>
+              <div className={styles.filterGroup}>
+                <label>Sensibilidad</label>
+                <select value={filters.sensitivity} onChange={e => setFilters({...filters, sensitivity: e.target.value})}>
+                  <option value="">Cualquier sensibilidad</option>
+                  <option value="Público">Público</option>
+                  <option value="Uso Interno">Uso Interno</option>
+                  <option value="Confidencial">Confidencial</option>
+                  <option value="Secreto">Secreto</option>
+                </select>
+              </div>
+              <div className={styles.filterGroup}>
+                <label>Estado</label>
+                <select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+                  <option value="">Cualquier estado</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="En Revisión">En Revisión</option>
+                  <option value="Obsoleto">Obsoleto</option>
+                  <option value="Borrador">Borrador</option>
+                </select>
+              </div>
+              <div className={styles.filterGroup}>
+                <label>Riesgo / Criticalidad</label>
+                <select value={filters.criticality} onChange={e => setFilters({...filters, criticality: e.target.value})}>
+                  <option value="">Cualquier riesgo</option>
+                  <option value="Bajo">Bajo</option>
+                  <option value="Medio">Medio</option>
+                  <option value="Alto">Alto</option>
+                  <option value="Crítico">Crítico</option>
+                </select>
+              </div>
+            </div>
+            <div className={styles.filterFooter}>
+              <p>{filteredAssets.length} activos encontrados</p>
+              <button className={styles.clearBtn} onClick={clearFilters}>Limpiar Filtros</button>
+            </div>
+          </motion.div>
         )}
+      </AnimatePresence>
+
+      <div className={styles.mainGrid}>
+        <div className={styles.leftColumn}>
+          <div className={styles.tableCard}>
+            {loading ? (
+              <div className={styles.loadingState}>
+                <Loader2 size={40} className={styles.spin} />
+                <p>Conectando con el catálogo empresarial...</p>
+              </div>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Nombre Activo / ID</th>
+                    <th>Tipo</th>
+                    <th>Fuente</th>
+                    <th>Responsable</th>
+                    <th>Sensibilidad</th>
+                    <th>Calidad %</th>
+                    <th>Estado</th>
+                    <th>Riesgo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAssets.map(asset => (
+                    <tr key={asset.id} className={styles.row}>
+                      <td className={styles.nameCell}>
+                        <div className={styles.iconBox}>
+                          {asset.type.includes('Tabla') ? <TableIcon size={16} /> : 
+                           asset.type.includes('API') ? <FileJson size={16} /> : 
+                           <Database size={16} />}
+                        </div>
+                        <div>
+                          <span className={styles.assetName}>{asset.name}</span>
+                          <span className={styles.assetSub}>{asset.code_id || 'AST-00' + asset.id.slice(0,2)}</span>
+                          {asset.tags && (
+                            <div className={styles.tagWrapper}>
+                              {asset.tags.map(tag => <span key={tag} className={styles.tag}>{tag}</span>)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>{asset.type}</td>
+                      <td>{asset.source}</td>
+                      <td>
+                        <div className={styles.responsible}>
+                          <span className={styles.ownerName}>{asset.data_owner || asset.owner}</span>
+                          <span className={styles.ownerArea}>{asset.owner}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`${styles.badge} ${styles[asset.sensitivity.toLowerCase().replace(/\s/g, '')] || styles.interno}`}>
+                          <Shield size={12} />
+                          {asset.sensitivity}
+                        </span>
+                      </td>
+                      <td>
+                        <div className={styles.qualityCell}>
+                          <div className={styles.qualityTrack}>
+                            <div className={styles.qualityFill} style={{ 
+                              width: `${asset.quality_score}%`,
+                              backgroundColor: asset.quality_score > 90 ? '#10b981' : asset.quality_score > 80 ? '#f59e0b' : '#ef4444'
+                            }}></div>
+                          </div>
+                          <span>{asset.quality_score}%</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`${styles.status} ${asset.status === 'Vigente' ? styles.active : styles.pending}`}>
+                          {asset.status}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`${styles.riskBadge} ${asset.risk_level === 'Alto' ? styles.riskHigh : asset.risk_level === 'Medio' ? styles.riskMedium : styles.riskLow}`}>
+                          {asset.risk_level || 'Bajo'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className={styles.actions}>
+                          <button className={styles.iconBtn} onClick={() => openDetail(asset)} title="Ver Detalle">
+                            <Eye size={16} />
+                          </button>
+                          <button className={styles.iconBtn} onClick={() => openEditModal(asset)} title="Editar">
+                            <Edit2 size={16} />
+                          </button>
+                          <button className={`${styles.iconBtn} ${styles.delete}`} onClick={() => handleDelete(asset.id)} title="Eliminar">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.rightColumn}>
+          <div className={styles.sideCard}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <div style={{ padding: '8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '10px' }}>
+                <Zap size={20} color="var(--primary-brand)" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Nexus AI Insights</h3>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <ShieldCheck size={14} color="#10b981" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10b981' }}>RECOMENDACIÓN</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
+                  Se detectaron 4 tablas de <strong>Ventas</strong> sin descripción. Nexus AI puede autogenerar la documentación.
+                </p>
+                <button style={{ marginTop: '12px', width: '100%', padding: '8px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Documentar Ahora
+                </button>
+              </div>
+
+              <div style={{ padding: '16px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <AlertOctagon size={14} color="#f59e0b" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>RIESGO DETECTADO</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
+                  El contenedor <strong>"Sales_Archive_2023"</strong> tiene sensibilidad inconsistente con sus hijos.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.sideCard}>
+             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', fontWeight: 700 }}>Distribución por Fuente</h3>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               {[
+                 { label: 'SAP ERP', val: 45, color: '#6366f1' },
+                 { label: 'Salesforce', val: 30, color: '#10b981' },
+                 { label: 'Oracle DB', val: 15, color: '#f59e0b' },
+                 { label: 'S3 Buckets', val: 10, color: '#ec4899' }
+               ].map((item, i) => (
+                 <div key={i}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
+                     <span style={{ fontWeight: 600, color: '#64748b' }}>{item.label}</span>
+                     <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.val}%</span>
+                   </div>
+                   <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
+                     <div style={{ width: `${item.val}%`, height: '100%', background: item.color }}></div>
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
       </div>
 
       <AddAssetModal 
@@ -306,6 +528,25 @@ export default function Catalog() {
         asset={selectedAsset}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
+      />
+
+      <AutoScanModal 
+        isOpen={isScanOpen}
+        onClose={() => setIsScanOpen(false)}
+        onSuccess={fetchAssets}
+      />
+
+      <ImportExcelModal 
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchAssets}
+      />
+
+      <CatalogStatsModal 
+        isOpen={isStatsModalOpen}
+        onClose={() => setIsStatsModalOpen(false)}
+        type={statsModalType}
+        assets={assets}
       />
     </div>
   );

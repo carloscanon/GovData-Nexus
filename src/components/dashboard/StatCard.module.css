@@ -1,18 +1,33 @@
 .card {
-  background-color: var(--card);
-  padding: 24px;
-  border-radius: var(--radius);
+  background-color: white;
+  padding: 32px;
+  border-radius: 24px;
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle at 70% 30%, var(--primary) 0%, transparent 70%);
+  opacity: 0.03;
+  pointer-events: none;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-premium);
+  border-color: rgba(15, 23, 42, 0.1);
 }
 
 .header {
@@ -22,32 +37,38 @@
 }
 
 .iconContainer {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.card:hover .iconContainer {
+  transform: scale(1.1) rotate(5deg);
 }
 
 .trend {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 100px;
+  letter-spacing: 0.02em;
 }
 
 .positive {
-  color: #10b981;
-  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  background-color: #ecfdf5;
 }
 
 .negative {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  background-color: #fef2f2;
 }
 
 .body {
@@ -56,19 +77,24 @@
 }
 
 .value {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: var(--foreground);
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+  line-height: 1;
 }
 
 .title {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #64748b;
-  margin-top: 4px;
+  margin-top: 8px;
+  letter-spacing: -0.01em;
 }
 
 .trendLabel {
   font-size: 0.75rem;
   color: #94a3b8;
-  margin-top: 8px;
+  margin-top: 12px;
+  font-weight: 500;
 }

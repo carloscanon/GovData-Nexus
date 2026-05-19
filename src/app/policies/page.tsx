@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Download, 
@@ -8,76 +8,1307 @@ import {
   History, 
   ShieldCheck,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  BookOpen,
+  Settings,
+  Activity,
+  User,
+  Calendar,
+  Layers,
+  ChevronRight,
+  Plus,
+  Search,
+  Filter,
+  X,
+  ExternalLink,
+  Shield,
+  Clock,
+  Info,
+  CheckSquare,
+  FileSearch,
+  FileCheck,
+  Lock,
+  Cpu,
+  GitBranch,
+  Trash2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './policies.module.css';
 
-const policies = [
-  { id: 1, title: 'Política de Calidad de Datos', version: 'v2.4', status: 'Vigente', date: '2026-01-15', author: 'Gobierno de Datos' },
-  { id: 2, title: 'Seguridad de la Información', version: 'v3.1', status: 'Vigente', date: '2025-11-20', author: 'Seguridad TI' },
-  { id: 3, title: 'Manual de Habeas Data', version: 'v1.2', status: 'En Revisión', date: '2026-04-05', author: 'Legal' },
-  { id: 4, title: 'Estándar de Nomenclatura', version: 'v2.0', status: 'Vencida', date: '2024-12-10', author: 'Arquitectura' },
-  { id: 5, title: 'Política de Retención de Datos', version: 'v1.5', status: 'Vigente', date: '2026-02-28', author: 'Cumplimiento' },
+// --- MOCK DATA ---
+
+const kpis = [
+  { label: 'Políticas Activas', value: '24', icon: <FileCheck color="#10b981" />, bg: '#f0fdf4' },
+  { label: 'Vencidas', value: '3', icon: <AlertCircle color="#ef4444" />, bg: '#fef2f2' },
+  { label: 'En Revisión', value: '5', icon: <History color="#f59e0b" />, bg: '#fffbeb' },
+  { label: 'Cumplimiento', value: '87%', icon: <ShieldCheck color="#6366f1" />, bg: '#eef2ff' },
+  { label: 'Estándares Aplicados', value: '42', icon: <Settings color="#8b5cf6" />, bg: '#f5f3ff' },
 ];
 
-export default function Policies() {
+const policiesData = [
+  { 
+    id: 'POL-001', 
+    title: 'Política de Protección de Datos', 
+    type: 'Seguridad / Privacidad', 
+    status: 'Vigente', 
+    expiry: '2027', 
+    owner: 'CISO - Carlos M.', 
+    version: '2.1',
+    objective: 'Establecer los lineamientos para la protección de datos personales de clientes y colaboradores en cumplimiento con la Ley 1581.',
+    scope: 'Aplica a todas las áreas de la organización que realicen tratamiento de datos personales.',
+    guidelines: [
+      'Todo dato PII debe estar cifrado en reposo.',
+      'El consentimiento debe ser explícito y trazable.',
+      'Se prohíbe el uso de datos productivos en entornos de desarrollo sin anonimización.'
+    ],
+    controls: ['Auditoría trimestral de accesos', 'Escaneo automático de PII'],
+    sancions: 'El incumplimiento dará lugar a medidas disciplinarias según el reglamento interno de trabajo.'
+  },
+  { 
+    id: 'POL-002', 
+    title: 'Política de Calidad de Datos', 
+    type: 'Gobierno de Datos', 
+    status: 'Vigente', 
+    expiry: '2026', 
+    owner: 'CDO - Elena R.', 
+    version: '3.0',
+    objective: 'Garantizar que los datos sean exactos, íntegros y oportunos para la toma de decisiones.',
+    scope: 'Activos de información críticos (Critical Data Elements).',
+    guidelines: [
+      'Cada activo debe tener un Data Owner y un Data Steward asignado.',
+      'Los indicadores de calidad deben reportarse mensualmente al comité de gobierno.'
+    ],
+    controls: ['Dashboard de Calidad en tiempo real', 'Validación en origen'],
+    sancions: 'Pérdida de acceso a herramientas de BI en caso de reincidencia en datos erróneos.'
+  },
+  { 
+    id: 'POL-003', 
+    title: 'Política de Retención Legal', 
+    type: 'Cumplimiento / Legal', 
+    status: 'En Revisión', 
+    expiry: '2024', 
+    owner: 'Jurídica - Juan S.', 
+    version: '1.2',
+    objective: 'Definir los tiempos de conservación de los documentos y datos según la normativa vigente.',
+    scope: 'Documentación física y digital de la organización.',
+    guidelines: ['Los registros financieros deben guardarse por 10 años.', 'Los datos de marketing deben borrarse tras 2 años de inactividad.'],
+    controls: ['Wipe certificado de discos', 'Auditoría de borrado'],
+    sancions: 'Multas regulatorias por incumplimiento de tiempos de retención.'
+  },
+  { 
+    id: 'POL-004', 
+    title: 'Política de Ética en IA', 
+    type: 'Tecnología / IA', 
+    status: 'Vigente', 
+    expiry: '2027', 
+    owner: 'CDO - Elena R.', 
+    version: '1.0',
+    objective: 'Asegurar que el uso de Inteligencia Artificial sea responsable, transparente y sin sesgos.',
+    scope: 'Todos los modelos de ML e IA desarrollados o adquiridos.',
+    guidelines: ['Ninguna decisión de crédito será 100% automatizada sin revisión humana.', 'Se debe explicar la lógica de cada modelo a solicitud del usuario.'],
+    controls: ['Pruebas de sesgo (Bias testing)', 'Registro de modelos'],
+    sancions: 'Suspensión inmediata de modelos que presenten comportamientos discriminatorios.'
+  }
+];
+
+const standardsData = [
+  { id: 'STD-001', name: 'Nomenclatura de Tablas', category: 'Arquitectura', applied: '420 tablas', status: 'Activo' },
+  { id: 'STD-002', name: 'Cifrado AES-256 PII', category: 'Seguridad', applied: '28 activos', status: 'Crítico' },
+  { id: 'STD-003', name: 'Formato de Fechas ISO-8601', category: 'Interoperabilidad', applied: 'Global', status: 'Activo' },
+  { id: 'STD-004', name: 'MFA Obligatorio Admin', category: 'Accesos', applied: '12 usuarios', status: 'Activo' }
+];
+
+// --- Roles y Equipos (Sincronizado) ---
+const teamMembers = [
+  { name: 'Carlos Director', role: 'CDO' },
+  { name: 'Ana Garcia', role: 'Data Steward' },
+  { name: 'Luis Martinez', role: 'Data Owner' },
+  { name: 'Sofia Rodriguez', role: 'Data Custodian' },
+  { name: 'Elena Gomez', role: 'Auditor' },
+];
+
+export default function PoliciesModule() {
+  const [activeTab, setActiveTab] = useState('politicas');
+  const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [policies, setPolicies] = useState<any[]>(policiesData);
+  const [modalTab, setModalTab] = useState('general');
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Workflow State
+  const [workflows, setWorkflows] = useState([
+    { id: 'WF-001', name: 'Estándar', steps: ['Borrador', 'Revisión Técnica', 'Publicado'], color: '#6366f1' },
+    { id: 'WF-002', name: 'Crítico / Legal', steps: ['Borrador', 'Revisión Legal', 'Aprobación CDO', 'Publicado'], color: '#ef4444' },
+    { id: 'WF-003', name: 'Rápido', steps: ['Borrador', 'Publicado'], color: '#10b981' }
+  ]);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null);
+  const [workflowFilter, setWorkflowFilter] = useState<string | null>(null);
+  const [isWfModalOpen, setIsWfModalOpen] = useState(false);
+  const [editingWf, setEditingWf] = useState<any>(null);
+
+  const openWfEditor = (wf: any) => {
+    setEditingWf({ ...wf });
+    setIsWfModalOpen(true);
+  };
+
+  const saveWorkflow = () => {
+    setWorkflows(workflows.map(w => w.id === editingWf.id ? editingWf : w));
+    setIsWfModalOpen(false);
+  };
+
+  // Form State for Create/Edit
+  const [newPolicy, setNewPolicy] = useState({
+    id: '',
+    title: '',
+    type: 'Gobierno de Datos',
+    status: 'Borrador',
+    workflowId: 'WF-001',
+    currentStep: 0,
+    expiry: '2026',
+    owner: 'Carlos Director (CDO)',
+    version: '1.0',
+    objective: '',
+    scope: '',
+    guidelines: [''],
+    controls: [''],
+    sancions: ''
+  });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
+
+  const handleAddPolicy = () => {
+    const id = `POL-${Math.floor(100 + Math.random() * 900)}`;
+    const policyToAdd = { ...newPolicy, id };
+    setPolicies([policyToAdd, ...policies]);
+    setIsCreateModalOpen(false);
+    // Reset form
+    setNewPolicy({
+      id: '', title: '', type: 'Gobierno de Datos', status: 'Borrador', workflowId: 'WF-001', currentStep: 0, expiry: '2026',
+      owner: 'Carlos Director (CDO)', version: '1.0', objective: '', scope: '', 
+      guidelines: [''], controls: [''], sancions: ''
+    });
+  };
+
+  const handleUpdateStatus = (id: string, newStatus: string) => {
+    setPolicies(policies.map(p => p.id === id ? { ...p, status: newStatus } : p));
+    if (selectedPolicy?.id === id) {
+      setSelectedPolicy({ ...selectedPolicy, status: newStatus });
+    }
+  };
+
+  const startEditing = () => {
+    setEditForm({ ...selectedPolicy });
+    setIsEditing(true);
+  };
+
+  const advanceWorkflow = (policyId: string) => {
+    const pIndex = policies.findIndex(p => p.id === policyId);
+    if (pIndex === -1) return;
+
+    const policy = policies[pIndex];
+    const wf = workflows.find(w => w.id === (policy.workflowId || 'WF-001'));
+    if (!wf) return;
+
+    const nextStepIdx = (policy.currentStep || 0) + 1;
+    if (nextStepIdx >= wf.steps.length) return; // Ya en el final
+
+    const nextStatus = wf.steps[nextStepIdx];
+    const updatedPolicy = { ...policy, currentStep: nextStepIdx, status: nextStatus };
+
+    setPolicies(policies.map(p => p.id === policyId ? updatedPolicy : p));
+    if (selectedPolicy?.id === policyId) {
+      setSelectedPolicy(updatedPolicy);
+    }
+  };
+
+  const simulateAiGeneration = (field: 'new' | 'edit') => {
+    setIsAiGenerating(true);
+    
+    const contextTitle = field === 'new' ? newPolicy.title : editForm.title;
+    const titleLower = contextTitle.toLowerCase();
+
+    setTimeout(() => {
+      let generatedData = {
+        objective: `Establecer un marco normativo para la gestión de ${contextTitle || 'activos de datos'} en la organización.`,
+        scope: "Toda la infraestructura, procesos y personal que maneje información corporativa.",
+        guidelines: [
+          "Cumplimiento con estándares internacionales.",
+          "Revisiones periódicas de cumplimiento.",
+          "Capacitación obligatoria para el personal implicado."
+        ]
+      };
+
+      // Lógica de contexto simple
+      if (titleLower.includes('privacidad') || titleLower.includes('protección')) {
+        generatedData = {
+          objective: "Garantizar la protección de datos personales y la privacidad de los titulares de acuerdo con la Ley de Protección de Datos (GDPR/Habeas Data).",
+          scope: "Todos los procesos que involucren recolección, almacenamiento o tratamiento de PII.",
+          guidelines: [
+            "Implementación de Privacy by Design en todo nuevo proyecto.",
+            "Gestión estricta de consentimientos informados.",
+            "Notificación de brechas de seguridad en menos de 72 horas."
+          ]
+        };
+      } else if (titleLower.includes('calidad')) {
+        generatedData = {
+          objective: "Asegurar que los datos sean exactos, completos, consistentes y oportunos para la toma de decisiones estratégicas.",
+          scope: "Sistemas maestros de datos (ERP, CRM) y almacenes de datos analíticos.",
+          guidelines: [
+            "Definición de umbrales mínimos de calidad por dominio.",
+            "Limpieza de datos (Data Cleansing) automatizada mensual.",
+            "Certificación de fuentes de datos oficiales."
+          ]
+        };
+      } else if (titleLower.includes('seguridad') || titleLower.includes('cifrado')) {
+        generatedData = {
+          objective: "Proteger los activos de información contra accesos no autorizados, alteraciones o destrucción accidental.",
+          scope: "Redes, servidores, dispositivos finales y bases de datos corporativas.",
+          guidelines: [
+            "Uso obligatorio de MFA y cifrado AES-256.",
+            "Rotación bimensual de credenciales críticas.",
+            "Auditorías de acceso trimestrales."
+          ]
+        };
+      } else if (titleLower.includes('retención') || titleLower.includes('borrado')) {
+        generatedData = {
+          objective: "Definir los ciclos de vida de la información para optimizar el almacenamiento y cumplir con términos legales de conservación.",
+          scope: "Archivos físicos y repositorios digitales históricos.",
+          guidelines: [
+            "Clasificación de datos por tiempo de vida legal.",
+            "Borrado seguro certificado al finalizar la vigencia.",
+            "Revisiones anuales de purga de datos obsoletos."
+          ]
+        };
+      }
+
+      if (field === 'new') {
+        setNewPolicy({ ...newPolicy, ...generatedData });
+      } else {
+        setEditForm({ ...editForm, ...generatedData });
+      }
+      setIsAiGenerating(false);
+    }, 1200);
+  };
+
+  const saveEdits = () => {
+    setPolicies(policies.map(p => p.id === editForm.id ? editForm : p));
+    setSelectedPolicy(editForm);
+    setIsEditing(false);
+  };
+
+  const handleFileUpload = (policyId: string) => {
+    const fileName = `Documento_Soporte_${Math.floor(Math.random()*1000)}.pdf`;
+    const currentFiles = uploadedFiles[policyId] || [];
+    setUploadedFiles({
+      ...uploadedFiles,
+      [policyId]: [...currentFiles, { name: fileName, date: new Date().toISOString().split('T')[0] }]
+    });
+  };
+
+  const handleExportPDF = () => {
+    // Usamos el diálogo de impresión del sistema para permitir "Guardar como PDF"
+    // con el contenido formateado de la política.
+    window.print();
+  };
+
+  const kpiExplanations: Record<string, string> = {
+    'Políticas Activas': 'Total de normativas vigentes y publicadas que deben ser cumplidas por la organización.',
+    'Vencidas': 'Políticas cuya fecha de vigencia ha expirado y requieren revisión urgente para evitar brechas de cumplimiento.',
+    'En Revisión': 'Documentos en etapa de borrador o actualización que están esperando aprobación del CDO o CISO.',
+    'Cumplimiento': 'Porcentaje de controles asociados a las políticas que han pasado satisfactoriamente las pruebas de auditoría.',
+    'Estándares Aplicados': 'Número de reglas técnicas operativas que están siendo monitoreadas activamente en las bases de datos.'
+  };
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <h1>Políticas y Estándares</h1>
-          <p>Repositorio oficial de lineamientos, normas y procedimientos de datos.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1>Centro de Gobierno Normativo</h1>
+            <p>Definición, control y auditoría de políticas corporativas y estándares de datos.</p>
+          </div>
+          <button className={styles.primaryBtn} onClick={() => setIsCreateModalOpen(true)}>
+            <Plus size={18} style={{ marginRight: '8px' }} /> Nueva Política
+          </button>
         </div>
       </header>
 
-      <div className={styles.statsRow}>
-        <div className={styles.miniStat}>
-          <span className={styles.statVal}>12</span>
-          <span className={styles.statLabel}>Políticas Vigentes</span>
-        </div>
-        <div className={styles.miniStat}>
-          <span className={styles.statVal}>2</span>
-          <span className={styles.statLabel}>En Revisión</span>
-        </div>
-        <div className={styles.miniStat}>
-          <span className={styles.statVal}>1</span>
-          <span className={styles.statLabel}>Vencidas</span>
-        </div>
-      </div>
-
-      <div className={styles.list}>
-        {policies.map(policy => (
-          <div key={policy.id} className={styles.policyCard}>
-            <div className={styles.iconWrapper}>
-              <FileText size={24} />
+      {/* KPI Cards */}
+      <div className={styles.kpiGrid}>
+        {[
+          { label: 'Políticas Activas', value: policies.filter(p => p.status === 'Vigente').length, icon: <FileCheck color="#10b981" />, bg: '#f0fdf4' },
+          { label: 'Vencidas', value: policies.filter(p => p.status === 'Vencida').length, icon: <AlertCircle color="#ef4444" />, bg: '#fef2f2' },
+          { label: 'En Revisión', value: policies.filter(p => p.status === 'En Revisión').length, icon: <History color="#f59e0b" />, bg: '#fffbeb' },
+          { label: 'Cumplimiento', value: '87%', icon: <ShieldCheck color="#6366f1" />, bg: '#eef2ff' },
+          { label: 'Estándares Aplicados', value: '42', icon: <Settings color="#8b5cf6" />, bg: '#f5f3ff' },
+        ].map((kpi, idx) => (
+          <motion.div 
+            key={idx} 
+            className={styles.kpiCard}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+          >
+            <div className={styles.kpiIcon} style={{ background: kpi.bg }}>
+              {kpi.icon}
             </div>
-            <div className={styles.policyMain}>
-              <div className={styles.policyHeader}>
-                <h3>{policy.title}</h3>
-                <span className={styles.version}>{policy.version}</span>
-              </div>
-              <div className={styles.policyMeta}>
-                <span>{policy.author}</span>
-                <span>•</span>
-                <span>Actualizado el {policy.date}</span>
-              </div>
-            </div>
-            <div className={styles.policyStatus}>
-              <span className={`${styles.statusBadge} ${styles[policy.status.toLowerCase().replace(' ', '')]}`}>
-                {policy.status === 'Vigente' ? <CheckCircle size={14} /> : 
-                 policy.status === 'En Revisión' ? <History size={14} /> : 
-                 <AlertCircle size={14} />}
-                {policy.status}
-              </span>
-            </div>
-            <div className={styles.policyActions}>
-              <button className={styles.iconBtn}><Eye size={18} /></button>
-              <button className={styles.iconBtn}><Download size={18} /></button>
-              <button className={styles.historyBtn}>Historial</button>
-            </div>
-          </div>
+            <span className={styles.kpiValue}>{kpi.value}</span>
+            <span className={styles.kpiLabel}>{kpi.label}</span>
+          </motion.div>
         ))}
       </div>
+
+      {/* Main Tabs */}
+      <div className={styles.tabs}>
+        {[
+          { id: 'politicas', label: 'Políticas', icon: <FileText size={18} /> },
+          { id: 'flujos', label: 'Flujos', icon: <GitBranch size={18} /> },
+          { id: 'estandares', label: 'Estándares', icon: <Settings size={18} /> },
+          { id: 'procedimientos', label: 'Procedimientos', icon: <Layers size={18} /> },
+          { id: 'controles', label: 'Controles', icon: <CheckSquare size={18} /> },
+          { id: 'evidencias', label: 'Evidencias', icon: <FileSearch size={18} /> }
+        ].map(tab => (
+          <button 
+            key={tab.id}
+            className={`${styles.tabBtn} ${activeTab === tab.id ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.tableContainer}>
+        {activeTab === 'politicas' && (
+          <>
+            <div className={styles.tableHeader}>
+              <span>Política</span>
+              <span>Tipo</span>
+              <span>Estado</span>
+              <span>Progreso de Flujo</span>
+              <span>Vigencia</span>
+              <span>Responsable</span>
+              <span></span>
+            </div>
+            {workflowFilter && (
+               <div style={{ padding: '12px 20px', background: '#eef2ff', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#6366f1', fontWeight: 600 }}>
+                     Filtro activo: {workflows.find(w => w.id === workflowFilter)?.name}
+                  </span>
+                  <button 
+                    onClick={() => setWorkflowFilter(null)}
+                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.8rem', textDecoration: 'underline', cursor: 'pointer' }}
+                  >
+                     Limpiar Filtro
+                  </button>
+               </div>
+            )}
+            {policies.filter(p => !workflowFilter || p.workflowId === workflowFilter).map((pol, idx) => (
+              <motion.div 
+                key={pol.id} 
+                className={styles.row}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <div className={styles.policyInfo}>
+                  <span className={styles.policyTitle}>{pol.title}</span>
+                  <span className={styles.policySubtitle}><BookOpen size={12} /> {pol.version}</span>
+                </div>
+                <div><span className={styles.typeBadge}>{pol.type}</span></div>
+                <div>
+                  <span className={`${styles.statusBadge} ${pol.status === 'Vigente' ? styles.vigente : pol.status === 'En Revisión' ? styles.revision : pol.status === 'Vencida' ? styles.vencida : ''}`} style={{ background: pol.status === 'Borrador' ? '#f1f5f9' : undefined, color: pol.status === 'Borrador' ? '#64748b' : undefined }}>
+                    {pol.status === 'Vigente' ? <CheckCircle size={14} /> : pol.status === 'En Revisión' ? <History size={14} /> : pol.status === 'Borrador' ? <Clock size={14} /> : <AlertCircle size={14} />}
+                    {pol.status}
+                  </span>
+                </div>
+                <div style={{ paddingRight: '20px' }}>
+                   <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '4px' }}>
+                      {workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.name}
+                   </div>
+                   <div className={styles.progressBar}>
+                      <div 
+                        className={styles.progressFill} 
+                        style={{ 
+                          width: `${((pol.currentStep || 0) + 1) / (workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.steps.length || 3) * 100}%`,
+                          backgroundColor: workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.color
+                        }}
+                      ></div>
+                   </div>
+                </div>
+                <span style={{ fontWeight: 600, color: '#1e293b' }}>{pol.expiry}</span>
+                <div className={styles.ownerArea}>
+                  <div className={styles.avatarMini}>{pol.owner.split(' ')[0]?.charAt(0) || 'U'}</div>
+                  <span style={{ fontSize: '0.85rem' }}>{pol.owner.split(' - ')[0]}</span>
+                </div>
+                <button className={styles.actionBtn} onClick={() => setSelectedPolicy(pol)}>Gestionar</button>
+              </motion.div>
+            ))}
+          </>
+        )}
+
+        {activeTab === 'estandares' && (
+          <>
+            <div className={styles.tableHeader}>
+              <span>Estándar Técnico</span>
+              <span>Categoría</span>
+              <span>Cobertura / Aplicación</span>
+              <span>Estado</span>
+              <span>Responsable</span>
+              <span></span>
+            </div>
+            {standardsData.map((std, idx) => (
+              <motion.div 
+                key={std.id} 
+                className={styles.row}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className={styles.policyInfo}>
+                  <span className={styles.policyTitle}>{std.name}</span>
+                  <span className={styles.policySubtitle}>{std.id}</span>
+                </div>
+                <div><span className={styles.typeBadge}>{std.category}</span></div>
+                <span style={{ fontWeight: 600, color: '#1e293b' }}>{std.applied}</span>
+                <div>
+                  <span className={styles.sevBadge} style={{ 
+                    color: std.status === 'Crítico' ? '#ef4444' : '#10b981',
+                    background: std.status === 'Crítico' ? '#fef2f2' : '#f0fdf4',
+                    padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700
+                  }}>{std.status}</span>
+                </div>
+                <div className={styles.ownerArea}>
+                  <div className={styles.avatarMini}>AR</div>
+                  <span style={{ fontSize: '0.85rem' }}>Arquitectura</span>
+                </div>
+                <button className={styles.actionBtn}>Detalle</button>
+              </motion.div>
+            ))}
+          </>
+        )}
+
+        {activeTab === 'flujos' && (
+          <div className={styles.mainContent} style={{ padding: '32px' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 className={styles.sectionTitle} style={{ margin: 0, border: 'none' }}>Configuración de Flujos de Aprobación</h2>
+                <button className={styles.primaryBtn} onClick={() => alert('Próximamente: Editor de flujos visual')}>
+                   <Plus size={16} style={{ marginRight: '8px' }} /> Nuevo Flujo
+                </button>
+             </div>
+             
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                {workflows.map((wf, idx) => (
+                  <motion.div 
+                    key={idx} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={styles.workflowCard} 
+                    style={{ borderTop: `4px solid ${wf.color}` }}
+                  >
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{wf.name}</h3>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ID: {wf.id}</span>
+                     </div>
+                     <div className={styles.stepList}>
+                        {wf.steps.map((step, sIdx) => (
+                          <div key={sIdx} className={styles.stepItem}>
+                             <div className={styles.stepDot} style={{ background: wf.color }}>{sIdx + 1}</div>
+                             <div className={styles.stepName}>{step}</div>
+                             {sIdx < wf.steps.length - 1 && <div className={styles.stepLine} style={{ background: wf.color, opacity: 0.2 }}></div>}
+                          </div>
+                        ))}
+                     </div>
+                     <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '10px' }}>
+                        <button className={styles.secondaryBtn} style={{ padding: '6px 12px', fontSize: '0.75rem' }} onClick={() => openWfEditor(wf)}>Editar Pasos</button>
+                        <button 
+                          className={styles.secondaryBtn} 
+                          style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                          onClick={() => {
+                            setWorkflowFilter(wf.id);
+                            setActiveTab('politicas');
+                          }}
+                        >
+                           Ver Políticas
+                        </button>
+                     </div>
+                  </motion.div>
+                ))}
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'procedimientos' && (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+            <Layers size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+            <h3>Guías de Procedimiento Operativo</h3>
+            <p>Repositorio de pasos técnicos para la ejecución de tareas de gobierno.</p>
+            <div className={styles.evidenceGrid} style={{ marginTop: '32px', textAlign: 'left' }}>
+               <div className={styles.evidenceCard}>
+                  <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
+                  <div>
+                     <div style={{ fontWeight: 700 }}>PR-01: Clasificación de Datos Sensibles</div>
+                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Última Rev: 2024-05-10 | v1.4</div>
+                  </div>
+               </div>
+               <div className={styles.evidenceCard}>
+                  <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
+                  <div>
+                     <div style={{ fontWeight: 700 }}>PR-02: Backup y Recuperación ante Desastres</div>
+                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Última Rev: 2024-04-20 | v2.0</div>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'controles' && (
+          <div className={styles.riskTable}>
+             <div className={styles.tableHeader} style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
+                <span>Control ID</span>
+                <span>Descripción del Control</span>
+                <span>Frecuencia</span>
+                <span>Estado</span>
+             </div>
+             {[
+               { id: 'CTRL-01', desc: 'Validación de tipos de datos en ingesta', freq: 'Tiempo Real', status: 'OK' },
+               { id: 'CTRL-02', desc: 'Revisión trimestral de accesos PII', freq: 'Trimestral', status: 'OK' },
+               { id: 'CTRL-03', desc: 'Escaneo de vulnerabilidades DB', freq: 'Semanal', status: 'Falla' },
+             ].map((ctrl, i) => (
+               <div key={i} className={styles.row} style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
+                 <span className={styles.riskId}>{ctrl.id}</span>
+                 <span style={{ fontWeight: 600 }}>{ctrl.desc}</span>
+                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{ctrl.freq}</span>
+                 <span className={styles.sevBadge} style={{ 
+                    background: ctrl.status === 'OK' ? '#f0fdf4' : '#fef2f2',
+                    color: ctrl.status === 'OK' ? '#10b981' : '#ef4444'
+                 }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
+               </div>
+             ))}
+          </div>
+        )}
+
+        {activeTab === 'evidencias' && (
+          <div className={styles.evidenceGrid} style={{ padding: '32px' }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} className={styles.evidenceCard}>
+                <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '10px' }}><FileText color="#ef4444" /></div>
+                <div>
+                   <div style={{ fontWeight: 700 }}>Audit_Log_Q{i}_2024.pdf</div>
+                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Certificado por Auditoría Externa</div>
+                </div>
+                <Download size={18} style={{ marginLeft: 'auto', color: '#64748b' }} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Create Policy Modal */}
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsCreateModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '700px' }}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Nueva Política Corporativa</h2>
+                  <p style={{ color: '#94a3b8' }}>Complete los campos para iniciar el flujo de aprobación.</p>
+                </div>
+                <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}>
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className={styles.modalBody} style={{ padding: '32px', display: 'block', overflowY: 'auto' }}>
+                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                    <button 
+                      className={styles.aiBtn} 
+                      onClick={() => simulateAiGeneration('new')}
+                      disabled={isAiGenerating}
+                    >
+                       <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                    </button>
+                 </div>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Nombre de la Política</label>
+                       <input 
+                         type="text" 
+                         placeholder="Ej: Política de Ética en IA" 
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         value={newPolicy.title}
+                         onChange={e => setNewPolicy({...newPolicy, title: e.target.value})}
+                       />
+                    </div>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Tipo / Categoría</label>
+                       <select 
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         value={newPolicy.type}
+                         onChange={e => setNewPolicy({...newPolicy, type: e.target.value})}
+                       >
+                          <option>Gobierno de Datos</option>
+                          <option>Seguridad / Privacidad</option>
+                          <option>Cumplimiento / Legal</option>
+                          <option>Tecnología / IA</option>
+                       </select>
+                    </div>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Flujo de Aprobación</label>
+                       <select 
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         value={newPolicy.workflowId}
+                         onChange={e => setNewPolicy({...newPolicy, workflowId: e.target.value})}
+                       >
+                          {workflows.map((wf, i) => (
+                            <option key={i} value={wf.id}>{wf.name}</option>
+                          ))}
+                       </select>
+                    </div>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
+                       <select 
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         value={newPolicy.owner}
+                         onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
+                       >
+                          {teamMembers.map((m, i) => (
+                            <option key={i}>{m.name} ({m.role})</option>
+                          ))}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Vigencia (Año)</label>
+                       <input 
+                         type="number" 
+                         value={newPolicy.expiry}
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         onChange={e => setNewPolicy({...newPolicy, expiry: e.target.value})}
+                       />
+                    </div>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Versión Inicial</label>
+                       <input 
+                         type="text" 
+                         value={newPolicy.version}
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         onChange={e => setNewPolicy({...newPolicy, version: e.target.value})}
+                       />
+                    </div>
+                 </div>
+
+                 <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo de la Política</label>
+                    <textarea 
+                      rows={3} 
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                      value={newPolicy.objective}
+                      onChange={e => setNewPolicy({...newPolicy, objective: e.target.value})}
+                    />
+                 </div>
+              </div>
+
+              <div className={styles.footer}>
+                 <button className={styles.secondaryBtn} onClick={() => setIsCreateModalOpen(false)}>Cancelar</button>
+                 <button className={styles.primaryBtn} onClick={handleAddPolicy}>Crear Borrador</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Policy Detail Modal with Approval Workflow */}
+      <AnimatePresence>
+        {selectedPolicy && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedPolicy(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <span style={{ color: '#4f46e5', fontWeight: 800, fontSize: '0.85rem' }}>{selectedPolicy.id}</span>
+                  <h2>{selectedPolicy.title}</h2>
+                  <div className={styles.headerBadges}>
+                    <span className={styles.statusBadge} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      Versión {selectedPolicy.version}
+                    </span>
+                    <span className={styles.statusBadge} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      {selectedPolicy.status}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                   {!isEditing ? (
+                     <>
+                        <button className={styles.secondaryBtn} onClick={startEditing} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid white' }}>
+                          <Settings size={18} style={{ marginRight: '8px' }} /> Editar
+                        </button>
+                        {selectedPolicy.status === 'Borrador' && (
+                          <button className={styles.primaryBtn} style={{ background: '#f59e0b' }} onClick={() => handleUpdateStatus(selectedPolicy.id, 'En Revisión')}>
+                            Enviar a Revisión
+                          </button>
+                        )}
+                        {selectedPolicy.status === 'En Revisión' && (
+                          <button className={styles.primaryBtn} style={{ background: '#10b981' }} onClick={() => handleUpdateStatus(selectedPolicy.id, 'Vigente')}>
+                            <CheckSquare size={18} style={{ marginRight: '8px' }} /> Publicar Política
+                          </button>
+                        )}
+                     </>
+                   ) : (
+                     <button className={styles.primaryBtn} style={{ background: '#10b981' }} onClick={saveEdits}>
+                        <CheckCircle size={18} style={{ marginRight: '8px' }} /> Guardar Cambios
+                     </button>
+                   )}
+                   <button onClick={() => { setSelectedPolicy(null); setIsEditing(false); }} style={{ background: 'transparent', border: 'none', color: 'white' }}>
+                     <X size={28} />
+                   </button>
+                </div>
+              </div>
+
+              <div className={styles.modalBody}>
+                {/* ... Sidebar ... */}
+                <div className={styles.sidebar}>
+                  {[
+                    { id: 'general', label: '1. Objetivo y Alcance', icon: <BookOpen size={16} /> },
+                    { id: 'ciclo', label: '2. Ciclo de Vida', icon: <GitBranch size={16} /> },
+                    { id: 'lineamientos', label: '3. Lineamientos', icon: <Layers size={16} /> },
+                    { id: 'responsables', label: '4. Responsables', icon: <User size={16} /> },
+                    { id: 'controles', label: '5. Controles y Sanciones', icon: <Shield size={16} /> },
+                    { id: 'evidencias', label: '6. Evidencias y Doc.', icon: <FileSearch size={16} /> }
+                  ].map(t => (
+                    <div 
+                      key={t.id}
+                      className={`${styles.sideTab} ${modalTab === t.id ? styles.activeSideTab : ''}`}
+                      onClick={() => setModalTab(t.id)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {t.icon} {t.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.mainDetail}>
+                  {modalTab === 'ciclo' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                       <h3 className={styles.sectionTitle}>Gestión del Ciclo de Vida</h3>
+                       <div style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ marginBottom: '32px' }}>
+                             <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
+                                Flujo aplicado: <strong>{workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.name}</strong>
+                             </div>
+                             <div className={styles.horizontalStepper}>
+                                {workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.map((step: string, sIdx: number) => {
+                                   const isPast = sIdx < (selectedPolicy.currentStep || 0);
+                                   const isCurrent = sIdx === (selectedPolicy.currentStep || 0);
+                                   return (
+                                     <div key={sIdx} className={`${styles.hStep} ${isCurrent ? styles.hStepActive : isPast ? styles.hStepPast : ''}`}>
+                                        <div className={styles.hStepDot}>
+                                           {isPast ? <CheckCircle size={14} /> : sIdx + 1}
+                                        </div>
+                                        <div className={styles.hStepLabel}>{step}</div>
+                                        {sIdx < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 0) - 1 && (
+                                          <div className={styles.hStepLine}></div>
+                                        )}
+                                     </div>
+                                   );
+                                })}
+                             </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '12px' }}>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                   {selectedPolicy.currentStep === (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 
+                                     ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
+                                     : `Siguiente paso: ${workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps[(selectedPolicy.currentStep || 0) + 1]}`
+                                   }
+                                </div>
+                             </div>
+                             {(selectedPolicy.currentStep || 0) < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
+                               <button 
+                                 className={styles.primaryBtn} 
+                                 onClick={() => advanceWorkflow(selectedPolicy.id)}
+                                 style={{ padding: '10px 20px' }}
+                               >
+                                  Avanzar Paso
+                               </button>
+                             )}
+                          </div>
+                       </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'general' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Objetivo y Alcance</h3>
+                         {isEditing && (
+                            <button 
+                              className={styles.aiBtn} 
+                              onClick={() => simulateAiGeneration('edit')}
+                              disabled={isAiGenerating}
+                            >
+                               <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                            </button>
+                         )}
+                      </div>
+                      <div className={styles.richText}>
+                        {!isEditing ? (
+                          <>
+                            <p><strong>Objetivo:</strong> {selectedPolicy.objective}</p>
+                            <p style={{ marginTop: '24px' }}><strong>Alcance:</strong> {selectedPolicy.scope}</p>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                             <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Título de la Política</label>
+                                <input 
+                                  type="text" 
+                                  className={styles.actionBtn} 
+                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
+                                  value={editForm.title}
+                                  onChange={e => setEditForm({...editForm, title: e.target.value})}
+                                />
+                             </div>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                               <div>
+                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
+                                  <select 
+                                    className={styles.actionBtn} 
+                                    style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
+                                    value={editForm.owner}
+                                    onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                  >
+                                     {teamMembers.map((m, i) => (
+                                       <option key={i}>{m.name} ({m.role})</option>
+                                     ))}
+                                  </select>
+                               </div>
+                               <div>
+                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Tipo</label>
+                                  <select 
+                                    className={styles.actionBtn} 
+                                    style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
+                                    value={editForm.type}
+                                    onChange={e => setEditForm({...editForm, type: e.target.value})}
+                                  >
+                                     <option>Gobierno de Datos</option>
+                                     <option>Seguridad / Privacidad</option>
+                                     <option>Cumplimiento / Legal</option>
+                                     <option>Tecnología / IA</option>
+                                  </select>
+                               </div>
+                             </div>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div>
+                                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Versión</label>
+                                   <input 
+                                     type="text" 
+                                     className={styles.actionBtn} 
+                                     style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
+                                     value={editForm.version}
+                                     onChange={e => setEditForm({...editForm, version: e.target.value})}
+                                   />
+                                </div>
+                                <div>
+                                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Vigencia (Año)</label>
+                                   <input 
+                                     type="number" 
+                                     className={styles.actionBtn} 
+                                     style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
+                                     value={editForm.expiry}
+                                     onChange={e => setEditForm({...editForm, expiry: e.target.value})}
+                                   />
+                                </div>
+                             </div>
+                             <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo</label>
+                                <textarea 
+                                  rows={4}
+                                  className={styles.actionBtn} 
+                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left', minHeight: '100px' }}
+                                  value={editForm.objective}
+                                  onChange={e => setEditForm({...editForm, objective: e.target.value})}
+                                />
+                             </div>
+                             <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Alcance (Scope)</label>
+                                <textarea 
+                                  rows={4}
+                                  className={styles.actionBtn} 
+                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left', minHeight: '100px' }}
+                                  value={editForm.scope}
+                                  onChange={e => setEditForm({...editForm, scope: e.target.value})}
+                                />
+                             </div>
+                          </div>
+                        )}
+                        <div style={{ marginTop: '32px', padding: '20px', background: '#f8fafc', borderRadius: '16px' }}>
+                           <h5 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Definiciones Clave</h5>
+                           <ul style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                              <li><strong>Dato Sensible:</strong> Aquel que afecta la intimidad del titular.</li>
+                              <li><strong>PII:</strong> Personally Identifiable Information.</li>
+                           </ul>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'lineamientos' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Lineamientos Obligatorios</h3>
+                      </div>
+                      <div className={styles.richText}>
+                        <ul className={styles.guidelineList} style={{ listStyle: 'none', padding: 0 }}>
+                          {(isEditing ? editForm.guidelines : selectedPolicy.guidelines)?.map((g: string, i: number) => (
+                            <li key={i} style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                              <CheckCircle size={18} color="#10b981" style={{ flexShrink: 0, marginTop: '4px' }} />
+                              {isEditing ? (
+                                <input 
+                                  type="text" 
+                                  value={g}
+                                  style={{ border: 'none', borderBottom: '1px solid #e2e8f0', width: '100%', fontSize: '0.95rem' }}
+                                  onChange={e => {
+                                    const newG = [...editForm.guidelines];
+                                    newG[i] = e.target.value;
+                                    setEditForm({...editForm, guidelines: newG});
+                                  }}
+                                />
+                              ) : (
+                                <span>{g}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        {isEditing && (
+                           <button 
+                             className={styles.secondaryBtn} 
+                             onClick={() => setEditForm({...editForm, guidelines: [...editForm.guidelines, '']})}
+                             style={{ marginTop: '10px', fontSize: '0.8rem' }}
+                           >
+                             + Añadir Lineamiento
+                           </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'responsables' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <h3 className={styles.sectionTitle}>Matriz de Responsabilidades</h3>
+                      <div className={styles.evidenceGrid} style={{ gridTemplateColumns: '1fr' }}>
+                         <div className={styles.evidenceCard}>
+                            <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><User color="#6366f1" /></div>
+                            <div style={{ flex: 1 }}>
+                               <div style={{ fontWeight: 700 }}>Data Owner (Dueño)</div>
+                                {isEditing ? (
+                                   <select 
+                                     style={{ width: '100%', padding: '6px', marginTop: '4px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                     value={editForm.owner}
+                                     onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                   >
+                                      {teamMembers.map((m: any, i: number) => <option key={i}>{m.name} ({m.role})</option>)}
+                                   </select>
+                                ) : (
+                                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
+                                )}
+                            </div>
+                         </div>
+                         <div className={styles.evidenceCard}>
+                            <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><Shield color="#10b981" /></div>
+                            <div>
+                               <div style={{ fontWeight: 700 }}>Data Custodian (TI)</div>
+                               <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Sofia Rodriguez (TI Ops)</div>
+                            </div>
+                         </div>
+                         <div className={styles.evidenceCard}>
+                            <div style={{ padding: '10px', background: '#fffbeb', borderRadius: '8px' }}><CheckSquare color="#f59e0b" /></div>
+                            <div>
+                               <div style={{ fontWeight: 700 }}>Auditor Designado</div>
+                               <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Elena Gomez (Internal Audit)</div>
+                            </div>
+                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'controles' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <h3 className={styles.sectionTitle}>Controles y Sanciones</h3>
+                      <div className={styles.controlList}>
+                         {(isEditing ? editForm.controls : selectedPolicy.controls)?.map((c: string, i: number) => (
+                           <div key={i} className={styles.controlItem} style={{ marginBottom: '12px' }}>
+                              <ShieldCheck size={20} color="#6366f1" />
+                              <div style={{ flex: 1 }}>
+                                {isEditing ? (
+                                   <input 
+                                     type="text" 
+                                     value={c}
+                                     style={{ border: 'none', borderBottom: '1px solid #e2e8f0', width: '100%', fontSize: '0.95rem' }}
+                                     onChange={e => {
+                                       const newC = [...editForm.controls];
+                                       newC[i] = e.target.value;
+                                       setEditForm({...editForm, controls: newC});
+                                     }}
+                                   />
+                                ) : (
+                                   <>
+                                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{c}</div>
+                                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Frecuencia: Mensual | Estado: <span style={{ color: '#10b981', fontWeight: 800 }}>ACTIVO</span></div>
+                                   </>
+                                )}
+                              </div>
+                           </div>
+                         ))}
+                         {isEditing && (
+                            <button 
+                              className={styles.secondaryBtn} 
+                              onClick={() => setEditForm({...editForm, controls: [...editForm.controls, '']})}
+                              style={{ marginTop: '10px', fontSize: '0.8rem' }}
+                            >
+                              + Añadir Control
+                            </button>
+                         )}
+                      </div>
+                      <div style={{ marginTop: '32px', padding: '20px', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca' }}>
+                         <h5 style={{ margin: '0 0 8px 0', color: '#991b1b' }}>Sanciones por Incumplimiento</h5>
+                         {isEditing ? (
+                             <textarea 
+                               rows={3}
+                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca', marginTop: '8px' }}
+                               value={editForm.sancions}
+                               onChange={e => setEditForm({...editForm, sancions: e.target.value})}
+                             />
+                          ) : (
+                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#b91c1c' }}>{selectedPolicy.sancions}</p>
+                          )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'evidencias' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Evidencias y Documentos</h3>
+                         <button className={styles.primaryBtn} style={{ padding: '8px 16px', fontSize: '0.8rem' }} onClick={() => handleFileUpload(selectedPolicy.id)}>
+                            <Plus size={14} style={{ marginRight: '6px' }} /> Subir Documento
+                         </button>
+                      </div>
+                      <div className={styles.evidenceGrid}>
+                         <div className={styles.evidenceCard}>
+                            <div style={{ padding: '10px', background: '#fef2f2', borderRadius: '8px' }}><FileText color="#ef4444" /></div>
+                            <div>
+                               <div style={{ fontWeight: 700 }}>Manual_Procedimiento.pdf</div>
+                               <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>2.4 MB | Firmado Digitalmente</div>
+                            </div>
+                         </div>
+                         {uploadedFiles[selectedPolicy.id]?.map((f, i) => (
+                           <div key={i} className={styles.evidenceCard} style={{ border: '1px solid #10b981' }}>
+                              <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><FileCheck color="#10b981" /></div>
+                              <div>
+                                 <div style={{ fontWeight: 700 }}>{f.name}</div>
+                                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Cargado el: {f.date}</div>
+                              </div>
+                           </div>
+                         ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.footer}>
+                <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div className={styles.avatarMini}>{selectedPolicy.owner.split(' ')[0][0]}{selectedPolicy.owner.split(' ')[1][0]}</div>
+                   <div style={{ fontSize: '0.8rem' }}>
+                      <div style={{ color: '#64748b' }}>Propietario Principal</div>
+                      <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
+                   </div>
+                </div>
+                <button className={styles.secondaryBtn} onClick={() => setSelectedPolicy(null)}>Cerrar</button>
+                <button className={styles.primaryBtn} onClick={handleExportPDF}><Download size={16} style={{ marginRight: '8px' }} /> Exportar PDF</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Template Formal para Exportación PDF --- */}
+      {selectedPolicy && (
+        <div id="formal-policy-document" className={styles.printableDocument}>
+          <div className={styles.printHeader}>
+             <div style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>GovData<span style={{ color: '#6366f1' }}>Nexus</span></div>
+             <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{selectedPolicy.title}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id} | Versión: {selectedPolicy.version}</div>
+             </div>
+          </div>
+
+          <div className={styles.printBody}>
+             <div className={styles.printMetaGrid}>
+                <div><strong>Estado:</strong> {selectedPolicy.status}</div>
+                <div><strong>Vigencia:</strong> {selectedPolicy.expiry}</div>
+                <div><strong>Propietario:</strong> {selectedPolicy.owner}</div>
+                <div><strong>Clasificación:</strong> Confidencial / Uso Interno</div>
+             </div>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>1. Objetivo</h2>
+                <p>{selectedPolicy.objective}</p>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>2. Alcance</h2>
+                <p>{selectedPolicy.scope}</p>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>3. Lineamientos</h2>
+                <ul>
+                   {selectedPolicy.guidelines?.map((g: string, i: number) => (
+                     <li key={i}>{g}</li>
+                   ))}
+                </ul>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>4. Controles Asociados</h2>
+                <ul>
+                   {selectedPolicy.controls?.map((c: string, i: number) => (
+                     <li key={i}>{c}</li>
+                   ))}
+                </ul>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>5. Sanciones</h2>
+                <p>{selectedPolicy.sancions}</p>
+             </section>
+
+             <div className={styles.printSignatureArea}>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Responsable de la Política</div>
+                </div>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>Elena Gomez</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Auditoría y Cumplimiento</div>
+                </div>
+             </div>
+          </div>
+          
+          <div className={styles.printFooter}>
+             Documento generado automáticamente por GovData Nexus - © 2024 - Todos los derechos reservados.
+          </div>
+        </div>
+      )}
+      {/* Workflow Editor Modal */}
+      <AnimatePresence>
+        {isWfModalOpen && editingWf && (
+          <div className={styles.modalOverlay} onClick={() => setIsWfModalOpen(false)}>
+             <motion.div 
+               className={styles.modalContent}
+               style={{ maxWidth: '500px' }}
+               initial={{ opacity: 0, scale: 0.9 }}
+               animate={{ opacity: 1, scale: 1 }}
+               onClick={e => e.stopPropagation()}
+             >
+                <div className={styles.modalHeader}>
+                   <h2>Configurar Flujo: {editingWf.name}</h2>
+                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><X size={20} /></button>
+                </div>
+                <div className={styles.modalBody} style={{ padding: '24px' }}>
+                   <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Flujo</label>
+                      <input 
+                        type="text" 
+                        value={editingWf.name}
+                        onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      />
+                   </div>
+                   <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Color Identificador</label>
+                      <input 
+                        type="color" 
+                        value={editingWf.color}
+                        onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
+                        style={{ width: '100%', height: '40px', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      />
+                   </div>
+                   <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Pasos del Ciclo de Vida</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                         {editingWf.steps.map((step: string, idx: number) => (
+                           <div key={idx} style={{ display: 'flex', gap: '10px' }}>
+                              <input 
+                                type="text" 
+                                value={step}
+                                onChange={e => {
+                                  const newSteps = [...editingWf.steps];
+                                  newSteps[idx] = e.target.value;
+                                  setEditingWf({ ...editingWf, steps: newSteps });
+                                }}
+                                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                              />
+                              <button 
+                                onClick={() => {
+                                  const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
+                                  setEditingWf({ ...editingWf, steps: newSteps });
+                                }}
+                                style={{ color: '#ef4444', background: 'none', border: 'none' }}
+                              >
+                                 <Trash2 size={16} />
+                              </button>
+                           </div>
+                         ))}
+                         <button 
+                           className={styles.secondaryBtn}
+                           onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
+                           style={{ marginTop: '8px' }}
+                         >
+                            <Plus size={14} /> Añadir Paso
+                         </button>
+                      </div>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
+                      <button className={styles.secondaryBtn} onClick={() => setIsWfModalOpen(false)}>Cancelar</button>
+                      <button className={styles.primaryBtn} onClick={saveWorkflow}>Guardar Cambios</button>
+                   </div>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
