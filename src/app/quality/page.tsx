@@ -546,6 +546,40 @@ export default function QualityModule() {
   };
 
   const fetchAssets = async () => {
+    const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
+    
+    if (mode === 'DEMO') {
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAssets(parsed);
+        // Calcular estadísticas de fuente sobre el fallback de localStorage
+        if (parsed.length > 0) {
+          const stats: any[] = [];
+          parsed.forEach((item: any) => {
+            const idx = stats.findIndex(s => s.name === item.source);
+            if (idx === -1) {
+              stats.push({ name: item.source, score: item.quality_score || 100, assets: 1, alerts: 0 });
+            } else {
+              stats[idx].score = Math.round((stats[idx].score * stats[idx].assets + (item.quality_score || 100)) / (stats[idx].assets + 1));
+              stats[idx].assets += 1;
+            }
+          });
+          setSourceStats(stats.sort((a, b) => b.score - a.score));
+        }
+      } else {
+        const localDemoAssets = [
+          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
+          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
+        ];
+        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+        setAssets(filteredDemo);
+      }
+      return;
+    }
+
     try {
       let query = supabase
         .from('data_assets')
@@ -557,26 +591,14 @@ export default function QualityModule() {
 
       const { data, error } = await query.order('name');
 
-      if (error) {
-        console.warn('Error al cargar activos de Supabase para Calidad, aplicando fallback:', error);
-        // Fallback robusto e independiente por empresa en modo DEMO/Offline
-        const localDemoAssets = [
-          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
-          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
-        ];
-        
-        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-        setAssets(filteredDemo);
-        return;
-      }
+      if (error) throw error;
 
       console.log(`Successfully fetched ${data?.length || 0} assets.`);
+      localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
 
       // Calcular estadísticas por sistema fuente
-      if (mode === 'ENTERPRISE' && data && data.length > 0) {
+      if (data && data.length > 0) {
         const sourceMap = new Map<string, { total: number; scoreSum: number; count: number }>();
         data.forEach((a: any) => {
           const src = a.source || 'Sin Fuente';
@@ -591,7 +613,7 @@ export default function QualityModule() {
           name,
           score: info.count > 0 ? Math.round(info.scoreSum / info.count) : 0,
           assets: info.total,
-          alerts: 0 // Se actualizará con incidentes reales
+          alerts: 0
         }));
 
         // Contar incidentes por sistema
@@ -614,7 +636,34 @@ export default function QualityModule() {
         setSourceStats(stats.sort((a, b) => b.score - a.score));
       }
     } catch (err) {
-      console.error('Unexpected error fetching assets:', err);
+      console.warn('Error al cargar activos de Supabase para Calidad, aplicando fallback de localStorage:', err);
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAssets(parsed);
+        if (parsed.length > 0) {
+          const stats: any[] = [];
+          parsed.forEach((item: any) => {
+            const idx = stats.findIndex(s => s.name === item.source);
+            if (idx === -1) {
+              stats.push({ name: item.source, score: item.quality_score || 100, assets: 1, alerts: 0 });
+            } else {
+              stats[idx].score = Math.round((stats[idx].score * stats[idx].assets + (item.quality_score || 100)) / (stats[idx].assets + 1));
+              stats[idx].assets += 1;
+            }
+          });
+          setSourceStats(stats.sort((a, b) => b.score - a.score));
+        }
+      } else {
+        const localDemoAssets = [
+          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
+          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
+        ];
+        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+        setAssets(filteredDemo);
+      }
     }
   };
 
