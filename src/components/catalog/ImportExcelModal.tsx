@@ -27,7 +27,7 @@ interface ImportExcelModalProps {
 }
 
 export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModalProps) {
-  const { mode } = usePlatform();
+  const { mode, currentTenant } = usePlatform();
   const [step, setStep] = useState(1); // 1: Download/Upload, 2: Validate, 3: Preview/Import
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<any>(null);
@@ -176,6 +176,7 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
             quality_score: Number(quality.Score_Global) || 100,
             status: a.Estado || 'Vigente',
             risk_level: clas.Nivel_Riesgo || 'Bajo',
+            tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
             tags: importTags,
             updated_at: new Date().toISOString().split('T')[0]
           };
@@ -212,6 +213,7 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
           const importTags = hasPhysicalTable ? baseTags : [...baseTags, 'Metadatos_Externos'];
 
           const assetPayload = {
+            tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
             name: a.Nombre_Activo,
             table_name: a.Tabla_Archivo || null, // Nombre técnico REAL de la tabla física
             description: a.Descripcion,
@@ -225,9 +227,9 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
             criticality: a.Criticidad || 'Media',
             status: a.Estado || 'Vigente',
             tags: importTags,
-          code_id: a.Codigo_Activo,
-          quality_score: quality.Score_Global || 100
-        };
+            code_id: a.Codigo_Activo,
+            quality_score: quality.Score_Global || 100
+          };
 
         const { data: insertedAsset, error: assetError } = await supabase
           .from('data_assets')

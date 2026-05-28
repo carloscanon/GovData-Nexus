@@ -39,7 +39,7 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './quality.module.css';
 
 export default function QualityModule() {
-  const { mode } = usePlatform();
+  const { mode, currentTenant } = usePlatform();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
@@ -389,7 +389,7 @@ export default function QualityModule() {
       fetchIncidents(); // Cargar incidentes globales si no hay activo seleccionado
     }
     setTimeout(() => setLoading(false), 1000);
-  }, [mode, selectedAssetId, isMounted]);
+  }, [mode, selectedAssetId, isMounted, currentTenant?.id]);
 
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('¿Está seguro de que desea eliminar esta regla?')) return;
@@ -452,6 +452,20 @@ export default function QualityModule() {
   };
 
   const fetchIncidents = async (assetId?: string) => {
+    let tenantAssetIds: string[] = [];
+    if (mode === 'ENTERPRISE') {
+      const { data: tenantAssets } = await supabase
+        .from('data_assets')
+        .select('id')
+        .eq('tenant_id', currentTenant?.id || '00000000-0000-0000-0000-000000000001');
+      tenantAssetIds = (tenantAssets || []).map(a => a.id);
+      
+      if (tenantAssetIds.length === 0 && !assetId) {
+        setIncidents([]);
+        return;
+      }
+    }
+
     let query = supabase
       .from('quality_incidents')
       .select(`
@@ -463,8 +477,8 @@ export default function QualityModule() {
     if (assetId) {
       query = query.eq('asset_id', assetId);
     } else {
-      // Global view: show all open incidents across the organization
-      query = query.eq('status', 'Abierto');
+      // Global view: show all open incidents across the organization (isolated by tenant)
+      query = query.eq('status', 'Abierto').in('asset_id', tenantAssetIds);
     }
 
     const { data } = await query
@@ -509,13 +523,28 @@ export default function QualityModule() {
 
   const fetchAssets = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('data_assets')
-        .select('id, name, source, tags, table_name, quality_score')
-        .order('name');
+        .select('id, name, source, tags, table_name, quality_score, tenant_id');
+
+      if (currentTenant?.id) {
+        query = query.eq('tenant_id', currentTenant.id);
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) {
-        console.error('Error fetching assets for Quality:', error);
+        console.warn('Error al cargar activos de Supabase para Calidad, aplicando fallback:', error);
+        // Fallback robusto e independiente por empresa en modo DEMO/Offline
+        const localDemoAssets = [
+          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
+          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
+          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
+        ];
+        
+        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+        setAssets(filteredDemo);
         return;
       }
 
@@ -568,9 +597,23 @@ export default function QualityModule() {
   const fetchEnterpriseKPIs = async () => {
     if (mode !== 'ENTERPRISE') return;
     try {
+      // 1. Obtener solo los activos correspondientes al tenant activo
+      const { data: tenantAssets } = await supabase
+        .from('data_assets')
+        .select('id')
+        .eq('tenant_id', currentTenant?.id || '00000000-0000-0000-0000-000000000001');
+      
+      const tenantAssetIds = (tenantAssets || []).map(a => a.id);
+      if (tenantAssetIds.length === 0) {
+        setStats({ completeness: 0, accuracy: 0, consistency: 0, uniqueness: 0, timeliness: 0 });
+        return;
+      }
+
+      // 2. Obtener incidentes asociados solo a los activos de la empresa
       const { data: allIncidents } = await supabase
         .from('quality_incidents')
-        .select('total_records, affected_records, rule_id');
+        .select('total_records, affected_records, rule_id')
+        .in('asset_id', tenantAssetIds);
 
       if (!allIncidents || allIncidents.length === 0) return;
 

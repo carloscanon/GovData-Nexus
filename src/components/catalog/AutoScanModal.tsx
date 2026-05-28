@@ -215,6 +215,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         status: importConfig.status,
         risk_level: selectedAssetToImport.risk || 'Bajo',
         records_count: selectedAssetToImport.records_count || 0,
+        tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
         tags: ['AutoScanned', selectedSource.id],
         updated_at: new Date().toISOString().split('T')[0]
       };
@@ -228,6 +229,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
 
     try {
       const { data: assetData, error: assetError } = await supabase.from('data_assets').insert([{
+        tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
         name: importConfig.asset_name || selectedAssetToImport.name,
         table_name: selectedAssetToImport.name, // Nombre técnico REAL de la tabla física
         description: selectedAssetToImport.description,
@@ -261,6 +263,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
           status: importConfig.status,
           risk_level: selectedAssetToImport.risk || 'Bajo',
           records_count: selectedAssetToImport.records_count || 0,
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
           tags: ['AutoScanned', selectedSource.id],
           updated_at: new Date().toISOString().split('T')[0]
         };
@@ -311,6 +314,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         status: importConfig.status,
         risk_level: selectedAssetToImport.risk || 'Bajo',
         records_count: selectedAssetToImport.records_count || 0,
+        tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
         tags: ['AutoScanned', selectedSource.id],
         updated_at: new Date().toISOString().split('T')[0]
       };

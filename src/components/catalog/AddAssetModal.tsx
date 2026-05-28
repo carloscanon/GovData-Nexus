@@ -15,7 +15,7 @@ interface AddAssetModalProps {
 }
 
 export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit }: AddAssetModalProps) {
-  const { mode } = usePlatform();
+  const { mode, currentTenant } = usePlatform();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -77,6 +77,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
           ...formData,
           id: assetToEdit ? assetToEdit.id : `DEMO-${Date.now()}`,
           code_id: assetToEdit ? assetToEdit.code_id : `AST-${Math.floor(100 + Math.random() * 900)}`,
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
           updated_at: new Date().toISOString().split('T')[0]
         };
         onSuccess(demoResult);
@@ -87,20 +88,26 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
       try {
         if (assetToEdit) {
           // Lógica de ACTUALIZACIÓN
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('data_assets')
             .update(formData)
-            .eq('id', assetToEdit.id);
+            .eq('id', assetToEdit.id)
+            .select();
           if (error) throw error;
+          onSuccess(data?.[0]);
         } else {
           // Lógica de CREACIÓN
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('data_assets')
-            .insert([formData]);
+            .insert([{
+              ...formData,
+              tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001'
+            }])
+            .select();
           if (error) throw error;
+          onSuccess(data?.[0]);
         }
 
-        onSuccess();
         onClose();
       } catch (dbErr) {
         console.warn('Error al guardar en base de datos. Aplicando fallback local en memoria:', dbErr);
@@ -108,6 +115,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
           ...formData,
           id: assetToEdit ? assetToEdit.id : `DEMO-${Date.now()}`,
           code_id: assetToEdit ? assetToEdit.code_id : `AST-${Math.floor(100 + Math.random() * 900)}`,
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
           updated_at: new Date().toISOString().split('T')[0]
         };
         onSuccess(demoResult);
