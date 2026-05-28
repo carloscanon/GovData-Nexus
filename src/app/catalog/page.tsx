@@ -49,15 +49,16 @@ interface DataAsset {
   quality_score: number;
   status: string;
   risk_level?: string;
+  records_count?: number;
   tags?: string[];
   updated_at?: string;
 }
 
 const demoAssets: DataAsset[] = [
-  { id: '1', code_id: 'AST-001', name: 'Maestro de Clientes', type: 'Tabla SQL', source: 'SAP ERP', owner: 'Ventas', data_owner: 'Juan Perez', sensitivity: 'Confidencial', quality_score: 94, status: 'Vigente', risk_level: 'Bajo', tags: ['Maestro', 'IA Ready'], updated_at: '2024-05-10' },
-  { id: '2', code_id: 'AST-002', name: 'Transacciones Q2', type: 'Vista', source: 'Oracle DB', owner: 'Finanzas', data_owner: 'Maria Silva', sensitivity: 'Restringido', quality_score: 88, status: 'Vigente', risk_level: 'Medio', tags: ['Financiero'], updated_at: '2024-05-12' },
-  { id: '3', code_id: 'AST-003', name: 'Leads Marketing', type: 'API', source: 'Salesforce', owner: 'Marketing', data_owner: 'Carlos Ruiz', sensitivity: 'Público', quality_score: 72, status: 'En Revisión', risk_level: 'Bajo', tags: ['Marketing'], updated_at: '2024-05-08' },
-  { id: '4', code_id: 'AST-004', name: 'Reporte Consolidado', type: 'Power BI', source: 'Data Lake', owner: 'Estrategia', data_owner: 'Ana Belen', sensitivity: 'Confidencial', quality_score: 99, status: 'Vigente', risk_level: 'Bajo', tags: ['Crítico'], updated_at: '2024-05-13' },
+  { id: '1', code_id: 'AST-001', name: 'Maestro de Clientes', type: 'Tabla SQL', source: 'SAP ERP', owner: 'Ventas', data_owner: 'Juan Perez', sensitivity: 'Confidencial', quality_score: 94, status: 'Vigente', risk_level: 'Bajo', records_count: 12450, tags: ['Maestro', 'IA Ready'], updated_at: '2024-05-10' },
+  { id: '2', code_id: 'AST-002', name: 'Transacciones Q2', type: 'Vista', source: 'Oracle DB', owner: 'Finanzas', data_owner: 'Maria Silva', sensitivity: 'Restringido', quality_score: 88, status: 'Vigente', risk_level: 'Medio', records_count: 852000, tags: ['Financiero'], updated_at: '2024-05-12' },
+  { id: '3', code_id: 'AST-003', name: 'Leads Marketing', type: 'API', source: 'Salesforce', owner: 'Marketing', data_owner: 'Carlos Ruiz', sensitivity: 'Público', quality_score: 72, status: 'En Revisión', risk_level: 'Bajo', records_count: 5310, tags: ['Marketing'], updated_at: '2024-05-08' },
+  { id: '4', code_id: 'AST-004', name: 'Reporte Consolidado', type: 'Power BI', source: 'Data Lake', owner: 'Estrategia', data_owner: 'Ana Belen', sensitivity: 'Confidencial', quality_score: 99, status: 'Vigente', risk_level: 'Bajo', records_count: 1200, tags: ['Crítico'], updated_at: '2024-05-13' },
 ];
 
 export default function Catalog() {
@@ -461,7 +462,14 @@ export default function Catalog() {
                         </div>
                         <div>
                           <span className={styles.assetName}>{asset.name}</span>
-                          <span className={styles.assetSub}>{asset.code_id || 'AST-00' + asset.id.slice(0,2)}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                            <span className={styles.assetSub}>{asset.code_id || 'AST-00' + asset.id.slice(0,2)}</span>
+                            {asset.records_count !== undefined && (
+                              <span className={styles.recordsCountBadgeTable}>
+                                {Number(asset.records_count).toLocaleString('es-CL')} reg.
+                              </span>
+                            )}
+                          </div>
                           {asset.tags && (
                             <div className={styles.tagWrapper}>
                               {asset.tags.map(tag => <span key={tag} className={styles.tag}>{tag}</span>)}

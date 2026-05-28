@@ -134,6 +134,14 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
                       <label>Frecuencia de Actualización</label>
                       <p>{asset.update_frequency || 'Diaria'}</p>
                     </div>
+                    {asset.records_count !== undefined && (
+                      <div className={styles.infoGroup}>
+                        <label>Total Registros</label>
+                        <p style={{ fontWeight: 'bold', color: '#059669' }}>
+                          {Number(asset.records_count).toLocaleString('es-CL')} registros
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className={styles.description}>
                     <label>Descripción</label>

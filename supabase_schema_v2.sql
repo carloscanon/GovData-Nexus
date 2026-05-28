@@ -7,6 +7,8 @@ ALTER TABLE data_assets ADD COLUMN IF NOT EXISTS criticality TEXT;
 ALTER TABLE data_assets ADD COLUMN IF NOT EXISTS risk_level TEXT; -- Bajo, Medio, Alto, Crítico
 ALTER TABLE data_assets ADD COLUMN IF NOT EXISTS tags TEXT[]; -- Array de etiquetas
 ALTER TABLE data_assets ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE data_assets ADD COLUMN IF NOT EXISTS records_count BIGINT; -- Número total de registros
+
 
 -- 2. Tabla de Campos Internos (Data Dictionary)
 CREATE TABLE IF NOT EXISTS asset_fields (

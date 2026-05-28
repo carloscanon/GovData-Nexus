@@ -305,6 +305,16 @@
   color: #94a3b8;
 }
 
+.recordsCountBadgeTable {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #059669;
+  background-color: #ecfdf5;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
 .responsible {
   display: flex;
   flex-direction: column;

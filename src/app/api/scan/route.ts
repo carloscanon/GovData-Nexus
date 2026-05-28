@@ -73,7 +73,8 @@ export async function POST(req: Request) {
         tables_found: simulatedTables.length,
         columns_found: simulatedTables.reduce((acc, t) => acc + t.columns.length, 0),
         sensitive_assets_found: sensitiveColumns.length,
-        quality_score: qualityScore
+        quality_score: qualityScore,
+        total_records: 60960
       },
       sensitive_data_catalog: sensitiveColumns,
       lineage: dataLineage,
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
           description: 'Tabla de clientes con información de contacto y personal.',
           risk: 'Alto',
           type: 'Tabla SQL',
+          records_count: 12450,
           fields: [
             { name: 'id', type: 'INTEGER' },
             { name: 'nombre', type: 'VARCHAR' },
@@ -99,6 +101,7 @@ export async function POST(req: Request) {
           description: 'Registro de transacciones financieras de clientes.',
           risk: 'Crítico',
           type: 'Tabla SQL',
+          records_count: 48200,
           fields: [
             { name: 'id_transaccion', type: 'INTEGER' },
             { name: 'cliente_id', type: 'INTEGER' },
@@ -113,6 +116,7 @@ export async function POST(req: Request) {
           description: 'Catálogo de productos y precios unitarios.',
           risk: 'Bajo',
           type: 'Tabla SQL',
+          records_count: 310,
           fields: [
             { name: 'sku', type: 'VARCHAR' },
             { name: 'nombre_producto', type: 'VARCHAR' },
