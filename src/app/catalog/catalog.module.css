@@ -247,18 +247,19 @@
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 1000px; /* Garantiza que las columnas mantengan estructura legible y no colapsen */
 }
 
 .table th {
-  padding: 16px 24px;
-  font-size: 0.85rem;
+  padding: 12px 16px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #64748b;
   background-color: var(--accent);
@@ -266,9 +267,9 @@
 }
 
 .table td {
-  padding: 16px 24px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .row:hover {
