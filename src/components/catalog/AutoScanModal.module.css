@@ -472,3 +472,91 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Dashboard de Resultados del Escaneo */
+.summaryDashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summaryCard {
+  background-color: #f8fafc;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summaryValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.piiSection {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.02) 0%, rgba(255, 255, 255, 0.9) 100%);
+  border: 1px dashed rgba(239, 68, 68, 0.2);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.piiTitle {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #991b1b;
+}
+
+.piiTableWrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.piiTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.piiTable th {
+  padding: 10px 14px;
+  background-color: rgba(241, 245, 249, 0.5);
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.piiTable td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.riskPill {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.riskCrit { background-color: #fef2f2; color: #991b1b; border: 1.5px solid #fecaca; }
+.riskHigh { background-color: #fff7ed; color: #9a3412; }
+.riskMed { background-color: #eff6ff; color: #1e40af; }
