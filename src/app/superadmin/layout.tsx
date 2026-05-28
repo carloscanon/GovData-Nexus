@@ -16,7 +16,9 @@ import {
   ClipboardList,
   LogOut,
   ChevronRight,
-  Database
+  Database,
+  LogIn,
+  Menu
 } from 'lucide-react';
 import './superadmin.css';
 
@@ -30,6 +32,7 @@ const sidebarItems = [
   { icon: Ticket, label: 'Soporte Tickets', href: '/superadmin/tickets' },
   { icon: ShieldCheck, label: 'Seguridad y RLS', href: '/superadmin/security' },
   { icon: ClipboardList, label: 'Logs de Auditoría', href: '/superadmin/logs' },
+  { icon: LogIn, label: 'Portal de Login', href: '/superadmin/login-config' },
   { icon: Settings, label: 'Configuración', href: '/superadmin/config' },
 ];
 
@@ -40,6 +43,7 @@ export default function SuperAdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -52,8 +56,30 @@ export default function SuperAdminLayout({
 
   return (
     <div className="sa-layout">
+      {/* Backdrop for mobile */}
+      {isMobileSidebarOpen && (
+        <div className="sa-sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />
+      )}
+      
+      {/* Mobile Header Bar */}
+      <header className="sa-mobile-header">
+        <div className="sa-mobile-brand">
+          <div className="sa-brand-logo">
+            <Database className="w-5 h-5 text-white" />
+          </div>
+          <span className="sa-mobile-brand-title">Nexus Master</span>
+        </div>
+        <button 
+          className="sa-mobile-menu-btn"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          aria-label="Abrir menú"
+        >
+          <Menu className="w-6 h-6 text-white" />
+        </button>
+      </header>
+
       {/* Super Admin Sidebar */}
-      <aside className="sa-sidebar">
+      <aside className={`sa-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
         {/* Header */}
         <div className="sa-brand-container">
           <div className="sa-brand">
@@ -76,6 +102,7 @@ export default function SuperAdminLayout({
                 key={item.href}
                 href={item.href}
                 className={`sa-nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setIsMobileSidebarOpen(false)}
               >
                 <div className="sa-nav-link-content">
                   <item.icon className="w-5 h-5" style={{ color: isActive ? '#ffffff' : '#64748b' }} />
@@ -90,7 +117,10 @@ export default function SuperAdminLayout({
         {/* Footer info */}
         <div className="sa-sidebar-footer">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              setIsMobileSidebarOpen(false);
+              router.push('/');
+            }}
             className="sa-btn-back"
           >
             <LogOut className="w-4 h-4" />

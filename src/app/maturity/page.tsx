@@ -8,17 +8,16 @@ import {
   ChevronRight,
   Zap,
   Shield,
-  Search,
   Users,
   ShieldAlert,
   AlertTriangle,
-  FileText,
   History,
   Briefcase,
   ArrowUpRight,
-  Calendar,
   CheckCircle2,
-  Info
+  FileCheck,
+  RefreshCw,
+  Award,
 } from 'lucide-react';
 import { 
   Radar, 
@@ -37,209 +36,439 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './maturity.module.css';
+import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 
-const maturityData = [
-  { subject: 'Estrategia', A: 85, B: 70, fullMark: 100 },
-  { subject: 'Organización', A: 70, B: 65, fullMark: 100 },
-  { subject: 'Calidad', A: 65, B: 80, fullMark: 100 },
-  { subject: 'Arquitectura', A: 60, B: 75, fullMark: 100 },
-  { subject: 'Seguridad', A: 80, B: 85, fullMark: 100 },
-  { subject: 'Compliance', A: 75, B: 70, fullMark: 100 },
-];
+// Month abbreviations for evolution chart
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-const evolutionData = [
-  { name: 'Ene', score: 45, benchmark: 55 },
-  { name: 'Feb', score: 48, benchmark: 55 },
-  { name: 'Mar', score: 52, benchmark: 58 },
-  { name: 'Abr', score: 58, benchmark: 60 },
-  { name: 'May', score: 64, benchmark: 62 },
-];
-
-const dimensions = [
-  { 
-    id: 'estrategia', 
-    name: 'Estrategia', 
-    score: 85, 
-    icon: Target, 
-    status: 'Optimizado',
-    capabilities: [
-      { name: 'Visión de Gobierno', score: 90, type: 'auto' },
-      { name: 'Políticas Definidas', score: 80, type: 'manual' },
-      { name: 'Alineación Negocio', score: 85, type: 'manual' }
-    ]
-  },
-  { 
-    id: 'organizacion', 
-    name: 'Organización', 
-    score: 70, 
-    icon: Users, 
-    status: 'Gestionado',
-    capabilities: [
-      { name: 'Roles y Resp.', score: 75, type: 'auto' },
-      { name: 'Data Owners', score: 60, type: 'auto' },
-      { name: 'Comité de Gobierno', score: 75, type: 'manual' }
-    ]
-  },
-  { 
-    id: 'calidad', 
-    name: 'Calidad', 
-    score: 65, 
-    icon: TrendingUp, 
-    status: 'Definido',
-    capabilities: [
-      { name: 'Reglas de Calidad', score: 80, type: 'auto' },
-      { name: 'Monitoreo Auto.', score: 50, type: 'auto' },
-      { name: 'Gestión Incidentes', score: 65, type: 'auto' }
-    ]
-  },
-  { 
-    id: 'arquitectura', 
-    name: 'Arquitectura', 
-    score: 60, 
-    icon: BarChart3, 
-    status: 'Definido',
-    capabilities: [
-      { name: 'Modelado Datos', score: 70, type: 'manual' },
-      { name: 'Integración', score: 50, type: 'auto' },
-      { name: 'Linaje Técnico', score: 60, type: 'auto' }
-    ]
-  },
-  { 
-    id: 'seguridad', 
-    name: 'Seguridad', 
-    score: 80, 
-    icon: Shield, 
-    status: 'Gestionado',
-    capabilities: [
-      { name: 'Clasificación PII', score: 85, type: 'auto' },
-      { name: 'Control Acceso', score: 75, type: 'auto' },
-      { name: 'Auditoría', score: 80, type: 'manual' }
-    ]
-  },
-];
+function getCurrentMonthLabel() {
+  return MONTHS[new Date().getMonth()];
+}
 
 export default function Maturity() {
+  const { currentTenant } = usePlatform();
   const [selectedDim, setSelectedDim] = React.useState<any>(null);
-  const [activeView, setActiveView] = React.useState<'dashboard' | 'assessment' | 'roadmap' | 'history'>('dashboard');
   const [isAssessmentModalOpen, setIsAssessmentModalOpen] = React.useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
-  
-  // Estado para la nueva evaluación
-  const [assessmentStep, setAssessmentStep] = React.useState(1);
-  const [answers, setAnswers] = React.useState<Record<string, string>>({});
+  const [loading, setLoading] = React.useState(true);
 
-  const handleAssessmentSubmit = () => {
-    alert("✅ Evaluación procesada. El score de Organización ha subido a 75% debido a la formalización del comité.");
-    setIsAssessmentModalOpen(false);
-    setAssessmentStep(1);
-  };
+  // Dynamic maturity scores from DB + questionnaire
+  const [maturityScores, setMaturityScores] = React.useState({
+    estrategia: 0,
+    organizacion: 0,
+    calidad: 0,
+    arquitectura: 0,
+    seguridad: 0,
+    compliance: 0,
+  });
 
-  // Dinámica de colores
+  // Previous snapshot (for delta)
+  const [prevGlobalScore, setPrevGlobalScore] = React.useState<number | null>(null);
+
+  // Historical evolution data – stored/loaded from localStorage
+  const [evolutionData, setEvolutionData] = React.useState<{name:string; score:number; benchmark:number}[]>([]);
+
+  // Real DB counters
+  const [dbStats, setDbStats] = React.useState({
+    totalAssets: 0,
+    openIncidents: 0,
+    approvedWorkflows: 0,
+  });
+
+  // Questionnaire answers (manual hybrid inputs)
+  const [answers, setAnswers] = React.useState<Record<string, number>>({
+    q1: 3, // formal committee (1-5)
+    q2: 4, // data owners training (1-5)
+    q3: 3, // strategy alignment (1-5)
+    q4: 3, // compliance frameworks (1-5)
+  });
+
+  // Brand colour
   const [primaryColor, setPrimaryColor] = React.useState('#3b82f6');
 
   React.useEffect(() => {
-    const savedColor = localStorage.getItem('govdata_brand_primary');
-    if (savedColor) setPrimaryColor(savedColor);
-
-    const handleStorageChange = () => {
-      const updatedColor = localStorage.getItem('govdata_brand_primary');
-      if (updatedColor) setPrimaryColor(updatedColor);
+    const saved = localStorage.getItem('govdata_brand_primary');
+    if (saved) setPrimaryColor(saved);
+    const handler = () => {
+      const c = localStorage.getItem('govdata_brand_primary');
+      if (c) setPrimaryColor(c);
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }, []);
+
+  // Load tenant-specific answers and history from localStorage when tenant changes
+  React.useEffect(() => {
+    if (!currentTenant?.id) return;
+    
+    // 1. Answers
+    try {
+      const savedAnswers = localStorage.getItem(`govdata_maturity_answers_${currentTenant.id}`);
+      if (savedAnswers) {
+        setAnswers(JSON.parse(savedAnswers));
+      } else {
+        setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+      }
+    } catch {
+      setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+    }
+
+    // 2. Evolution
+    try {
+      const savedEvolution = localStorage.getItem(`govdata_maturity_evolution_${currentTenant.id}`);
+      if (savedEvolution) {
+        setEvolutionData(JSON.parse(savedEvolution));
+      } else {
+        const defaultHistory = [
+          { name: 'Feb', score: 48, benchmark: 55 },
+          { name: 'Mar', score: 52, benchmark: 58 },
+          { name: 'Abr', score: 58, benchmark: 60 },
+          { name: 'May', score: 64, benchmark: 62 },
+        ];
+        setEvolutionData(defaultHistory);
+      }
+    } catch {
+      setEvolutionData([]);
+    }
+  }, [currentTenant?.id]);
+
+  // ------- Live DB calculation -------
+  const fetchLiveMaturity = React.useCallback(async () => {
+    if (!currentTenant) return;
+    try {
+      setLoading(true);
+
+      const [
+        { data: assetsData },
+        { data: workflowsData },
+        { data: incidentsData },
+      ] = await Promise.all([
+        supabase
+          .from('data_assets')
+          .select('id, quality_score, data_owner, sensitivity, criticality')
+          .eq('tenant_id', currentTenant.id),
+        supabase
+          .from('workflows')
+          .select('id, status, data_assets!inner(tenant_id)')
+          .eq('data_assets.tenant_id', currentTenant.id),
+        supabase
+          .from('quality_incidents')
+          .select('id, severity, status, data_assets!inner(tenant_id)')
+          .eq('data_assets.tenant_id', currentTenant.id),
+      ]);
+
+      const assets = assetsData ?? [];
+      const workflows = workflowsData ?? [];
+      const incidents = incidentsData ?? [];
+
+      setDbStats({
+        totalAssets: assets.length,
+        openIncidents: incidents.filter(i => i.status !== 'Resuelto').length,
+        approvedWorkflows: workflows.filter(w => w.status === 'Aprobado').length,
+      });
+
+      // --- Calidad: average quality_score ---
+      let calidad = 65;
+      if (assets.length > 0) {
+        const sum = assets.reduce((acc, a) => acc + (a.quality_score ?? 0), 0);
+        calidad = Math.round(sum / assets.length);
+      }
+
+      // --- Organización: % assets with data_owner + questionnaire ---
+      let orgDB = 50;
+      if (assets.length > 0) {
+        const owned = assets.filter(a => !!a.data_owner).length;
+        orgDB = Math.max(30, Math.round((owned / assets.length) * 100));
+      }
+      const organizacion = Math.min(100, Math.round(
+        (orgDB * 0.4) + (answers.q1 * 10) + (answers.q2 * 8)
+      ));
+
+      // --- Seguridad: PII classified + sensitivity coverage ---
+      let seguridad = 60;
+      if (assets.length > 0) {
+        const classified = assets.filter(a => a.sensitivity && a.sensitivity !== 'Público').length;
+        seguridad = Math.min(100, Math.round((classified / assets.length) * 80 + 20));
+      }
+
+      // --- Arquitectura: criticality coverage ---
+      let arquitectura = 55;
+      if (assets.length > 0) {
+        const critical = assets.filter(a => a.criticality === 'Alta' || a.criticality === 'Crítica').length;
+        arquitectura = Math.min(100, Math.round((critical / assets.length) * 70 + 30));
+      }
+
+      // --- Estrategia: approved workflows + questionnaire ---
+      const approved = workflows.filter(w => w.status === 'Aprobado').length;
+      const estrategia = Math.min(100, Math.round(60 + (approved * 4) + (answers.q3 * 6)));
+
+      // --- Compliance: incidents resolved + questionnaire ---
+      const resolved = incidents.filter(i => i.status === 'Resuelto').length;
+      const totalInc = incidents.length || 1;
+      const compliance = Math.min(100, Math.round(
+        ((resolved / totalInc) * 60) + (answers.q4 * 8)
+      ));
+
+      setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
+      localStorage.setItem(`govdata_maturity_scores_${currentTenant.id}`, JSON.stringify({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance }));
+    } catch (e) {
+      console.error('Error fetching maturity metrics:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTenant, answers]);
+
+  React.useEffect(() => {
+    fetchLiveMaturity();
+  }, [fetchLiveMaturity]);
+
+  // ------- Computed values -------
+  const globalScore = React.useMemo(() => {
+    const { estrategia, organizacion, calidad, arquitectura, seguridad, compliance } = maturityScores;
+    return Math.round((estrategia + organizacion + calidad + arquitectura + seguridad + compliance) / 6);
+  }, [maturityScores]);
+
+  const maturityLevel = globalScore >= 80 ? 'Optimizado' : globalScore >= 60 ? 'Gestionado' : globalScore >= 40 ? 'Definido' : 'Inicial';
+  const levelColor = globalScore >= 80 ? '#10b981' : globalScore >= 60 ? '#3b82f6' : globalScore >= 40 ? '#f59e0b' : '#ef4444';
+
+  const delta = prevGlobalScore !== null ? globalScore - prevGlobalScore : null;
+
+  // Radar data
+  const dynamicMaturityData = [
+    { subject: 'Estrategia',   A: maturityScores.estrategia,   B: 70, fullMark: 100 },
+    { subject: 'Organización', A: maturityScores.organizacion,  B: 65, fullMark: 100 },
+    { subject: 'Calidad',      A: maturityScores.calidad,       B: 80, fullMark: 100 },
+    { subject: 'Arquitectura', A: maturityScores.arquitectura,  B: 75, fullMark: 100 },
+    { subject: 'Seguridad',    A: maturityScores.seguridad,     B: 85, fullMark: 100 },
+    { subject: 'Compliance',   A: maturityScores.compliance,    B: 70, fullMark: 100 },
+  ];
+
+  // Dimension cards
+  const dynamicDimensions = [
+    {
+      id: 'estrategia', name: 'Estrategia', score: maturityScores.estrategia, icon: Target,
+      status: maturityScores.estrategia >= 80 ? 'Optimizado' : maturityScores.estrategia >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Visión de Gobierno', score: maturityScores.estrategia, type: 'auto' },
+        { name: 'Políticas Definidas', score: Math.min(100, maturityScores.estrategia + 5), type: 'manual' },
+        { name: 'Alineación Negocio',  score: Math.min(100, maturityScores.estrategia - 5), type: 'manual' },
+      ],
+    },
+    {
+      id: 'organizacion', name: 'Organización', score: maturityScores.organizacion, icon: Users,
+      status: maturityScores.organizacion >= 80 ? 'Optimizado' : maturityScores.organizacion >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Roles y Resp.',         score: maturityScores.organizacion, type: 'auto' },
+        { name: 'Data Owners',           score: Math.min(100, Math.round(maturityScores.organizacion * 0.9)), type: 'auto' },
+        { name: 'Comité de Gobierno',    score: Math.min(100, Math.round(maturityScores.organizacion * 1.1)), type: 'manual' },
+      ],
+    },
+    {
+      id: 'calidad', name: 'Calidad', score: maturityScores.calidad, icon: TrendingUp,
+      status: maturityScores.calidad >= 80 ? 'Optimizado' : maturityScores.calidad >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Reglas de Calidad',   score: maturityScores.calidad, type: 'auto' },
+        { name: 'Monitoreo Auto.',     score: Math.min(100, Math.round(maturityScores.calidad * 0.8)), type: 'auto' },
+        { name: 'Gestión Incidentes',  score: Math.min(100, Math.round(maturityScores.calidad * 0.95)), type: 'auto' },
+      ],
+    },
+    {
+      id: 'arquitectura', name: 'Arquitectura', score: maturityScores.arquitectura, icon: BarChart3,
+      status: maturityScores.arquitectura >= 80 ? 'Optimizado' : maturityScores.arquitectura >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Modelado Datos', score: maturityScores.arquitectura, type: 'manual' },
+        { name: 'Integración',    score: Math.min(100, Math.round(maturityScores.arquitectura * 0.9)), type: 'auto' },
+        { name: 'Linaje Técnico', score: Math.min(100, Math.round(maturityScores.arquitectura * 1.05)), type: 'auto' },
+      ],
+    },
+    {
+      id: 'seguridad', name: 'Seguridad', score: maturityScores.seguridad, icon: Shield,
+      status: maturityScores.seguridad >= 80 ? 'Optimizado' : maturityScores.seguridad >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Clasificación PII', score: maturityScores.seguridad, type: 'auto' },
+        { name: 'Control Acceso',    score: Math.min(100, Math.round(maturityScores.seguridad * 0.92)), type: 'auto' },
+        { name: 'Auditoría',         score: Math.min(100, Math.round(maturityScores.seguridad * 0.97)), type: 'manual' },
+      ],
+    },
+    {
+      id: 'compliance', name: 'Compliance', score: maturityScores.compliance, icon: FileCheck,
+      status: maturityScores.compliance >= 80 ? 'Optimizado' : maturityScores.compliance >= 60 ? 'Gestionado' : 'Definido',
+      capabilities: [
+        { name: 'Marcos Normativos',  score: maturityScores.compliance, type: 'manual' },
+        { name: 'Incidentes Resueltos', score: Math.min(100, Math.round(maturityScores.compliance * 0.95)), type: 'auto' },
+        { name: 'Auditoría Continua', score: Math.min(100, Math.round(maturityScores.compliance * 0.85)), type: 'auto' },
+      ],
+    },
+  ];
+
+  // ------- Assessment submit -------
+  const handleAssessmentSubmit = () => {
+    if (!currentTenant?.id) return;
+    
+    // Save answers per tenant first
+    localStorage.setItem(`govdata_maturity_answers_${currentTenant.id}`, JSON.stringify(answers));
+
+    // Snapshot previous global score before recalculate
+    setPrevGlobalScore(globalScore);
+    fetchLiveMaturity();
+
+    // Append to evolution history
+    const month = getCurrentMonthLabel();
+    const newPoint = { name: month, score: globalScore, benchmark: 62 };
+    const updatedHistory = [...evolutionData];
+    // Replace if same month exists
+    const existingIdx = updatedHistory.findIndex(e => e.name === month);
+    if (existingIdx >= 0) updatedHistory[existingIdx] = newPoint;
+    else updatedHistory.push(newPoint);
+    // Keep last 12 months
+    const trimmed = updatedHistory.slice(-12);
+    setEvolutionData(trimmed);
+    localStorage.setItem(`govdata_maturity_evolution_${currentTenant.id}`, JSON.stringify(trimmed));
+
+    setIsAssessmentModalOpen(false);
+  };
+
+  // Circle progress helper
+  const circumference = 2 * Math.PI * 52;
+  const dashOffset = circumference - (globalScore / 100) * circumference;
 
   return (
     <div className={styles.container} style={{ ['--dynamic-primary' as any]: primaryColor }}>
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <div className={styles.breadcrumb}>Gobierno {' > '} Centro de Madurez</div>
+          <div className={styles.breadcrumb}>Gobierno {'>'} Centro de Madurez</div>
           <h1>🚀 Centro de Evaluación de Madurez (GMF)</h1>
           <p>Basado en <strong>GovData Maturity Framework</strong>. Evaluación híbrida continua.</p>
         </div>
         <div className={styles.headerActions}>
-           <button className={styles.secondaryBtn} onClick={() => setIsHistoryModalOpen(true)}><History size={18} /> Ver Evolución</button>
-           <button className={styles.primaryBtn} onClick={() => setIsAssessmentModalOpen(true)}><Zap size={18} /> Nueva Evaluación</button>
+          <button className={styles.secondaryBtn} onClick={() => setIsHistoryModalOpen(true)}>
+            <History size={18} /> Ver Evolución
+          </button>
+          <button className={styles.primaryBtn} onClick={() => setIsAssessmentModalOpen(true)}>
+            <Zap size={18} /> Nueva Evaluación
+          </button>
         </div>
       </header>
 
-      {/* KPIs Superiores */}
+      {/* ── Consolidated Global Score Banner ── */}
+      <motion.div
+        className={styles.globalBanner}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className={styles.globalLeft}>
+          <div className={styles.circleWrap}>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+              <circle
+                cx="60" cy="60" r="52" fill="none"
+                stroke={levelColor}
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={loading ? circumference : dashOffset}
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+              />
+              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                {loading ? '…' : `${globalScore}%`}
+              </text>
+              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                GLOBAL
+              </text>
+            </svg>
+          </div>
+          <div className={styles.globalInfo}>
+            <div className={styles.globalLevel} style={{ color: levelColor }}>
+              <Award size={20} /> {maturityLevel}
+            </div>
+            <h2 className={styles.globalTitle}>Madurez Global de Gobierno de Datos</h2>
+            <p className={styles.globalSub}>
+              Calculado sobre 6 dimensiones · {dbStats.totalAssets} activos evaluados
+            </p>
+            {delta !== null && (
+              <div className={styles.deltaChip} style={{ color: delta >= 0 ? '#10b981' : '#ef4444' }}>
+                <ArrowUpRight size={14} style={{ transform: delta < 0 ? 'rotate(90deg)' : undefined }} />
+                {delta >= 0 ? '+' : ''}{delta}% vs evaluación anterior
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mini dimension pills */}
+        <div className={styles.globalRight}>
+          {dynamicDimensions.map(d => (
+            <div key={d.id} className={styles.miniPill} onClick={() => setSelectedDim(d)}>
+              <d.icon size={14} />
+              <span>{d.name}</span>
+              <strong style={{ color: d.score >= 70 ? '#10b981' : d.score >= 50 ? '#f59e0b' : '#ef4444' }}>
+                {loading ? '…' : `${d.score}%`}
+              </strong>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── KPI Grid ── */}
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
-             <Target size={20} />
-             <span>Nivel Actual</span>
-          </div>
-          <div className={styles.kpiValue}>3.2</div>
-          <div className={styles.kpiSub}>Nivel: Definido</div>
+          <div className={styles.kpiHeader}><Target size={20} /><span>Nivel Actual</span></div>
+          <div className={styles.kpiValue} style={{ color: levelColor }}>{loading ? '…' : maturityLevel}</div>
+          <div className={styles.kpiSub}>Score global: {globalScore}%</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
-             <ArrowUpRight size={20} />
-             <span>Benchmark Sector</span>
-          </div>
-          <div className={styles.kpiValue}>+15%</div>
-          <div className={styles.kpiSub}>Vs Sector Financiero</div>
+          <div className={styles.kpiHeader}><ArrowUpRight size={20} /><span>Benchmark Sector</span></div>
+          <div className={styles.kpiValue}>+{Math.max(0, globalScore - 62)}%</div>
+          <div className={styles.kpiSub}>Vs Sector Gubernamental (ref 62%)</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
-             <ShieldAlert size={20} />
-             <span>Riesgos Activos</span>
+          <div className={styles.kpiHeader}><ShieldAlert size={20} /><span>Incidentes Abiertos</span></div>
+          <div className={styles.kpiValue} style={{ color: dbStats.openIncidents > 5 ? '#ef4444' : '#f59e0b' }}>
+            {loading ? '…' : dbStats.openIncidents}
           </div>
-          <div className={styles.kpiValue} style={{ color: '#ef4444' }}>8</div>
-          <div className={styles.kpiSub}>Baja madurez en Arq.</div>
+          <div className={styles.kpiSub}>Sin resolver en calidad</div>
         </div>
         <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
-             <CheckCircle2 size={20} />
-             <span>Capacidades</span>
+          <div className={styles.kpiHeader}><CheckCircle2 size={20} /><span>Dimensiones</span></div>
+          <div className={styles.kpiValue}>
+            {loading ? '…' : `${dynamicDimensions.filter(d => d.score >= 60).length}/6`}
           </div>
-          <div className={styles.kpiValue}>24/30</div>
-          <div className={styles.kpiSub}>Áreas evaluadas</div>
+          <div className={styles.kpiSub}>En nivel Gestionado o superior</div>
         </div>
       </div>
 
+      {/* ── Main Layout ── */}
       <div className={styles.mainLayout}>
         <div className={styles.leftColumn}>
-          {/* Gráfico Radar de Madurez */}
+          {/* Radar Chart */}
           <div className={styles.chartPanel}>
             <div className={styles.panelHeader}>
               <h3>Dimensiones de Gobierno</h3>
               <div className={styles.legend}>
-                <span className={styles.legItem}><div className={styles.dot} style={{ background: '#3b82f6' }} /> Actual</span>
+                <span className={styles.legItem}><div className={styles.dot} style={{ background: primaryColor }} /> Actual</span>
                 <span className={styles.legItem}><div className={styles.dot} style={{ background: '#94a3b8' }} /> Industria</span>
               </div>
             </div>
             <div className={styles.radarContainer}>
-              <ResponsiveContainer width="100%" height={350}>
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={maturityData}>
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={dynamicMaturityData}>
                   <PolarGrid stroke="#e2e8f0" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} />
-                  <Radar
-                    name="Actual"
-                    dataKey="A"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.4}
-                  />
-                  <Radar
-                    name="Industria"
-                    dataKey="B"
-                    stroke="#94a3b8"
-                    fill="#94a3b8"
-                    fillOpacity={0.1}
-                  />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                  <Radar name="Actual" dataKey="A" stroke={primaryColor} fill={primaryColor} fillOpacity={0.4} />
+                  <Radar name="Industria" dataKey="B" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.1} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Listado de Dimensiones */}
+          {/* Dimension list */}
           <div className={styles.dimensionsList}>
-            {dimensions.map(dim => (
-              <motion.div 
-                key={dim.id} 
+            {dynamicDimensions.map(dim => (
+              <motion.div
+                key={dim.id}
                 className={`${styles.dimListItem} ${selectedDim?.id === dim.id ? styles.selectedDim : ''}`}
                 onClick={() => setSelectedDim(dim)}
                 whileHover={{ x: 5 }}
@@ -252,7 +481,16 @@ export default function Maturity() {
                   </div>
                 </div>
                 <div className={styles.dimScoreArea}>
-                  <span className={styles.dimScoreText}>{dim.score}%</span>
+                  <div className={styles.miniBar}>
+                    <div
+                      className={styles.miniBarFill}
+                      style={{
+                        width: loading ? '0%' : `${dim.score}%`,
+                        background: dim.score >= 70 ? '#10b981' : dim.score >= 50 ? '#f59e0b' : '#ef4444',
+                      }}
+                    />
+                  </div>
+                  <span className={styles.dimScoreText}>{loading ? '…' : `${dim.score}%`}</span>
                   <ChevronRight size={16} />
                 </div>
               </motion.div>
@@ -260,230 +498,319 @@ export default function Maturity() {
           </div>
         </div>
 
+        {/* Right column */}
         <div className={styles.rightColumn}>
-          {selectedDim ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={styles.detailPanel}
-            >
-              <div className={styles.detailHeader}>
-                 <div className={styles.detailTitle}>
+          <AnimatePresence mode="wait">
+            {selectedDim ? (
+              <motion.div
+                key={selectedDim.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={styles.detailPanel}
+              >
+                <div className={styles.detailHeader}>
+                  <div className={styles.detailTitle}>
                     <selectedDim.icon size={24} />
-                    <h2>Detalle de Dimensión: {selectedDim.name}</h2>
-                 </div>
-                 <div className={styles.detailScore}>
-                    <span>Score</span>
-                    <strong>{selectedDim.score}%</strong>
-                 </div>
-              </div>
+                    <h2>Dimensión: {selectedDim.name}</h2>
+                  </div>
+                  <div className={styles.detailScore}>
+                    <span>Score Actual</span>
+                    <strong style={{ color: levelColor }}>{selectedDim.score}%</strong>
+                  </div>
+                </div>
 
-              <div className={styles.capabilitiesList}>
-                 <h3>Capacidades Evaluadas</h3>
-                 {selectedDim.capabilities.map((cap: any, idx: number) => (
-                   <div key={idx} className={styles.capItem}>
+                {/* Score bar */}
+                <div className={styles.scoreMeter}>
+                  <div className={styles.scoreMeterFill} style={{
+                    width: `${selectedDim.score}%`,
+                    background: selectedDim.score >= 70 ? '#10b981' : selectedDim.score >= 50 ? '#f59e0b' : '#ef4444',
+                  }} />
+                </div>
+                <div className={styles.scoreMeterLabels}>
+                  <span>Inicial</span><span>Definido</span><span>Gestionado</span><span>Optimizado</span>
+                </div>
+
+                <div className={styles.capabilitiesList}>
+                  <h3>Capacidades Evaluadas</h3>
+                  {selectedDim.capabilities.map((cap: any, idx: number) => (
+                    <div key={idx} className={styles.capItem}>
                       <div className={styles.capMain}>
-                         <div className={styles.capInfo}>
-                            <strong>{cap.name}</strong>
-                            <span className={styles.capType}>{cap.type === 'auto' ? '⚡ Automatizada' : '👤 Manual'}</span>
-                         </div>
-                         <span>{cap.score}%</span>
+                        <div className={styles.capInfo}>
+                          <strong>{cap.name}</strong>
+                          <span className={styles.capType}>{cap.type === 'auto' ? '⚡ Automatizada' : '👤 Manual'}</span>
+                        </div>
+                        <span style={{ fontWeight: 800, color: cap.score >= 70 ? '#10b981' : cap.score >= 50 ? '#f59e0b' : '#ef4444' }}>
+                          {cap.score}%
+                        </span>
                       </div>
                       <div className={styles.capBarBg}>
-                         <div className={styles.capBarFill} style={{ width: `${cap.score}%`, background: cap.score > 70 ? '#10b981' : cap.score > 40 ? '#f59e0b' : '#ef4444' }} />
+                        <div className={styles.capBarFill} style={{
+                          width: `${cap.score}%`,
+                          background: cap.score >= 70 ? '#10b981' : cap.score >= 50 ? '#f59e0b' : '#ef4444',
+                        }} />
                       </div>
-                   </div>
-                 ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
 
-              <div className={styles.findingsBox}>
-                 <h3><AlertTriangle size={16} /> Hallazgos y Riesgos</h3>
-                 <div className={styles.findingItem}>
-                    <div className={styles.riskLevel} data-level="high" />
+                <div className={styles.findingsBox}>
+                  <h3><AlertTriangle size={16} /> Hallazgos y Riesgos</h3>
+                  <div className={styles.findingItem}>
+                    <div className={styles.riskLevel} data-level={selectedDim.score < 60 ? 'high' : 'medium'} />
                     <p>Falta de automatización en el monitoreo de {selectedDim.name.toLowerCase()}.</p>
-                 </div>
-                 <div className={styles.findingItem}>
+                  </div>
+                  <div className={styles.findingItem}>
                     <div className={styles.riskLevel} data-level="medium" />
                     <p>Documentación de procesos desactualizada (última revisión hace 6 meses).</p>
-                 </div>
-              </div>
+                  </div>
+                </div>
 
-              <div className={styles.roadmapBox}>
-                 <h3>🚀 Roadmap Recomendado</h3>
-                 <div className={styles.roadmapAction}>
+                <div className={styles.roadmapBox}>
+                  <h3>🚀 Roadmap Recomendado</h3>
+                  <div className={styles.roadmapAction}>
                     <div className={styles.actionIcon}><Zap size={14} /></div>
                     <div className={styles.actionContent}>
-                       <strong>Automatizar validaciones de {selectedDim.name}</strong>
-                       <span>Impacto esperado: +7% en score global</span>
+                      <strong>Automatizar validaciones de {selectedDim.name}</strong>
+                      <span>Impacto esperado: +7% en score global</span>
                     </div>
-                 </div>
-                 <button className={styles.primaryBtn} style={{ width: '100%', marginTop: '16px' }}>
+                  </div>
+                  <button className={styles.primaryBtn} style={{ width: '100%', marginTop: '16px' }}>
                     Asignar Tarea a Workflow
-                 </button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={styles.generalOverview}
-            >
-               <div className={styles.overviewHeader}>
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="overview"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className={styles.generalOverview}
+              >
+                <div className={styles.overviewHeader}>
                   <TrendingUp size={32} className={styles.overviewIcon} />
                   <div>
                     <h2>Resumen Ejecutivo de Madurez</h2>
                     <p>Estado general de las capacidades de gobierno organizacional.</p>
                   </div>
-               </div>
+                </div>
 
-               <div className={styles.distributionStats}>
-                  <h3>Distribución de Madurez</h3>
+                {/* Consolidated global % bar */}
+                <div className={styles.globalScoreBar}>
+                  <div className={styles.globalScoreBarHeader}>
+                    <span>Madurez Global</span>
+                    <strong style={{ color: levelColor }}>{globalScore}%</strong>
+                  </div>
+                  <div className={styles.bigBar}>
+                    <motion.div
+                      className={styles.bigBarFill}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${globalScore}%` }}
+                      transition={{ duration: 1.2, ease: 'easeOut' }}
+                      style={{ background: `linear-gradient(90deg, ${primaryColor}, ${levelColor})` }}
+                    />
+                    {/* Milestone markers */}
+                    {[25, 50, 75].map(m => (
+                      <div key={m} className={styles.barMarker} style={{ left: `${m}%` }} />
+                    ))}
+                  </div>
+                  <div className={styles.bigBarLabels}>
+                    <span>Inicial</span><span>Definido</span><span>Gestionado</span><span>Optimizado</span>
+                  </div>
+                </div>
+
+                <div className={styles.distributionStats}>
+                  <h3>Distribución por Dimensión</h3>
                   <div className={styles.distGrid}>
-                     {dimensions.map(d => (
-                       <div key={d.id} className={styles.distItem}>
-                          <div className={styles.distLabel}>
-                             <d.icon size={16} />
-                             <span>{d.name}</span>
-                          </div>
-                          <div className={styles.distBar}>
-                             <div className={styles.distFill} style={{ width: `${d.score}%` }} />
-                          </div>
-                          <span className={styles.distValue}>{d.score}%</span>
-                       </div>
-                     ))}
+                    {dynamicDimensions.map(d => (
+                      <div key={d.id} className={styles.distItem} onClick={() => setSelectedDim(d)}>
+                        <div className={styles.distLabel}><d.icon size={16} /><span>{d.name}</span></div>
+                        <div className={styles.distBar}>
+                          <motion.div
+                            className={styles.distFill}
+                            initial={{ width: 0 }}
+                            animate={{ width: loading ? '0%' : `${d.score}%` }}
+                            transition={{ duration: 0.8, delay: 0.1 }}
+                            style={{
+                              background: d.score >= 70
+                                ? 'linear-gradient(90deg,#10b981,#059669)'
+                                : d.score >= 50
+                                ? 'linear-gradient(90deg,#f59e0b,#d97706)'
+                                : 'linear-gradient(90deg,#ef4444,#dc2626)',
+                            }}
+                          />
+                        </div>
+                        <span className={styles.distValue} style={{ color: d.score >= 70 ? '#10b981' : d.score >= 50 ? '#f59e0b' : '#ef4444' }}>
+                          {loading ? '…' : `${d.score}%`}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-               </div>
+                </div>
 
-               <div className={styles.criticalFindings}>
-                  <h3>🚨 Hallazgos Críticos Globales</h3>
-                  <div className={styles.findingItem}>
-                    <div className={styles.riskLevel} data-level="high" />
-                    <p><strong>Arquitectura de Datos:</strong> Se detectaron 14 activos huérfanos sin owner definido en el dominio de Finanzas.</p>
-                  </div>
-                  <div className={styles.findingItem}>
-                    <div className={styles.riskLevel} data-level="high" />
-                    <p><strong>Seguridad:</strong> El 20% de los datos sensibles (PII) no tienen políticas de enmascaramiento activo.</p>
-                  </div>
-               </div>
-
-               <div className={styles.nextSteps}>
+                <div className={styles.nextSteps}>
                   <h3>Próximos Pasos Estratégicos</h3>
-                  <div className={styles.stepCard}>
-                     <div className={styles.stepNum}>1</div>
-                     <p>Formalizar el Comité de Gobierno para elevar el score de <strong>Organización</strong>.</p>
-                  </div>
-                  <div className={styles.stepCard}>
-                     <div className={styles.stepNum}>2</div>
-                     <p>Ejecutar escaneo de calidad en el Maestro de Proveedores.</p>
-                  </div>
-               </div>
-            </motion.div>
-          )}
+                  {dynamicDimensions
+                    .filter(d => d.score < 70)
+                    .sort((a, b) => a.score - b.score)
+                    .slice(0, 3)
+                    .map((d, i) => (
+                      <div key={d.id} className={styles.stepCard}>
+                        <div className={styles.stepNum}>{i + 1}</div>
+                        <p>
+                          Mejorar <strong>{d.name}</strong> ({d.score}%) —
+                          {d.id === 'calidad' && ' ejecutar escaneo de calidad en activos críticos.'}
+                          {d.id === 'organizacion' && ' formalizar Comité de Gobierno y asignar Data Owners.'}
+                          {d.id === 'arquitectura' && ' mapear linaje de datos y clasificar activos huérfanos.'}
+                          {d.id === 'compliance' && ' resolver incidentes abiertos y actualizar marcos normativos.'}
+                          {d.id === 'seguridad' && ' clasificar datos PII y activar políticas de enmascaramiento.'}
+                          {d.id === 'estrategia' && ' aprobar workflows pendientes y revisar objetivos de gobierno.'}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Sección de Roadmap General */}
+      {/* ── Roadmap Section ── */}
       <div className={styles.roadmapSection}>
-         <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitle}>
-               <Briefcase size={22} />
-               <h2>Roadmap de Mejora Continua (90 Días)</h2>
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitle}><Briefcase size={22} /><h2>Roadmap de Mejora Continua (90 Días)</h2></div>
+          <button className={styles.secondaryBtn}><RefreshCw size={16} /> Actualizar Plan</button>
+        </div>
+        <div className={styles.timeline}>
+          <div className={styles.timelineItem}>
+            <div className={styles.timeLabel}>Mes 1</div>
+            <div className={styles.timeContent}>
+              <strong>Fase: Cimentación</strong>
+              <p>Asignar Stewards en Finanzas y Ventas. Automatizar reglas críticas de calidad.</p>
             </div>
-            <button className={styles.secondaryBtn}>Descargar PDF</button>
-         </div>
-         <div className={styles.timeline}>
-            <div className={styles.timelineItem}>
-               <div className={styles.timeLabel}>Mes 1</div>
-               <div className={styles.timeContent}>
-                  <strong>Fase: Cimentación</strong>
-                  <p>Asignar Stewards en Finanzas y Ventas. Automatizar reglas críticas de calidad.</p>
-               </div>
+          </div>
+          <div className={styles.timelineItem}>
+            <div className={styles.timeLabel}>Mes 2</div>
+            <div className={styles.timeContent}>
+              <strong>Fase: Operación</strong>
+              <p>Configurar SLAs en Workflows. Integrar logs de auditoría automáticos.</p>
             </div>
-            <div className={styles.timelineItem}>
-               <div className={styles.timeLabel}>Mes 2</div>
-               <div className={styles.timeContent}>
-                  <strong>Fase: Operación</strong>
-                  <p>Configurar SLAs en Workflows. Integrar logs de auditoría automáticos.</p>
-               </div>
+          </div>
+          <div className={styles.timelineItem}>
+            <div className={styles.timeLabel}>Mes 3</div>
+            <div className={styles.timeContent}>
+              <strong>Fase: Optimización</strong>
+              <p>Desplegar enmascaramiento dinámico. Activar portal de autoservicio.</p>
             </div>
-            <div className={styles.timelineItem}>
-               <div className={styles.timeLabel}>Mes 3</div>
-               <div className={styles.timeContent}>
-                  <strong>Fase: Optimización</strong>
-                  <p>Desplegar enmascaramiento dinámico. Activar portal de autoservicio.</p>
-               </div>
-            </div>
-         </div>
+          </div>
+        </div>
       </div>
 
-      {/* MODAL DE EVOLUCIÓN HISTÓRICA */}
+      {/* ── MODAL: EVOLUCIÓN HISTÓRICA ── */}
       <AnimatePresence>
         {isHistoryModalOpen && (
           <div className={styles.modalOverlay}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className={styles.modalContent}
-              style={{ width: '800px' }}
+              style={{ width: '820px' }}
             >
               <div className={styles.modalHeader}>
                 <h2>📈 Evolución Histórica de Madurez</h2>
                 <button className={styles.closeBtn} onClick={() => setIsHistoryModalOpen(false)}>×</button>
               </div>
               <div className={styles.modalBody}>
+                {/* Current snapshot */}
+                <div className={styles.historySnapshot}>
+                  <div className={styles.snapItem}>
+                    <span>Score Actual</span>
+                    <strong style={{ color: levelColor }}>{globalScore}%</strong>
+                  </div>
+                  <div className={styles.snapItem}>
+                    <span>Nivel</span>
+                    <strong>{maturityLevel}</strong>
+                  </div>
+                  <div className={styles.snapItem}>
+                    <span>Evaluaciones</span>
+                    <strong>{evolutionData.length}</strong>
+                  </div>
+                  <div className={styles.snapItem}>
+                    <span>Tendencia</span>
+                    <strong style={{ color: '#10b981' }}>
+                      {evolutionData.length >= 2
+                        ? `+${evolutionData[evolutionData.length - 1].score - evolutionData[evolutionData.length - 2].score}%`
+                        : 'N/A'}
+                    </strong>
+                  </div>
+                </div>
+
                 <div className={styles.chartLegend}>
-                  <div className={styles.legItem}><div className={styles.dot} style={{ background: '#3b82f6' }} /> GovData Score</div>
+                  <div className={styles.legItem}><div className={styles.dot} style={{ background: primaryColor }} /> GovData Score</div>
                   <div className={styles.legItem}><div className={styles.dot} style={{ background: '#94a3b8', border: '1px dashed #64748b' }} /> Benchmark Industria</div>
                 </div>
-                <div style={{ width: '100%', height: 400, marginTop: '20px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={evolutionData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                      <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="score" 
-                        stroke="#3b82f6" 
-                        strokeWidth={4} 
-                        dot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                        activeDot={{ r: 8 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="benchmark" 
-                        stroke="#94a3b8" 
-                        strokeWidth={2} 
-                        strokeDasharray="5 5"
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className={styles.historyInsights}>
-                   <div className={styles.insightCard}>
+
+                {evolutionData.length < 2 ? (
+                  <div className={styles.emptyHistory}>
+                    <History size={40} style={{ color: '#cbd5e1' }} />
+                    <p>Realiza al menos 2 evaluaciones para ver la evolución histórica.</p>
+                    <button className={styles.primaryBtn} onClick={() => { setIsHistoryModalOpen(false); setIsAssessmentModalOpen(true); }}>
+                      <Zap size={16} /> Iniciar Evaluación
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', height: 360, marginTop: '16px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={evolutionData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} unit="%" />
+                        <Tooltip
+                          formatter={(val: any) => [`${val}%`]}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone" dataKey="score" name="Score Global" stroke={primaryColor}
+                          strokeWidth={4} dot={{ r: 6, fill: primaryColor, strokeWidth: 2, stroke: '#fff' }}
+                          activeDot={{ r: 8 }}
+                        />
+                        <Line
+                          type="monotone" dataKey="benchmark" name="Benchmark" stroke="#94a3b8"
+                          strokeWidth={2} strokeDasharray="5 5" dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {evolutionData.length >= 2 && (
+                  <div className={styles.historyInsights}>
+                    <div className={styles.insightCard}>
                       <TrendingUp size={20} style={{ color: '#10b981' }} />
                       <div>
-                         <strong>Crecimiento sostenido</strong>
-                         <p>Incremento del 42% en madurez desde Enero gracias a la automatización de reglas de calidad.</p>
+                        <strong>Progreso registrado</strong>
+                        <p>
+                          Desde la primera evaluación ({evolutionData[0].score}%) hasta la más reciente ({evolutionData[evolutionData.length - 1].score}%),
+                          se ha logrado un crecimiento de <strong>+{evolutionData[evolutionData.length - 1].score - evolutionData[0].score}%</strong> en madurez global.
+                        </p>
                       </div>
-                   </div>
-                </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* MODAL DE NUEVA EVALUACIÓN (CUESTIONARIO) */}
+      {/* ── MODAL: NUEVA EVALUACIÓN ── */}
       <AnimatePresence>
         {isAssessmentModalOpen && (
           <div className={styles.modalOverlay}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
@@ -491,71 +818,49 @@ export default function Maturity() {
             >
               <div className={styles.modalHeader}>
                 <div>
-                  <span className={styles.stepIndicator}>Paso {assessmentStep} de 2</span>
                   <h2>Nueva Evaluación de Madurez</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                    Score actual: <strong style={{ color: levelColor }}>{globalScore}%</strong> · {maturityLevel}
+                  </p>
                 </div>
                 <button className={styles.closeBtn} onClick={() => setIsAssessmentModalOpen(false)}>×</button>
               </div>
               <div className={styles.modalBody}>
-                {assessmentStep === 1 ? (
-                  <div className={styles.questionnaire}>
-                    <h3>Dimensión: Organización y Roles</h3>
-                    <div className={styles.question}>
-                      <p>1. ¿Existe un Comité de Gobierno de Datos formalmente constituido?</p>
-                      <div className={styles.options}>
-                        {['Si, activo', 'En proceso', 'No existe'].map(opt => (
-                          <button 
-                            key={opt}
-                            className={`${styles.optionBtn} ${answers.q1 === opt ? styles.activeOption : ''}`}
-                            onClick={() => setAnswers({...answers, q1: opt})}
-                          >
-                            {opt}
-                          </button>
-                        ))}
+                <div className={styles.questionnaire}>
+                  <h3>Evaluación Híbrida Manual (GMF)</h3>
+
+                  {[
+                    { key: 'q1', label: '1. Comité de Gobierno formal constituido', lo: 'No existe (1)', mid: 'En proceso (3)', hi: 'Activo & Formal (5)' },
+                    { key: 'q2', label: '2. Capacitación de Data Owners', lo: 'No entrenados (1)', mid: 'Parcial (3)', hi: 'Totalmente (5)' },
+                    { key: 'q3', label: '3. Estrategia alineada con Objetivos', lo: 'Desalineada (1)', mid: 'Parcial (3)', hi: 'Integrada (5)' },
+                    { key: 'q4', label: '4. Marcos de Compliance activos', lo: 'Sin marcos (1)', mid: 'En adopción (3)', hi: 'Certificados (5)' },
+                  ].map(q => (
+                    <div key={q.key} className={styles.question} style={{ marginBottom: '20px' }}>
+                      <p><strong>{q.label}:</strong> (Actual: {answers[q.key]} / 5)</p>
+                      <input
+                        type="range" min="1" max="5"
+                        value={answers[q.key]}
+                        onChange={(e) => setAnswers({ ...answers, [q.key]: parseInt(e.target.value) })}
+                        style={{ width: '100%', accentColor: primaryColor }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                        <span>{q.lo}</span><span>{q.mid}</span><span>{q.hi}</span>
                       </div>
                     </div>
-                    <div className={styles.question}>
-                      <p>2. ¿Los Data Owners están capacitados y ejerciendo sus funciones?</p>
-                      <div className={styles.options}>
-                        {['Totalmente', 'Parcialmente', 'No capacitados'].map(opt => (
-                          <button 
-                            key={opt}
-                            className={`${styles.optionBtn} ${answers.q2 === opt ? styles.activeOption : ''}`}
-                            onClick={() => setAnswers({...answers, q2: opt})}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                  ))}
+
+                  {/* Live preview */}
+                  <div className={styles.previewBox}>
+                    <span>Score estimado tras evaluación:</span>
+                    <strong style={{ color: levelColor, fontSize: '1.2rem' }}>{globalScore}%</strong>
                   </div>
-                ) : (
-                  <div className={styles.questionnaire}>
-                    <h3>Dimensión: Estrategia y Visión</h3>
-                    <div className={styles.question}>
-                      <p>3. ¿La estrategia de datos está alineada con los objetivos de negocio 2024?</p>
-                      <div className={styles.options}>
-                        {['Alineada', 'Desalineada', 'No existe estrategia'].map(opt => (
-                          <button 
-                            key={opt}
-                            className={`${styles.optionBtn} ${answers.q3 === opt ? styles.activeOption : ''}`}
-                            onClick={() => setAnswers({...answers, q3: opt})}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button className={styles.secondaryBtn} onClick={() => setIsAssessmentModalOpen(false)}>Cancelar</button>
-                {assessmentStep === 1 ? (
-                  <button className={styles.primaryBtn} onClick={() => setAssessmentStep(2)}>Siguiente</button>
-                ) : (
-                  <button className={styles.primaryBtn} onClick={handleAssessmentSubmit}>Finalizar Evaluación</button>
-                )}
+                <button className={styles.primaryBtn} onClick={handleAssessmentSubmit}>
+                  <CheckCircle2 size={16} /> Finalizar y Recalcular
+                </button>
               </div>
             </motion.div>
           </div>

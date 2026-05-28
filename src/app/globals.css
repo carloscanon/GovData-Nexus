@@ -113,3 +113,324 @@ button {
 .fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* =====================================================================
+   SISTEMA DE TARJETAS UNIFICADO — GovData Nexus Platform
+   Aplica el mismo diseño del dashboard clásico a todos los módulos.
+   Todas las tarjetas usan las variables CSS configurables desde Settings.
+   ===================================================================== */
+
+/* Variables de tarjeta con valores por defecto del dashboard clásico */
+:root {
+  --card-bg: #ffffff;
+  --card-border-color: #e2e8f0;
+  --card-border-radius: 24px;
+  --card-border-width: 1px;
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  --card-shadow-hover: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  --card-transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Clase universal de tarjeta — úsala en cualquier módulo */
+.platform-card {
+  background: var(--card-bg, #ffffff);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
+  border-radius: var(--card-border-radius, 24px);
+  box-shadow: var(--card-shadow, 0 4px 20px rgba(0, 0, 0, 0.02));
+  transition: var(--card-transition, all 0.3s cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.platform-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover, 0 20px 40px -15px rgba(0, 0, 0, 0.08));
+  border-color: #cbd5e1;
+}
+
+/* -----------------------------------------------------------------------
+   Parche global para .kpiCard en todos los módulos CSS
+   (catalog, quality, security, policies, maturity, team, workflows)
+   ----------------------------------------------------------------------- */
+[class*="kpiCard"] {
+  background: var(--card-bg, #ffffff) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0) !important;
+  border-radius: var(--card-border-radius, 24px) !important;
+  box-shadow: var(--card-shadow, 0 4px 20px rgba(0, 0, 0, 0.02)) !important;
+  transition: var(--card-transition, all 0.3s cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+[class*="kpiCard"]:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--card-shadow-hover, 0 20px 40px -15px rgba(0, 0, 0, 0.08)) !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Paneles de contenido / secciones principales */
+[class*="chartSection"],
+[class*="chartPanel"],
+[class*="heatmapCard"],
+[class*="rulesSection"],
+[class*="tableContainer"],
+[class*="registryArea"],
+[class*="domainTableContainer"],
+[class*="raciView"],
+[class*="bottomSection"],
+[class*="sideCard"],
+[class*="detailPanel"],
+[class*="generalOverview"],
+[class*="incidentsSection"] {
+  background: var(--card-bg, #ffffff) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0) !important;
+  border-radius: var(--card-border-radius, 24px) !important;
+  box-shadow: var(--card-shadow, 0 4px 20px rgba(0, 0, 0, 0.02)) !important;
+}
+
+/* Tarjetas de miembro/contenido con bordes */
+[class*="memberCard"],
+[class*="suggestionCard"],
+[class*="workflowCard"],
+[class*="evidenceCard"],
+[class*="sourceCard"],
+[class*="ruleCard"],
+[class*="insightCard"] {
+  background: var(--card-bg, #ffffff) !important;
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0) !important;
+  border-radius: var(--card-border-radius, 20px) !important;
+  transition: var(--card-transition, all 0.3s cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+/* =====================================================================
+   RESPONSIVE DESIGN PATCH SYSTEM — GovData Nexus Platform
+   ===================================================================== */
+
+/* Responsive layout wrappers */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background);
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Mobile Header (hidden by default on desktops/laptops) */
+.mobile-header {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    flex-direction: column;
+  }
+  
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--primary-gradient);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    height: 70px;
+    width: 100%;
+  }
+  
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .mobile-logo-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  .mobile-brand-name {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+  }
+  
+  .mobile-menu-btn {
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s;
+  }
+  
+  .mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Global container padding adjustments for tablets and laptops */
+@media (max-width: 1280px) {
+  [class*="container"], [class*="classic_container"] {
+    padding: 24px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  [class*="container"], [class*="classic_container"] {
+    padding: 16px !important;
+  }
+}
+
+/* 1. Statistics / KPI Grids
+   All statistics panels that use 4 or 5 columns are adjusted for smaller screens */
+@media (max-width: 1200px) {
+  [class*="moduleStats"], [class*="kpiGrid"], [class*="classic_statsGrid"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  [class*="moduleStats"], [class*="kpiGrid"], [class*="classic_statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 550px) {
+  [class*="moduleStats"], [class*="kpiGrid"], [class*="classic_statsGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 2. Main Content Grids (Sidebars + Main Column layouts) */
+@media (max-width: 1024px) {
+  [class*="mainGrid"], [class*="classic_mainGrid"], [class*="bottomGrid"], [class*="classic_bottomGrid"] {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  
+  [class*="rightColumn"] {
+    width: 100% !important;
+  }
+}
+
+/* 3. Header and Toolbars */
+@media (max-width: 768px) {
+  [class*="header"], [class*="classic_header"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    padding: 20px !important;
+  }
+  
+  [class*="headerActions"], [class*="classic_headerActions"] {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  [class*="headerActions"] button, [class*="classic_headerActions"] button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  [class*="toolbar"] {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    padding: 16px !important;
+  }
+  
+  [class*="toolbarMenu"] {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+
+  [class*="searchBar"], [class*="searchWrapper"] {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
+/* 4. Tables and Rows
+   Ensure large data tables are scrollable or adjust columns to prevent layout breakages */
+@media (max-width: 768px) {
+  [class*="tableCard"], [class*="tableContainer"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  [class*="table"] {
+    min-width: 700px !important; /* Ensure content is readable via scroll instead of squished */
+  }
+
+  /* For custom grid-based table rows (like in the classic dashboard incident table) */
+  [class*="classic_tableRow"], [class*="classic_tableHeader"] {
+    grid-template-columns: 1fr auto !important; /* Stack info and show status/action */
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+  
+  [class*="classic_tableCell"]:not([class*="titleCell"]) {
+    display: none !important; /* Hide non-essential columns on mobile */
+  }
+}
+
+/* 5. Custom Dashboard Specific Wrappers */
+@media (max-width: 1280px) {
+  [class*="gridDashboard"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  [class*="cardBalance"] {
+    grid-column: span 2 !important;
+  }
+  
+  [class*="cardIncome"], [class*="cardExpense"] {
+    grid-column: span 1 !important;
+  }
+  
+  [class*="cardGoals"], [class*="cardChart"], [class*="stackRight"] {
+    grid-column: span 2 !important;
+  }
+  
+  [class*="cardTable"] {
+    grid-column: span 2 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  [class*="gridDashboard"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  [class*="cardBalance"], [class*="cardIncome"], [class*="cardExpense"],
+  [class*="cardGoals"], [class*="cardChart"], [class*="stackRight"], [class*="cardTable"] {
+    grid-column: span 1 !important;
+    min-height: auto !important;
+  }
+  
+  [class*="balanceRow"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+  
+  [class*="hugeValue"] {
+    font-size: 2rem !important;
+  }
+}
+

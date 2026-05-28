@@ -1,6 +1,6 @@
 .container {
-  padding: 32px;
-  max-width: 1400px;
+  padding: 40px;
+  max-width: 1600px;
   margin: 0 auto;
   min-height: 100vh;
   background-color: #f8fafc;
@@ -130,10 +130,10 @@
 }
 
 .kpiCard {
-  background-color: white;
+  background-color: var(--card-bg, white);
   padding: 24px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--card-border-radius, 20px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
@@ -212,10 +212,10 @@
 }
 
 .chartSection, .incidentsSection {
-  background-color: white;
+  background-color: var(--card-bg, white);
   padding: 24px;
-  border-radius: 24px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--card-border-radius, 24px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
 }
 
 .sourceList {
@@ -411,9 +411,9 @@
   align-items: center;
   gap: 20px;
   padding: 24px;
-  background-color: white;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card-bg, white);
+  border-radius: var(--card-border-radius, 16px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
@@ -572,10 +572,10 @@
 }
 
 .rulesSection {
-  background-color: white;
+  background-color: var(--card-bg, white);
   padding: 24px;
-  border-radius: 24px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--card-border-radius, 24px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
   margin-bottom: 32px;
 }
 
@@ -912,5 +912,97 @@
   margin: 0;
   font-size: 0.8rem;
   line-height: 1.4;
+}
+
+/* ── Consolidated Global Score Banner ── */
+.globalBanner {
+  background: var(--card-bg, white);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border));
+  border-radius: var(--card-border-radius, 24px);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.08);
+  margin-bottom: 28px;
+  width: 100%;
+}
+
+.globalLeft {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+.circleWrap {
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.12));
+}
+
+.globalInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.globalLevel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.globalTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.globalSub {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.globalRight {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 420px;
+  justify-content: flex-end;
+}
+
+.miniPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.miniPill:hover {
+  background: #eff6ff;
+  border-color: var(--dynamic-primary, #4f46e5);
+  color: var(--dynamic-primary, #4f46e5);
+}
+
+.miniPill strong {
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 

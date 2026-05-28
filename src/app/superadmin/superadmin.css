@@ -667,3 +667,150 @@
   font-size: 0.875rem;
   font-weight: 600;
 }
+
+/* ==============================================================================
+   RESPONSIVE DESIGN PATCHES FOR SUPERADMIN
+   ============================================================================== */
+.sa-mobile-header {
+  display: none;
+}
+
+.sa-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sa-layout {
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  .sa-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background-color: var(--sa-card);
+    border-bottom: 1px solid var(--sa-border);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    height: 70px;
+    width: 100%;
+  }
+
+  .sa-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sa-mobile-brand-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(to right, #f8fafc, #f8fafc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .sa-mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--sa-border);
+    transition: background-color 0.2s;
+    cursor: pointer;
+  }
+
+  .sa-mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .sa-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    width: 280px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sa-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sa-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(5, 11, 20, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: saFadeIn 0.2s ease-out;
+  }
+
+  @keyframes saFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .sa-header {
+    padding: 1rem 1.5rem;
+    height: auto;
+  }
+
+  .sa-content {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sa-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .sa-user-badge {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .sa-title-area {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .sa-title {
+    font-size: 1.5rem;
+  }
+  
+  .sa-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  
+  .sa-widget-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .sa-stat-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

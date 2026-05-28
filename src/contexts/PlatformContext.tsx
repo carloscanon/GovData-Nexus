@@ -59,6 +59,15 @@ interface PlatformContextType {
   setMode: (mode: PlatformMode) => void;
   brandColors: BrandColors;
   setBrandColors: (colors: BrandColors) => void;
+  // Card styles
+  cardBg: string;
+  setCardBg: (bg: string) => void;
+  cardBorderColor: string;
+  setCardBorderColor: (color: string) => void;
+  cardBorderRadius: string;
+  setCardBorderRadius: (radius: string) => void;
+  cardBorderWidth: string;
+  setCardBorderWidth: (width: string) => void;
   // Tenants
   tenants: Tenant[];
   currentTenant: Tenant;
@@ -187,6 +196,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     fontFamily: 'Inter'
   });
 
+  const [cardBg, setCardBgState] = useState<string>('#ffffff');
+  const [cardBorderColor, setCardBorderColorState] = useState<string>('rgba(229, 231, 235, 0.5)');
+  const [cardBorderRadius, setCardBorderRadiusState] = useState<string>('24px');
+  const [cardBorderWidth, setCardBorderWidthState] = useState<string>('1px');
+
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
   const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
@@ -202,6 +216,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         setSaThemeState(JSON.parse(savedSaTheme));
       } catch(e) {}
     }
+
+    const savedCardBg = localStorage.getItem('govdata_card_bg');
+    if (savedCardBg) setCardBgState(savedCardBg);
+
+    const savedCardBorderColor = localStorage.getItem('govdata_card_border_color');
+    if (savedCardBorderColor) setCardBorderColorState(savedCardBorderColor);
+
+    const savedCardBorderRadius = localStorage.getItem('govdata_card_border_radius');
+    if (savedCardBorderRadius) setCardBorderRadiusState(savedCardBorderRadius);
+
+    const savedCardBorderWidth = localStorage.getItem('govdata_card_border_width');
+    if (savedCardBorderWidth) setCardBorderWidthState(savedCardBorderWidth);
 
     const fetchTenants = async () => {
       try {
@@ -311,6 +337,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty('--sa-text', saTheme.text);
     document.documentElement.style.setProperty('--sa-font', saTheme.fontFamily);
   }, [saTheme]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--card-bg', cardBg);
+    document.documentElement.style.setProperty('--card-border-color', cardBorderColor);
+    document.documentElement.style.setProperty('--card-border-radius', cardBorderRadius);
+    document.documentElement.style.setProperty('--card-border-width', cardBorderWidth);
+  }, [cardBg, cardBorderColor, cardBorderRadius, cardBorderWidth]);
 
   // =================== Handlers ===================
 
@@ -509,6 +542,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('govdata_plans', JSON.stringify(updated));
   };
 
+  const handleSetCardBg = (bg: string) => {
+    setCardBgState(bg);
+    localStorage.setItem('govdata_card_bg', bg);
+  };
+
+  const handleSetCardBorderColor = (color: string) => {
+    setCardBorderColorState(color);
+    localStorage.setItem('govdata_card_border_color', color);
+  };
+
+  const handleSetCardBorderRadius = (radius: string) => {
+    setCardBorderRadiusState(radius);
+    localStorage.setItem('govdata_card_border_radius', radius);
+  };
+
+  const handleSetCardBorderWidth = (width: string) => {
+    setCardBorderWidthState(width);
+    localStorage.setItem('govdata_card_border_width', width);
+  };
+
   return (
     <PlatformContext.Provider value={{
       saTheme,
@@ -517,6 +570,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setMode: handleSetMode,
       brandColors,
       setBrandColors: handleSetBrandColors,
+      cardBg,
+      setCardBg: handleSetCardBg,
+      cardBorderColor,
+      setCardBorderColor: handleSetCardBorderColor,
+      cardBorderRadius,
+      setCardBorderRadius: handleSetCardBorderRadius,
+      cardBorderWidth,
+      setCardBorderWidth: handleSetCardBorderWidth,
       tenants,
       currentTenant,
       setCurrentTenant,

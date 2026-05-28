@@ -42,16 +42,41 @@ import styles from './settings.module.css';
 type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'notifications' | 'integrations' | 'branding';
 
 export default function Settings() {
-  const { brandColors, setBrandColors, currentTenant, updateTenant } = usePlatform();
+  const { 
+    brandColors, 
+    setBrandColors, 
+    currentTenant, 
+    updateTenant,
+    cardBg,
+    setCardBg,
+    cardBorderColor,
+    setCardBorderColor,
+    cardBorderRadius,
+    setCardBorderRadius,
+    cardBorderWidth,
+    setCardBorderWidth
+  } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
 
+  const [selectedDashboardLayout, setSelectedDashboardLayout] = useState<'classic' | 'moneed'>('classic');
   const [selectedDashboardType, setSelectedDashboardType] = useState<'executive' | 'technical' | 'collaborative'>('executive');
   const [isSavingDashboard, setIsSavingDashboard] = useState(false);
 
   useEffect(() => {
     if (currentTenant?.dashboardType) {
       setSelectedDashboardType(currentTenant.dashboardType);
+    }
+    if (typeof window !== 'undefined') {
+      const hasReset = localStorage.getItem('govdata_layout_reset_v2');
+      if (!hasReset) {
+        setSelectedDashboardLayout('classic');
+      } else {
+        const savedLayout = localStorage.getItem('govdata_dashboard_layout');
+        if (savedLayout === 'classic' || savedLayout === 'moneed') {
+          setSelectedDashboardLayout(savedLayout as 'classic' | 'moneed');
+        }
+      }
     }
   }, [currentTenant?.id, currentTenant?.dashboardType]);
 
@@ -63,11 +88,14 @@ export default function Settings() {
     if (!currentTenant) return;
     setIsSavingDashboard(true);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('govdata_dashboard_layout', selectedDashboardLayout);
+      }
       await updateTenant(currentTenant.id, { dashboardType: selectedDashboardType });
-      alert('✅ Estilo de dashboard guardado exitosamente para la organización.');
+      alert('✅ Configuración de tableros guardada exitosamente.');
     } catch (e: any) {
       console.error(e);
-      alert('❌ Error al guardar el estilo de dashboard.');
+      alert('❌ Error al guardar la configuración.');
     } finally {
       setIsSavingDashboard(false);
     }
@@ -414,6 +442,79 @@ export default function Settings() {
                 </div>
               </div>
 
+              <div className={styles.section}>
+                <h3>Estilo Consistente de Tarjetas (Cards)</h3>
+                <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                  Ajusta los colores y bordes de las tarjetas para que todos los componentes luzcan consistentes en tu panel.
+                </p>
+                <div className={styles.colorGrid} style={{ marginBottom: '20px' }}>
+                  <div className={styles.colorField}>
+                    <label>Fondo de Tarjeta</label>
+                    <div className={styles.colorPickerWrapper}>
+                      <input 
+                        type="color" 
+                        value={cardBg} 
+                        onChange={e => setCardBg(e.target.value)}
+                      />
+                      <input 
+                        type="text" 
+                        value={cardBg}
+                        onChange={e => setCardBg(e.target.value)}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Color del Borde</label>
+                    <div className={styles.colorPickerWrapper}>
+                      <input 
+                        type="color" 
+                        value={cardBorderColor} 
+                        onChange={e => setCardBorderColor(e.target.value)}
+                      />
+                      <input 
+                        type="text" 
+                        value={cardBorderColor}
+                        onChange={e => setCardBorderColor(e.target.value)}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.colorGrid}>
+                  <div className={styles.colorField}>
+                    <label>Grosor del Borde</label>
+                    <select 
+                      value={cardBorderWidth} 
+                      onChange={e => setCardBorderWidth(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '8px' }}
+                    >
+                      <option value="0px">0px (Sin Borde)</option>
+                      <option value="1px">1px (Delgado)</option>
+                      <option value="2px">2px (Mediano)</option>
+                      <option value="3px">3px (Grueso)</option>
+                    </select>
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Redondeado de Bordes (Border Radius)</label>
+                    <select 
+                      value={cardBorderRadius} 
+                      onChange={e => setCardBorderRadius(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '8px' }}
+                    >
+                      <option value="0px">0px (Recto)</option>
+                      <option value="8px">8px (Suave)</option>
+                      <option value="16px">16px (Intermedio)</option>
+                      <option value="24px">24px (Redondeado Premium)</option>
+                      <option value="32px">32px (Extra Redondeado)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className={styles.footer}>
                 <button className={styles.saveBtn} onClick={() => {
                   setBrandColors(brandColors);
@@ -453,54 +554,84 @@ export default function Settings() {
                 </div>
 
                 <div className={styles.section}>
-                  <h3>Estilo de Dashboard Organizacional</h3>
+                  <h3>Diseño de Dashboard Organizacional</h3>
                   <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
-                    Selecciona el diseño predeterminado para el panel principal de tu organización.
+                    Selecciona la plantilla principal del panel de control de tu organización.
                   </p>
-                  
-                  <div className={styles.themeGrid}>
+
+                  <div className={styles.themeGrid} style={{ marginBottom: '24px' }}>
                     <div 
-                      className={`${styles.themeCard} ${selectedDashboardType === 'executive' ? styles.activeTheme : ''}`}
-                      onClick={() => handleDashboardChange('executive')}
+                      className={`${styles.themeCard} ${selectedDashboardLayout === 'moneed' ? styles.activeTheme : ''}`}
+                      onClick={() => setSelectedDashboardLayout('moneed')}
                       style={{ cursor: 'pointer' }}
                     >
-                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                         <BarChart3 size={32} style={{ color: '#60a5fa' }} />
+                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #f3f4f6 0%, #e2e8f0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <Palette size={32} style={{ color: '#2563eb' }} />
                       </div>
-                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Ejecutivo / Negocios</span>
+                      <span style={{ fontWeight: '800', fontSize: '0.95rem', display: 'block', marginTop: '8px' }}>Tablero Rediseñado (Moneed)</span>
                       <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
-                        KPIs macro, calidad promedio y evolución de la madurez.
+                        Diseño ejecutivo ultra limpio de tarjetas blancas sobre fondo gris con widgets parametrizables.
                       </small>
                     </div>
 
                     <div 
-                      className={`${styles.themeCard} ${selectedDashboardType === 'technical' ? styles.activeTheme : ''}`}
-                      onClick={() => handleDashboardChange('technical')}
+                      className={`${styles.themeCard} ${selectedDashboardLayout === 'classic' ? styles.activeTheme : ''}`}
+                      onClick={() => setSelectedDashboardLayout('classic')}
                       style={{ cursor: 'pointer' }}
                     >
-                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #090f1d 0%, #14532d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                         <Cpu size={32} style={{ color: '#a3e635' }} />
+                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #10b981 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <Database size={32} style={{ color: '#10b981' }} />
                       </div>
-                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Técnico / Operativo</span>
+                      <span style={{ fontWeight: '800', fontSize: '0.95rem', display: 'block', marginTop: '8px' }}>Tablero Clásico Inicial</span>
                       <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
-                        Escaneo en vivo, base de datos neón, tareas y completitud.
-                      </small>
-                    </div>
-
-                    <div 
-                      className={`${styles.themeCard} ${selectedDashboardType === 'collaborative' ? styles.activeTheme : ''}`}
-                      onClick={() => handleDashboardChange('collaborative')}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #d97706 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                         <Users size={32} style={{ color: '#78350f' }} />
-                      </div>
-                      <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Colaborativo / Equipo</span>
-                      <small style={{ color: 'rgba(255, 255, 255, 0.4)', display: 'block', fontSize: '0.75rem', textAlign: 'center', padding: '0 8px', marginTop: '4px' }}>
-                        Gestión de Stewards, control de tiempo y reuniones.
+                        Diseño organizativo tradicional con 3 paneles intercambiables (Ejecutivo, Técnico y Colaborativo).
                       </small>
                     </div>
                   </div>
+
+                  {selectedDashboardLayout === 'classic' && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }} 
+                      animate={{ opacity: 1, height: 'auto' }}
+                      style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '20px', marginTop: '20px' }}
+                    >
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: '800', marginBottom: '12px' }}>Sub-Vista Clásica Predeterminada</h4>
+                      <div className={styles.themeGrid}>
+                        <div 
+                          className={`${styles.themeCard} ${selectedDashboardType === 'executive' ? styles.activeTheme : ''}`}
+                          onClick={() => handleDashboardChange('executive')}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                             <BarChart3 size={32} style={{ color: '#60a5fa' }} />
+                          </div>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Ejecutivo / Negocios</span>
+                        </div>
+
+                        <div 
+                          className={`${styles.themeCard} ${selectedDashboardType === 'technical' ? styles.activeTheme : ''}`}
+                          onClick={() => handleDashboardChange('technical')}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #090f1d 0%, #14532d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                             <Cpu size={32} style={{ color: '#a3e635' }} />
+                          </div>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Técnico / Operativo</span>
+                        </div>
+
+                        <div 
+                          className={`${styles.themeCard} ${selectedDashboardType === 'collaborative' ? styles.activeTheme : ''}`}
+                          onClick={() => handleDashboardChange('collaborative')}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #d97706 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                             <Users size={32} style={{ color: '#78350f' }} />
+                          </div>
+                          <span style={{ fontWeight: '700', fontSize: '0.9rem', display: 'block', marginTop: '8px' }}>Colaborativo / Equipo</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 

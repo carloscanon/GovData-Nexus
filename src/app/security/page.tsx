@@ -25,7 +25,8 @@ import {
   Clock,
   ExternalLink,
   Shield,
-  Info
+  Info,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './security.module.css';
@@ -155,6 +156,24 @@ export default function SecurityModule() {
     return risksData.filter(r => r.impact === impact && r.probability === prob).length;
   };
 
+  // ── Consolidated Global Score Banner calculations ──
+  const sciScore = Math.round(complianceData.reduce((acc, c) => acc + c.pct, 0) / complianceData.length);
+
+  let levelText = 'CRÍTICO';
+  let levelColor = '#ef4444';
+  if (sciScore >= 88) {
+    levelText = 'FUERTE';
+    levelColor = '#10b981';
+  } else if (sciScore >= 70) {
+    levelText = 'PROTEGIDO';
+    levelColor = '#6366f1';
+  }
+
+  const circumference = 2 * Math.PI * 52;
+  const dashOffset = circumference - (sciScore / 100) * circumference;
+
+  const criticalRisksCount = risksData.filter(r => r.severity === 'Crítico' || r.severity === 'Alto').length;
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -164,33 +183,80 @@ export default function SecurityModule() {
         </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className={styles.kpiGrid}>
-        {kpis.map((kpi, idx) => (
-          <motion.div 
-            key={idx} 
-            className={styles.kpiCard}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            onClick={() => setSelectedKPI({ ...kpi, explanation: kpiExplanations[kpi.label] })}
-          >
-            <div className={styles.kpiHeader}>
-              <span>{kpi.label}</span>
-              <div className={`${styles.trend} ${kpi.trend === 'up' ? styles.trendUp : kpi.trend === 'down' ? styles.trendDown : styles.trendNeutral}`}>
-                {kpi.trend === 'up' && <ArrowUpRight size={14} />}
-                {kpi.trend === 'down' && <ArrowDownRight size={14} />}
-                {kpi.trendVal}
-              </div>
+      {/* ── Consolidated Global Score Banner ── */}
+      <motion.div
+        className={styles.globalBanner}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className={styles.globalLeft}>
+          <div className={styles.circleWrap}>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+              <circle
+                cx="60" cy="60" r="52" fill="none"
+                stroke={levelColor}
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+              />
+              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                {sciScore}%
+              </text>
+              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                SEGURIDAD
+              </text>
+            </svg>
+          </div>
+          <div className={styles.globalInfo}>
+            <div className={styles.globalLevel} style={{ color: levelColor }}>
+              <Award size={20} /> {levelText}
             </div>
-            <span className={styles.kpiValue}>{kpi.label === 'Incidentes Abiertos' ? incidentsData.length : kpi.value}</span>
-            <div className={styles.kpiBar}>
-              <div className={styles.kpiFill} style={{ width: `${kpi.pct}%`, backgroundColor: kpi.color }}></div>
-            </div>
-            <p className={styles.kpiDesc}>{kpi.desc}</p>
-          </motion.div>
-        ))}
-      </div>
+            <h2 className={styles.globalTitle}>Índice de Seguridad y Cumplimiento (SCI)</h2>
+            <p className={styles.globalSub}>
+              Evaluación ponderada de normativas Habeas Data, ISO 27001, GDPR y directrices NIST.
+            </p>
+          </div>
+        </div>
+
+        {/* Mini dimension pills */}
+        <div className={styles.globalRight}>
+          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Riesgos Críticos', value: '3', explanation: kpiExplanations['Riesgos Críticos'] })}>
+            <ShieldAlert size={14} />
+            <span>Riesgos Críticos</span>
+            <strong style={{ color: criticalRisksCount > 0 ? '#ef4444' : '#10b981' }}>{criticalRisksCount}</strong>
+          </div>
+          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Activos Sensibles', value: '28', explanation: kpiExplanations['Activos Sensibles'] })}>
+            <Lock size={14} />
+            <span>Activos Sensibles</span>
+            <strong style={{ color: '#6366f1' }}>28</strong>
+          </div>
+          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Políticas Vencidas', value: '5', explanation: kpiExplanations['Políticas Vencidas'] })}>
+            <FileWarning size={14} />
+            <span>Políticas Vencidas</span>
+            <strong style={{ color: '#f59e0b' }}>5</strong>
+          </div>
+          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Accesos Excesivos', value: '12', explanation: kpiExplanations['Accesos Excesivos'] })}>
+            <UserCheck size={14} />
+            <span>Accesos Excesivos</span>
+            <strong style={{ color: '#ec4899' }}>12</strong>
+          </div>
+          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Incidentes Abiertos', value: incidentsData.length.toString(), explanation: kpiExplanations['Incidentes Abiertos'] })}>
+            <Zap size={14} />
+            <span>Incidentes Abiertos</span>
+            <strong style={{ color: incidentsData.length > 0 ? '#ef4444' : '#10b981' }}>{incidentsData.length}</strong>
+          </div>
+          <div className={styles.miniPill}>
+            <CheckCircle size={14} />
+            <span>Cumplimiento SCI</span>
+            <strong style={{ color: '#10b981' }}>{sciScore}%</strong>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Main Tabs */}
       <div className={styles.tabs}>

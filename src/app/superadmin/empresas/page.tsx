@@ -10,7 +10,7 @@ const EMPTY_FORM = { name: '', domain: '', nit: '', email: '', phone: '', addres
 
 export default function CompaniesManagementPage() {
   const router = useRouter();
-  const { tenants, currentTenant, setCurrentTenant, addTenant, updateTenant, deleteTenant, toggleTenantStatus, updateTenantModules } = usePlatform();
+  const { tenants, currentTenant, setCurrentTenant, addTenant, updateTenant, deleteTenant, toggleTenantStatus, updateTenantModules, plans } = usePlatform();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlanFilter, setSelectedPlanFilter] = useState('');
@@ -216,28 +216,36 @@ export default function CompaniesManagementPage() {
             </div>
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 90px)', gap: '0.75rem', background: '#050b14', borderRadius: '12px', padding: '0.75rem 1rem', border: '1px solid #16223f' }}>
-              <div>
-                <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>Usuarios</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600, color: '#f1f5f9', marginTop: '0.2rem' }}>
-                  <Users style={{ width: 14, height: 14, color: '#3b82f6' }} />
-                  {t.plan === 'Enterprise' ? '∞' : t.plan === 'Professional' ? '100' : '10'}
+            {(() => {
+              const planDef = plans.find(p => p.name === t.plan);
+              const maxUsersDisp = planDef ? (planDef.maxUsers >= 9999 ? '∞' : planDef.maxUsers) : 'N/A';
+              const storageDisp = planDef ? `${planDef.storageGb}GB` : 'N/A';
+              const priceDisp = planDef ? `$${planDef.priceMonthly}` : t.monthlyCost;
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 90px)', gap: '0.75rem', background: '#050b14', borderRadius: '12px', padding: '0.75rem 1rem', border: '1px solid #16223f' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>Usuarios</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600, color: '#f1f5f9', marginTop: '0.2rem' }}>
+                      <Users style={{ width: 14, height: 14, color: '#3b82f6' }} />
+                      {maxUsersDisp}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>Storage</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600, color: '#f1f5f9', marginTop: '0.2rem' }}>
+                      <HardDrive style={{ width: 14, height: 14, color: '#6366f1' }} />
+                      {storageDisp}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>MRR</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#10b981', marginTop: '0.2rem' }}>
+                      <DollarSign style={{ width: 14, height: 14 }} />{priceDisp}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>Storage</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600, color: '#f1f5f9', marginTop: '0.2rem' }}>
-                  <HardDrive style={{ width: 14, height: 14, color: '#6366f1' }} />
-                  {t.plan === 'Enterprise' ? '500GB' : t.plan === 'Professional' ? '20GB' : '5GB'}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>MRR</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#10b981', marginTop: '0.2rem' }}>
-                  <DollarSign style={{ width: 14, height: 14 }} />{t.monthlyCost}
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>

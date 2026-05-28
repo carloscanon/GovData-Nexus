@@ -1,7 +1,8 @@
 .container {
   padding: 40px;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
+  min-height: 100vh;
 }
 
 .header {
@@ -67,9 +68,9 @@
 
 /* Panel Central */
 .settingsPanel {
-  background: white;
-  border-radius: 24px;
-  border: 1px solid var(--border);
+  background: var(--card-bg, white);
+  border-radius: var(--card-border-radius, 24px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border));
   padding: 40px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
@@ -370,9 +371,9 @@
 }
 
 .integrationCard {
-  border: 1px solid var(--border);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border));
   padding: 20px;
-  border-radius: 16px;
+  border-radius: var(--card-border-radius, 16px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -530,7 +531,7 @@
 .themeCard {
   border: 2px solid var(--border);
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--card-border-radius, 16px);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;

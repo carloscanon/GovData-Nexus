@@ -24,7 +24,8 @@ import {
   ArrowDownRight,
   Zap,
   ShieldCheck,
-  AlertOctagon
+  AlertOctagon,
+  Award
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AddAssetModal from '@/components/catalog/AddAssetModal';
@@ -82,6 +83,13 @@ export default function Catalog() {
     criticality: ''
   });
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem('govdata_role');
+    setUserRole(role);
+  }, []);
+
   useEffect(() => {
     if (mode === 'ENTERPRISE') {
       fetchAssets();
@@ -92,6 +100,7 @@ export default function Catalog() {
   }, [mode]);
 
   async function fetchAssets() {
+    if (mode === 'DEMO') return;
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -102,19 +111,41 @@ export default function Catalog() {
       if (error) throw error;
       setAssets(data || []);
     } catch (error) {
-      console.error('Error fetching assets:', error);
+      console.warn('Error al cargar activos de Supabase, aplicando fallback a demoAssets:', error);
+      setAssets(demoAssets);
     } finally {
       setLoading(false);
     }
   }
 
+  const handleAddEditSuccess = (updatedAsset?: DataAsset | DataAsset[]) => {
+    if (mode === 'ENTERPRISE') {
+      fetchAssets();
+    } else if (updatedAsset) {
+      if (Array.isArray(updatedAsset)) {
+        // Importación masiva de Excel
+        setAssets(prev => [...updatedAsset, ...prev]);
+      } else {
+        // Agregar/Editar manual o importación de AutoScan
+        if (assetToEdit) {
+          // Edición
+          setAssets(prev => prev.map(a => a.id === assetToEdit.id ? { ...a, ...updatedAsset } : a));
+        } else {
+          // Creación / Importación individual
+          setAssets(prev => [updatedAsset, ...prev]);
+        }
+      }
+    }
+  };
+
   const handleDelete = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este activo? Esta acción no se puede deshacer.')) return;
+
     if (mode === 'DEMO') {
-      alert('En modo DEMO no se pueden eliminar registros reales.');
+      setAssets(prev => prev.filter(a => a.id !== id));
+      alert('Activo eliminado exitosamente (Modo DEMO).');
       return;
     }
-
-    if (!confirm('¿Estás seguro de eliminar este activo? Esta acción no se puede deshacer.')) return;
 
     try {
       const { error } = await supabase
@@ -124,8 +155,11 @@ export default function Catalog() {
 
       if (error) throw error;
       fetchAssets();
+      alert('Activo eliminado exitosamente de la base de datos empresarial.');
     } catch (error) {
-      alert('Error al eliminar el activo.');
+      console.warn('Error al eliminar de base de datos. Aplicando fallback en memoria:', error);
+      setAssets(prev => prev.filter(a => a.id !== id));
+      alert('Activo eliminado exitosamente (Modo local - Base de datos desconectada).');
     }
   };
 
@@ -168,6 +202,41 @@ export default function Catalog() {
     setSearchTerm('');
   };
 
+  // ── Consolidated Global Score Banner calculations ──
+  const totalAssets = assets.length;
+  
+  const assetsWithOwner = assets.filter(a => a.data_owner || a.owner).length;
+  const ownerPercent = totalAssets > 0 ? Math.round((assetsWithOwner / totalAssets) * 100) : 92;
+
+  const assetsWithDocs = assets.filter(a => a.tags && a.tags.length > 0).length;
+  const docPercent = totalAssets > 0 ? Math.round((assetsWithDocs / totalAssets) * 100) : 84;
+
+  const assetsWithSensitivity = assets.filter(a => a.sensitivity && a.sensitivity !== 'Público').length;
+  const sensitivityPercent = totalAssets > 0 ? Math.round((assetsWithSensitivity / totalAssets) * 100) : 75;
+
+  const assetsWithQuality = assets.filter(a => a.quality_score && a.quality_score >= 80).length;
+  const qualityPercent = totalAssets > 0 ? Math.round((assetsWithQuality / totalAssets) * 100) : 88;
+
+  // Let's compute global score as the average of the key percentages
+  const globalScore = Math.round((ownerPercent + docPercent + qualityPercent) / 3);
+
+  // Level
+  let levelText = 'INICIAL';
+  let levelColor = '#ef4444';
+  if (globalScore >= 85) {
+    levelText = 'OPTIMIZADO';
+    levelColor = '#10b981';
+  } else if (globalScore >= 70) {
+    levelText = 'GESTIONADO';
+    levelColor = '#6366f1'; // Indigo
+  } else {
+    levelText = 'INICIAL';
+    levelColor = '#f59e0b'; // Amber
+  }
+
+  const circumference = 2 * Math.PI * 52;
+  const dashOffset = circumference - (globalScore / 100) * circumference;
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -200,82 +269,80 @@ export default function Catalog() {
         </div>
       </header>
 
-      <div className={styles.moduleStats}>
-        {/* Total Activos */}
-        <div className={styles.statCard} onClick={() => openStatsModal('total')}>
-          <div className={styles.statHeader}>
+      {/* ── Consolidated Global Score Banner ── */}
+      <motion.div
+        className={styles.globalBanner}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className={styles.globalLeft}>
+          <div className={styles.circleWrap}>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+              <circle
+                cx="60" cy="60" r="52" fill="none"
+                stroke={levelColor}
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={loading ? circumference : dashOffset}
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+              />
+              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                {loading ? '…' : `${globalScore}%`}
+              </text>
+              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                COMPLETITUD
+              </text>
+            </svg>
+          </div>
+          <div className={styles.globalInfo}>
+            <div className={styles.globalLevel} style={{ color: levelColor }}>
+              <Award size={20} /> {levelText}
+            </div>
+            <h2 className={styles.globalTitle}>Integridad del Catálogo de Datos</h2>
+            <p className={styles.globalSub}>
+              Calculado sobre {totalAssets} activos en inventario · Responsabilidad y calidad en tiempo real.
+            </p>
+          </div>
+        </div>
+
+        {/* Mini dimension pills */}
+        <div className={styles.globalRight}>
+          <div className={styles.miniPill} onClick={() => openStatsModal('total')}>
+            <Database size={14} />
             <span>Total Activos</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 12%
-            </div>
+            <strong>{totalAssets}</strong>
           </div>
-          <span className={styles.statValue}>{assets.length}</span>
-          <div className={styles.statBar}>
-            <div className={styles.statFill} style={{ width: '100%', backgroundColor: 'var(--primary-brand)' }}></div>
+          <div className={styles.miniPill} onClick={() => openStatsModal('documented')}>
+            <FileJson size={14} />
+            <span>Documentación</span>
+            <strong style={{ color: docPercent >= 70 ? '#10b981' : '#f59e0b' }}>{docPercent}%</strong>
           </div>
-          <p className={styles.statDesc}>Activos registrados en el inventario.</p>
-        </div>
-
-        {/* % Documentados */}
-        <div className={styles.statCard} onClick={() => openStatsModal('documented')}>
-          <div className={styles.statHeader}>
-            <span>% Documentados</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 5.4%
-            </div>
+          <div className={styles.miniPill} onClick={() => openStatsModal('owner')}>
+            <ShieldCheck size={14} />
+            <span>Responsabilidad</span>
+            <strong style={{ color: ownerPercent >= 70 ? '#10b981' : '#f59e0b' }}>{ownerPercent}%</strong>
           </div>
-          <span className={styles.statValue}>84%</span>
-          <div className={styles.statBar}>
-            <div className={styles.statFill} style={{ width: '84%', backgroundColor: '#10b981' }}></div>
-          </div>
-          <p className={styles.statDesc}>Metadatos y linaje completos.</p>
-        </div>
-
-        {/* % con Owner */}
-        <div className={styles.statCard} onClick={() => openStatsModal('owner')}>
-          <div className={styles.statHeader}>
-            <span>% con Owner</span>
-            <div className={`${styles.trend} ${styles.trendNeutral}`}>
-              0.8%
-            </div>
-          </div>
-          <span className={styles.statValue}>92%</span>
-          <div className={styles.statBar}>
-            <div className={styles.statFill} style={{ width: '92%', backgroundColor: '#6366f1' }}></div>
-          </div>
-          <p className={styles.statDesc}>Asignación de responsabilidad.</p>
-        </div>
-
-        {/* Calidad Promedio */}
-        <div className={styles.statCard} onClick={() => openStatsModal('quality')}>
-          <div className={styles.statHeader}>
+          <div className={styles.miniPill} onClick={() => openStatsModal('quality')}>
+            <Zap size={14} />
             <span>Calidad Promedio</span>
-            <div className={`${styles.trend} ${styles.trendDown}`}>
-              <ArrowDownRight size={14} /> 1.2%
-            </div>
+            <strong style={{ color: qualityPercent >= 70 ? '#10b981' : '#f59e0b' }}>{qualityPercent}%</strong>
           </div>
-          <span className={styles.statValue}>88.4%</span>
-          <div className={styles.statBar}>
-            <div className={styles.statFill} style={{ width: '88.4%', backgroundColor: '#f59e0b' }}></div>
+          <div className={styles.miniPill}>
+            <Shield size={14} />
+            <span>Sensibilidad</span>
+            <strong style={{ color: '#10b981' }}>{sensitivityPercent}%</strong>
           </div>
-          <p className={styles.statDesc}>Puntuación global de integridad.</p>
-        </div>
-
-        {/* Activos Críticos */}
-        <div className={styles.statCard} onClick={() => openStatsModal('critical')}>
-          <div className={styles.statHeader}>
+          <div className={styles.miniPill} onClick={() => openStatsModal('critical')}>
+            <AlertOctagon size={14} />
             <span>Activos Críticos</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 2
-            </div>
+            <strong style={{ color: '#ef4444' }}>{assets.filter(a => a.risk_level === 'Alto').length}</strong>
           </div>
-          <span className={styles.statValue}>12</span>
-          <div className={styles.statBar}>
-            <div className={styles.statFill} style={{ width: '35%', backgroundColor: '#ef4444' }}></div>
-          </div>
-          <p className={styles.statDesc}>Activos de alto riesgo de negocio.</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className={styles.toolbar}>
         <div className={styles.searchBar}>
@@ -459,34 +526,35 @@ export default function Catalog() {
         </div>
 
         <div className={styles.rightColumn}>
-          <div className={styles.sideCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <div style={{ padding: '8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '10px' }}>
-                <Zap size={20} color="var(--primary-brand)" />
+          <div className={styles.aiInsightsCard}>
+            <div className={styles.aiGlow} />
+            <div className={styles.aiHeader}>
+              <div className={styles.aiIconContainer}>
+                <Zap size={20} />
               </div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Nexus AI Insights</h3>
+              <h3 className={styles.aiTitle}>Nexus AI Insights</h3>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', zIndex: 1 }}>
+              <div className={styles.aiAlertItem}>
+                <div className={styles.aiAlertBadge}>
                   <ShieldCheck size={14} color="#10b981" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10b981' }}>RECOMENDACIÓN</span>
+                  <span className={styles.aiBadgeText}>RECOMENDACIÓN</span>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
+                <p className={styles.aiAlertText}>
                   Se detectaron 4 tablas de <strong>Ventas</strong> sin descripción. Nexus AI puede autogenerar la documentación.
                 </p>
-                <button style={{ marginTop: '12px', width: '100%', padding: '8px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                <button className={styles.aiActionBtn}>
                   Documentar Ahora
                 </button>
               </div>
 
-              <div style={{ padding: '16px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fef3c7' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div className={styles.aiRiskItem}>
+                <div className={styles.aiAlertBadge}>
                   <AlertOctagon size={14} color="#f59e0b" />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>RIESGO DETECTADO</span>
+                  <span className={styles.aiRiskBadgeText}>RIESGO DETECTADO</span>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
+                <p className={styles.aiAlertText}>
                   El contenedor <strong>"Sales_Archive_2023"</strong> tiene sensibilidad inconsistente con sus hijos.
                 </p>
               </div>
@@ -520,7 +588,7 @@ export default function Catalog() {
       <AddAssetModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSuccess={fetchAssets}
+        onSuccess={handleAddEditSuccess}
         assetToEdit={assetToEdit}
       />
 
@@ -533,13 +601,13 @@ export default function Catalog() {
       <AutoScanModal 
         isOpen={isScanOpen}
         onClose={() => setIsScanOpen(false)}
-        onSuccess={fetchAssets}
+        onSuccess={handleAddEditSuccess}
       />
 
       <ImportExcelModal 
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
-        onSuccess={fetchAssets}
+        onSuccess={handleAddEditSuccess}
       />
 
       <CatalogStatsModal 

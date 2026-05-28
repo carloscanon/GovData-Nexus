@@ -17,15 +17,17 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './ImportExcelModal.module.css';
 
 interface ImportExcelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newData?: any) => void;
 }
 
 export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModalProps) {
+  const { mode } = usePlatform();
   const [step, setStep] = useState(1); // 1: Download/Upload, 2: Validate, 3: Preview/Import
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<any>(null);
@@ -150,6 +152,51 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
   const handleImport = async () => {
     if (!data || errors.length > 0) return;
     setIsImporting(true);
+
+    if (mode === 'DEMO') {
+      try {
+        const importedAssets = data.Activos.map((a: any, index: number) => {
+          const resp = data.Responsables.find((r: any) => r.Codigo_Activo === a.Codigo_Activo) || {};
+          const clas = data.Clasificacion.find((c: any) => c.Codigo_Activo === a.Codigo_Activo) || {};
+          const quality = data.Calidad.find((q: any) => q.Codigo_Activo === a.Codigo_Activo) || {};
+          const baseTags = a.Etiquetas ? a.Etiquetas.split(',').map((t: string) => t.trim()) : [a.Area_Duena];
+          const hasPhysicalTable = !!a.Tabla_Archivo;
+          const importTags = hasPhysicalTable ? baseTags : [...baseTags, 'Metadatos_Externos'];
+
+          return {
+            id: `DEMO-${Date.now()}-${index}`,
+            code_id: a.Codigo_Activo || `ACT-${Math.floor(100 + Math.random() * 900)}`,
+            name: a.Nombre_Activo,
+            type: a.Tipo_Activo || 'Tabla SQL',
+            source: a.Sistema_Fuente || 'Excel Import',
+            owner: a.Area_Duena || 'General',
+            data_owner: resp.Data_Owner || 'No Asignado',
+            data_steward: resp.Data_Steward || 'No Asignado',
+            sensitivity: clas.Sensibilidad || 'Interno',
+            quality_score: Number(quality.Score_Global) || 100,
+            status: a.Estado || 'Vigente',
+            risk_level: clas.Nivel_Riesgo || 'Bajo',
+            tags: importTags,
+            updated_at: new Date().toISOString().split('T')[0]
+          };
+        });
+
+        setStep(3);
+        setTimeout(() => {
+          onSuccess(importedAssets);
+          onClose();
+          // Reset
+          setStep(1);
+          setFile(null);
+          setData(null);
+        }, 2000);
+      } catch (err) {
+        setErrors(['Error al importar los datos en memoria.']);
+      } finally {
+        setIsImporting(false);
+      }
+      return;
+    }
 
     try {
       // Importar uno por uno para poder mapear los campos correctamente

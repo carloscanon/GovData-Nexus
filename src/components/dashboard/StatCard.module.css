@@ -1,8 +1,8 @@
 .card {
-  background-color: white;
+  background-color: var(--card-bg, white);
   padding: 32px;
-  border-radius: 24px;
-  border: 1px solid var(--border);
+  border-radius: var(--card-border-radius, 24px);
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--border));
   box-shadow: var(--shadow);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;

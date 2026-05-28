@@ -413,4 +413,48 @@
   }
 }
 
+/* =====================================================================
+   RESPONSIVE OVERRIDES FOR SIDEBAR
+   ===================================================================== */
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    width: 280px !important; /* Force full width on mobile/tablet when open */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .sidebar.mobileOpen {
+    transform: translateX(0) !important;
+  }
+  
+  .collapseBtn {
+    display: none !important; /* Hide toggle collapse button on mobile */
+  }
+  
+  .backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: fadeInBackdrop 0.2s ease-out;
+  }
+  
+  @keyframes fadeInBackdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+
 

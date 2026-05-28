@@ -4,16 +4,18 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Database, Shield, User, Info, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './AddAssetModal.module.css';
 
 interface AddAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newData?: any) => void;
   assetToEdit?: any; // Añadimos prop opcional para editar
 }
 
 export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit }: AddAssetModalProps) {
+  const { mode } = usePlatform();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -70,23 +72,48 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
     try {
       setLoading(true);
       
-      if (assetToEdit) {
-        // Lógica de ACTUALIZACIÓN
-        const { error } = await supabase
-          .from('data_assets')
-          .update(formData)
-          .eq('id', assetToEdit.id);
-        if (error) throw error;
-      } else {
-        // Lógica de CREACIÓN
-        const { error } = await supabase
-          .from('data_assets')
-          .insert([formData]);
-        if (error) throw error;
+      if (mode === 'DEMO') {
+        const demoResult = {
+          ...formData,
+          id: assetToEdit ? assetToEdit.id : `DEMO-${Date.now()}`,
+          code_id: assetToEdit ? assetToEdit.code_id : `AST-${Math.floor(100 + Math.random() * 900)}`,
+          updated_at: new Date().toISOString().split('T')[0]
+        };
+        onSuccess(demoResult);
+        onClose();
+        return;
       }
 
-      onSuccess();
-      onClose();
+      try {
+        if (assetToEdit) {
+          // Lógica de ACTUALIZACIÓN
+          const { error } = await supabase
+            .from('data_assets')
+            .update(formData)
+            .eq('id', assetToEdit.id);
+          if (error) throw error;
+        } else {
+          // Lógica de CREACIÓN
+          const { error } = await supabase
+            .from('data_assets')
+            .insert([formData]);
+          if (error) throw error;
+        }
+
+        onSuccess();
+        onClose();
+      } catch (dbErr) {
+        console.warn('Error al guardar en base de datos. Aplicando fallback local en memoria:', dbErr);
+        const demoResult = {
+          ...formData,
+          id: assetToEdit ? assetToEdit.id : `DEMO-${Date.now()}`,
+          code_id: assetToEdit ? assetToEdit.code_id : `AST-${Math.floor(100 + Math.random() * 900)}`,
+          updated_at: new Date().toISOString().split('T')[0]
+        };
+        onSuccess(demoResult);
+        onClose();
+        alert('Activo guardado exitosamente (Modo local - Base de datos desconectada).');
+      }
     } catch (error) {
       console.error('Error saving asset:', error);
       alert('Error al procesar la solicitud.');

@@ -31,7 +31,6 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: LayoutGrid, label: 'Diseño Tableros', href: '/builder' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
   { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
@@ -41,10 +40,19 @@ const menuItems = [
   { icon: BarChart3, label: 'Madurez', href: '/maturity', module: 'maturity' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export default function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  
+  const handleLinkClick = () => {
+    if (onCloseMobile) onCloseMobile();
+  };
   const { mode, setMode, currentTenant, tenants, setCurrentTenant } = usePlatform();
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
@@ -64,15 +72,21 @@ export default function Sidebar() {
     window.location.href = '/login';
   };
 
-  // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin (ve todo)
+  // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin/admin (ve todo)
   const filteredMenuItems = menuItems.filter(item => {
-    if (userRole === 'superadmin') return true;
-    if (!item.module) return true; // Siempre mostrar Dashboard, etc.
+    if (userRole === 'superadmin') return true; // Superadmin ve absolutamente todo
+    if (userRole === 'admin') return true;       // Admin del tenant ve todos los módulos
+    if (!item.module) return true;               // Dashboard siempre visible
+    // Usuarios normales: solo módulos habilitados del tenant
     return currentTenant?.modules?.includes(item.module);
   });
 
   return (
-    <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
+    <>
+      {isMobileOpen && (
+        <div className={styles.backdrop} onClick={onCloseMobile} />
+      )}
+      <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''} ${isMobileOpen ? styles.mobileOpen : ''}`}>
       <div className={styles.logoContainer}>
         <div className={styles.logo}>
           <img 
@@ -164,6 +178,7 @@ export default function Sidebar() {
               key={item.href} 
               href={item.href}
               className={`${styles.navLink} ${isActive ? styles.active : ''}`}
+              onClick={handleLinkClick}
             >
               <item.icon size={22} className={styles.navIcon} />
               {!isCollapsed && <span className={styles.navLabel}>{item.label}</span>}
@@ -174,11 +189,11 @@ export default function Sidebar() {
       </nav>
 
       <div className={styles.footer}>
-        <Link href="/settings" className={styles.footerLink}>
+        <Link href="/settings" className={styles.footerLink} onClick={handleLinkClick}>
           <Settings size={22} />
           {!isCollapsed && <span>Configuración</span>}
         </Link>
-        <Link href="/help" className={styles.footerLink}>
+        <Link href="/help" className={styles.footerLink} onClick={handleLinkClick}>
           <HelpCircle size={22} />
           {!isCollapsed && <span>Ayuda</span>}
         </Link>
@@ -189,6 +204,7 @@ export default function Sidebar() {
             href="/superadmin" 
             className={`${styles.superadminLink} ${isCollapsed ? styles.collapsedLink : ''}`}
             title="Panel de Super Administrador"
+            onClick={handleLinkClick}
           >
             <Crown size={22} className="flex-shrink-0" />
             {!isCollapsed && <span>Super Administrador</span>}
@@ -205,7 +221,9 @@ export default function Sidebar() {
               </div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{userName || 'Usuario'}</span>
-                <span className={styles.userRole}>{userRole === 'superadmin' ? 'Superadmin' : 'Miembro'}</span>
+                <span className={styles.userRole}>
+                  {userRole === 'superadmin' ? 'Superadmin' : userRole === 'admin' ? 'Administrador' : 'Miembro'}
+                </span>
               </div>
             </div>
             <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar Sesión">
@@ -215,5 +233,6 @@ export default function Sidebar() {
         )}
       </div>
     </aside>
+    </>
   );
 }

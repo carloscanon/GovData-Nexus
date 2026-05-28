@@ -18,11 +18,12 @@ import {
 import styles from './AutoScanModal.module.css';
 
 import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 
 interface AutoScanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (newData?: any) => void;
 }
 
 const SOURCES = [
@@ -41,6 +42,7 @@ const SOURCES = [
 ];
 
 export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanModalProps) {
+  const { currentTenant, mode } = usePlatform();
   const [step, setStep] = useState<'source' | 'credentials' | 'scanning' | 'results' | 'configure_import'>('source');
   const [selectedAssetToImport, setSelectedAssetToImport] = useState<any>(null);
   const [importConfig, setImportConfig] = useState({
@@ -129,11 +131,12 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source: selectedSource.id,
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
+          database_type: selectedSource.id,
           host: connData.host,
           user: connData.user,
           key: connData.key,
-          connectionString: connData.connectionString
+          connection_string: connData.connectionString
         })
       });
 
@@ -174,7 +177,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
           fetchConnections(selectedSource.id); // Refrescar lista
         }
       } else {
-        alert("Error en el escaneo: " + result.message);
+        alert("Error en el escaneo: " + (result.error || result.message || "Fallo desconocido"));
         setStep('credentials');
       }
     } catch (err) {
@@ -193,6 +196,30 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
   const handleImport = async () => {
     if (!importConfig.data_owner) {
       alert("Por favor, asigne un responsable para este activo.");
+      return;
+    }
+
+    if (mode === 'DEMO') {
+      const newAsset = {
+        id: `DEMO-${Date.now()}`,
+        code_id: `AS-${Date.now().toString().slice(-6)}`,
+        name: importConfig.asset_name || selectedAssetToImport.name,
+        type: selectedAssetToImport.type || 'Tabla SQL',
+        source: selectedSource.name,
+        owner: 'Escaneo Automático',
+        data_owner: importConfig.data_owner,
+        sensitivity: importConfig.sensitivity,
+        quality_score: 95, // Simulado
+        status: importConfig.status,
+        risk_level: selectedAssetToImport.risk || 'Bajo',
+        tags: ['AutoScanned', selectedSource.id],
+        updated_at: new Date().toISOString().split('T')[0]
+      };
+
+      setImportedIds([...importedIds, selectedAssetToImport.id]);
+      alert(`Activo ${selectedAssetToImport.name} importado exitosamente.`);
+      setStep('results');
+      if (onSuccess) onSuccess(newAsset);
       return;
     }
 

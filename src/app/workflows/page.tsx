@@ -24,7 +24,10 @@ import {
   GitBranch,
   Shield,
   Layers,
-  BookOpen
+  BookOpen,
+  Award,
+  Info,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -134,12 +137,13 @@ const kpis = [
 ];
 
 export default function Workflows() {
-  const { mode } = usePlatform();
+  const { mode, currentTenant } = usePlatform();
   const [requests, setRequests] = useState<WorkflowReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pendientes');
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
   const [selectedReq, setSelectedReq] = useState<WorkflowReq | null>(null);
+  const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const [modalTab, setModalTab] = useState('general');
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -173,20 +177,39 @@ export default function Workflows() {
         { step: 'Solicitud Creada', user: 'Usuario Actual', date: new Date().toISOString().split('T')[0], status: 'done' }
       ]
     } as any;
-    setRequests([reqToAdd, ...requests]);
+    const updated = [reqToAdd, ...requests];
+    setRequests(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
+    }
     setIsNewRequestModalOpen(false);
     setNewReq({ title: '', category: 'Seguridad', priority: 'Media', description: '' });
   };
 
   const handleUpdateStatus = (reqId: string, newStatus: WorkflowReq['status']) => {
-    setRequests(requests.map(r => r.id === reqId ? { ...r, status: newStatus } : r));
+    const updated = requests.map(r => r.id === reqId ? { ...r, status: newStatus } : r);
+    setRequests(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
+    }
     setSelectedReq(prev => prev ? { ...prev, status: newStatus } : null);
   };
 
   useEffect(() => {
-    setRequests(demoRequests);
+    if (!currentTenant) return;
+    const key = `govdata_workflows_requests_${currentTenant.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setRequests(JSON.parse(saved));
+      } catch (e) {
+        setRequests(demoRequests);
+      }
+    } else {
+      setRequests(demoRequests);
+    }
     setLoading(false);
-  }, []);
+  }, [currentTenant?.id]);
 
   const filteredRequests = requests.filter(req => {
     if (activeDomain && req.category !== activeDomain) return false;
@@ -240,26 +263,115 @@ export default function Workflows() {
          )}
       </AnimatePresence>
 
-      {/* KPI Dashboard */}
-      <div className={styles.kpiGrid}>
-        {kpis.map((kpi, i) => (
-          <motion.div 
-            key={i} 
-            className={styles.kpiCard}
-            initial={{ opacity: 0, y: 20 }}
+      {/* ── Consolidated Global Score Banner calculations ── */}
+      {(() => {
+        const totalRequests = requests.length;
+        const pendingRequests = requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión').length;
+        const overdueRequests = requests.filter(r => r.slaStatus === 'Overdue').length;
+        const approvedToday = requests.filter(r => r.status === 'Aprobado' || r.status === 'Cerrado').length + 8; // base mock + dynamic
+        const escalatedRequests = requests.filter(r => r.status === 'Escalado').length;
+        const incidentsCount = requests.filter(r => r.category === 'Calidad' || r.type.includes('Incidente')).length + 3;
+
+        const slaEfficiency = totalRequests > 0 ? Math.round((requests.filter(r => r.slaStatus !== 'Overdue').length / totalRequests) * 100) : 100;
+
+        let levelText = 'CRÍTICO';
+        let levelColor = '#ef4444';
+        if (slaEfficiency >= 85) {
+          levelText = 'EFICIENTE';
+          levelColor = '#10b981';
+        } else if (slaEfficiency >= 70) {
+          levelText = 'ESTABLE';
+          levelColor = '#6366f1';
+        }
+
+        const circumference = 2 * Math.PI * 52;
+        const dashOffset = circumference - (slaEfficiency / 100) * circumference;
+
+        const kpiExplanations: Record<string, string> = {
+          'Pendientes': 'Solicitudes y flujos de trabajo que están esperando revisión o aprobación en este momento.',
+          'SLA Vencidos': 'Operaciones que han superado el tiempo máximo de resolución definido en los Acuerdos de Nivel de Servicio (SLA).',
+          'Aprobados Hoy': 'Flujos y solicitudes que han sido completados y cerrados satisfactoriamente en las últimas 24 horas.',
+          'Escalados': 'Casos que han sido derivados a comités de gobierno o roles de nivel superior debido a su complejidad o urgencia.',
+          'Incidentes': 'Alertas operacionales activas de calidad de datos, seguridad o infraestructura reportadas por Nexus AI.',
+          'Eficiencia SLA': 'Porcentaje de solicitudes procesadas dentro de los tiempos de SLA establecidos, representando la salud operativa del gobierno.'
+        };
+
+        return (
+          <motion.div
+            className={styles.globalBanner}
+            initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ duration: 0.5 }}
           >
-            <div className={styles.kpiIcon} style={{ background: kpi.bg, color: kpi.color }}>
-              {kpi.icon}
+            <div className={styles.globalLeft}>
+              <div className={styles.circleWrap}>
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+                  <circle
+                    cx="60" cy="60" r="52" fill="none"
+                    stroke={levelColor}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 60 60)"
+                    style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+                  />
+                  <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                    {slaEfficiency}%
+                  </text>
+                  <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                    EFICIENCIA
+                  </text>
+                </svg>
+              </div>
+              <div className={styles.globalInfo}>
+                <div className={styles.globalLevel} style={{ color: levelColor }}>
+                  <Award size={20} /> {levelText}
+                </div>
+                <h2 className={styles.globalTitle}>Índice de Eficiencia Operativa (SLA)</h2>
+                <p className={styles.globalSub}>
+                  Porcentaje de solicitudes de gobierno y operaciones resueltas a tiempo según el acuerdo SLA corporativo.
+                </p>
+              </div>
             </div>
-            <div className={styles.kpiInfo}>
-              <span className={styles.kpiValue}>{kpi.value}</span>
-              <span className={styles.kpiLabel}>{kpi.label}</span>
+
+            {/* Mini dimension pills */}
+            <div className={styles.globalRight}>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Pendientes', value: pendingRequests.toString(), explanation: kpiExplanations['Pendientes'], color: '#f59e0b' })}>
+                <Clock size={14} color="#f59e0b" />
+                <span>Pendientes</span>
+                <strong style={{ color: '#f59e0b' }}>{pendingRequests}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'SLA Vencidos', value: overdueRequests.toString(), explanation: kpiExplanations['SLA Vencidos'], color: '#ef4444' })}>
+                <AlertTriangle size={14} color="#ef4444" />
+                <span>SLA Vencidos</span>
+                <strong style={{ color: overdueRequests > 0 ? '#ef4444' : '#64748b' }}>{overdueRequests}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Aprobados Hoy', value: approvedToday.toString(), explanation: kpiExplanations['Aprobados Hoy'], color: '#10b981' })}>
+                <CheckCircle size={14} color="#10b981" />
+                <span>Aprobados Hoy</span>
+                <strong style={{ color: '#10b981' }}>{approvedToday}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Escalados', value: escalatedRequests.toString(), explanation: kpiExplanations['Escalados'], color: '#8b5cf6' })}>
+                <ShieldAlert size={14} color="#8b5cf6" />
+                <span>Escalados</span>
+                <strong style={{ color: '#8b5cf6' }}>{escalatedRequests}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Incidentes', value: incidentsCount.toString(), explanation: kpiExplanations['Incidentes'], color: '#3b82f6' })}>
+                <Activity size={14} color="#3b82f6" />
+                <span>Incidentes</span>
+                <strong style={{ color: '#3b82f6' }}>{incidentsCount}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Eficiencia SLA', value: `${slaEfficiency}%`, explanation: kpiExplanations['Eficiencia SLA'], color: '#06b6d4' })}>
+                <Award size={14} color="#06b6d4" />
+                <span>Cumplimiento SLA</span>
+                <strong style={{ color: '#06b6d4' }}>{slaEfficiency}%</strong>
+              </div>
             </div>
           </motion.div>
-        ))}
-      </div>
+        );
+      })()}
 
       <div className={styles.mainContent}>
         <div className={styles.sidebar}>
@@ -620,6 +732,50 @@ export default function Workflows() {
                    </div>
                 </div>
              </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* KPI Explainer Modal */}
+      <AnimatePresence>
+        {selectedKPI && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', padding: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '24px 32px', background: selectedKPI.color, color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
+                     <Award size={24} />
+                   </div>
+                   <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
+                </div>
+                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white', display: 'flex' }}>
+                   <X size={20} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
+                   {selectedKPI.explanation}
+                 </p>
+                 <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <Info size={20} color="#6366f1" style={{ flexShrink: 0 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Este indicador refleja el desempeño del flujo de gobierno en la organización y es actualizado por el orquestador Nexus.
+                    </p>
+                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
+                 <button className={styles.primaryBtn} onClick={() => setSelectedKPI(null)}>
+                   Entendido
+                 </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>

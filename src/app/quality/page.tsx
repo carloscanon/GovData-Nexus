@@ -25,7 +25,8 @@ import {
   Filter,
   Trash2,
   X,
-  Edit2
+  Edit2,
+  Award
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
@@ -625,6 +626,28 @@ export default function QualityModule() {
     }
   };
 
+  // ── Consolidated Global Score Banner calculations ──
+  const globalScore = Math.round(
+    ((stats.completeness || 0) +
+     (stats.accuracy || 0) +
+     (stats.consistency || 0) +
+     (stats.uniqueness || 0) +
+     (stats.timeliness || 0)) / 5
+  );
+
+  let levelText = 'RIESGO';
+  let levelColor = '#ef4444';
+  if (globalScore >= 90) {
+    levelText = 'SALUDABLE';
+    levelColor = '#10b981';
+  } else if (globalScore >= 75) {
+    levelText = 'ADECUADO';
+    levelColor = '#f59e0b';
+  }
+
+  const circumference = 2 * Math.PI * 52;
+  const dashOffset = circumference - (globalScore / 100) * circumference;
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -681,77 +704,80 @@ export default function QualityModule() {
         </div>
       </header>
 
-      <div className={styles.kpiGrid}>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
+      {/* ── Consolidated Global Score Banner ── */}
+      <motion.div
+        className={styles.globalBanner}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className={styles.globalLeft}>
+          <div className={styles.circleWrap}>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+              <circle
+                cx="60" cy="60" r="52" fill="none"
+                stroke={levelColor}
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={loading ? circumference : dashOffset}
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+              />
+              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                {loading ? '…' : `${globalScore}%`}
+              </text>
+              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                CALIDAD
+              </text>
+            </svg>
+          </div>
+          <div className={styles.globalInfo}>
+            <div className={styles.globalLevel} style={{ color: levelColor }}>
+              <Award size={20} /> {levelText}
+            </div>
+            <h2 className={styles.globalTitle}>Índice de Calidad de Datos (DQI)</h2>
+            <p className={styles.globalSub}>
+              Monitoreo continuo de completitud, exactitud y coherencia de activos de información.
+            </p>
+          </div>
+        </div>
+
+        {/* Mini dimension pills */}
+        <div className={styles.globalRight}>
+          <div className={styles.miniPill}>
+            <CheckCircle2 size={14} />
             <span>Completitud</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 2.4%
-            </div>
+            <strong style={{ color: stats.completeness >= 85 ? '#10b981' : '#f59e0b' }}>{stats.completeness}%</strong>
           </div>
-          <div className={styles.kpiValue}>{stats.completeness}%</div>
-          <div className={styles.kpiBar}>
-            <div className={styles.kpiFill} style={{ width: `${stats.completeness}%`, backgroundColor: '#10b981' }}></div>
-          </div>
-          <p className={styles.kpiDesc}>Campos obligatorios diligenciados.</p>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
+          <div className={styles.miniPill}>
+            <Activity size={14} />
             <span>Exactitud</span>
-            <div className={`${styles.trend} ${styles.trendDown}`}>
-              <ArrowDownRight size={14} /> 1.2%
-            </div>
+            <strong style={{ color: stats.accuracy >= 85 ? '#10b981' : '#f59e0b' }}>{stats.accuracy}%</strong>
           </div>
-          <div className={styles.kpiValue}>{stats.accuracy}%</div>
-          <div className={styles.kpiBar}>
-            <div className={styles.kpiFill} style={{ width: `${stats.accuracy}%`, backgroundColor: '#f59e0b' }}></div>
-          </div>
-          <p className={styles.kpiDesc}>Valores frente a reglas de negocio.</p>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
+          <div className={styles.miniPill}>
+            <RefreshCw size={14} />
             <span>Consistencia</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 0.5%
-            </div>
+            <strong style={{ color: stats.consistency >= 85 ? '#10b981' : '#f59e0b' }}>{stats.consistency}%</strong>
           </div>
-          <div className={styles.kpiValue}>{stats.consistency}%</div>
-          <div className={styles.kpiBar}>
-            <div className={styles.kpiFill} style={{ width: `${stats.consistency}%`, backgroundColor: '#10b981' }}></div>
-          </div>
-          <p className={styles.kpiDesc}>Coherencia entre sistemas.</p>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
+          <div className={styles.miniPill}>
+            <ShieldCheck size={14} />
             <span>Unicidad</span>
-            <div className={`${styles.trend} ${styles.trendNeutral}`}>
-              0%
-            </div>
+            <strong style={{ color: stats.uniqueness >= 85 ? '#10b981' : '#f59e0b' }}>{stats.uniqueness}%</strong>
           </div>
-          <div className={styles.kpiValue}>{stats.uniqueness}%</div>
-          <div className={styles.kpiBar}>
-            <div className={styles.kpiFill} style={{ width: `${stats.uniqueness}%`, backgroundColor: '#10b981' }}></div>
-          </div>
-          <p className={styles.kpiDesc}>Control de duplicados.</p>
-        </div>
-
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiHeader}>
+          <div className={styles.miniPill}>
+            <Clock size={14} />
             <span>Oportunidad</span>
-            <div className={`${styles.trend} ${styles.trendUp}`}>
-              <ArrowUpRight size={14} /> 4.1%
-            </div>
+            <strong style={{ color: stats.timeliness >= 85 ? '#10b981' : '#f59e0b' }}>{stats.timeliness}%</strong>
           </div>
-          <div className={styles.kpiValue}>{stats.timeliness}%</div>
-          <div className={styles.kpiBar}>
-            <div className={styles.kpiFill} style={{ width: `${stats.timeliness}%`, backgroundColor: '#10b981' }}></div>
+          <div className={styles.miniPill}>
+            <AlertCircle size={14} />
+            <span>Alertas Activas</span>
+            <strong style={{ color: incidents.length > 0 ? '#ef4444' : '#10b981' }}>{incidents.length}</strong>
           </div>
-          <p className={styles.kpiDesc}>Actualización a tiempo.</p>
         </div>
-      </div>
+      </motion.div>
 
       {mode === 'ENTERPRISE' && selectedAssetId && (
         <section className={styles.rulesSection}>

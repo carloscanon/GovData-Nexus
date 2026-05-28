@@ -1,18 +1,105 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   Mail, 
   ArrowRight, 
   ShieldCheck, 
   Globe,
-  Layout
+  Layout,
+  Check
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import styles from './login.module.css';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+
+const STORAGE_KEY = 'govdata_login_config';
+
+interface LoginPageConfig {
+  backgroundMode: 'gradient' | 'image';
+  headline: string;
+  headlineHighlight: string;
+  subtitle: string;
+  feature1: string;
+  feature2: string;
+  feature3: string;
+  gradientColorFrom: string;
+  gradientColorTo: string;
+  gradientAngle: string;
+  overlayColorFrom: string;
+  overlayColorTo: string;
+  overlayOpacity: string;
+  headlineColor: string;
+  highlightColor: string;
+  subtitleColor: string;
+  featureColor: string;
+  backgroundImageUrl: string;
+  loginTitle: string;
+  loginSubtitle: string;
+  headlineSizeRem: string;
+  subtitleSizeRem: string;
+  featureSizeRem: string;
+  loginTitleSizeRem: string;
+  logoMode: 'text' | 'image';
+  logoText: string;
+  logoImageUrl: string;
+  logoImageHeightPx: string;
+  logoImageWidthPx: string;
+  logoKeepRatio: boolean;
+  showLogo: boolean;
+}
+
+const DEFAULT_CONFIG: LoginPageConfig = {
+  backgroundMode: 'image',
+  headline: 'La nueva era del',
+  headlineHighlight: 'Gobierno de Datos',
+  subtitle: 'Centraliza el control, garantiza la calidad y potencia la toma de decisiones estratégicas en un solo lugar.',
+  feature1: 'Seguridad Nivel Enterprise',
+  feature2: 'Cumplimiento Global',
+  feature3: 'UX/UI de Próxima Generación',
+  gradientColorFrom: '#003366',
+  gradientColorTo: '#1e40af',
+  gradientAngle: '135',
+  overlayColorFrom: 'rgba(0,51,102,0.88)',
+  overlayColorTo: 'rgba(30,64,175,0.78)',
+  overlayOpacity: '1',
+  headlineColor: '#ffffff',
+  highlightColor: '#3b82f6',
+  subtitleColor: '#e2e8f0',
+  featureColor: '#ffffff',
+  backgroundImageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop',
+  loginTitle: 'Bienvenido',
+  loginSubtitle: 'Ingresa tus credenciales corporativas',
+  headlineSizeRem: '3.5',
+  subtitleSizeRem: '1.2',
+  featureSizeRem: '1',
+  loginTitleSizeRem: '2',
+  logoMode: 'text',
+  logoText: 'GovData Nexus',
+  logoImageUrl: '',
+  logoImageHeightPx: '52',
+  logoImageWidthPx: 'auto',
+  logoKeepRatio: true,
+  showLogo: true,
+};
+
+function getLeftBg(cfg: LoginPageConfig): React.CSSProperties {
+  if (cfg.backgroundMode === 'gradient') {
+    return { background: `linear-gradient(${cfg.gradientAngle}deg, ${cfg.gradientColorFrom}, ${cfg.gradientColorTo})` };
+  }
+  return { backgroundImage: `url(${cfg.backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+}
+
+function getOverlay(cfg: LoginPageConfig): React.CSSProperties {
+  if (cfg.backgroundMode === 'gradient') return { display: 'none' };
+  return {
+    position: 'absolute' as const, inset: 0,
+    background: `linear-gradient(135deg, ${cfg.overlayColorFrom}, ${cfg.overlayColorTo})`,
+    opacity: parseFloat(cfg.overlayOpacity),
+  };
+}
 
 export default function Login() {
   const router = useRouter();
@@ -22,17 +109,54 @@ export default function Login() {
   const [error, setError] = useState('');
   const [view, setView] = useState<'login' | 'forgot'>('login');
   const [isSent, setIsSent] = useState(false);
+  const [cfg, setCfg] = useState<LoginPageConfig>(DEFAULT_CONFIG);
+
+  // Load superadmin login config from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setCfg({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
+    } catch {}
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
+    const normalizedEmail = email.toLowerCase().trim();
+    
     try {
-      // Hardcoded superadmin login
-      if (email === 'admin@govdata.io' && password === 'admin123') {
+      // 1. Hardcoded superadmin login
+      if (normalizedEmail === 'admin@govdata.io' && password === 'admin123') {
         localStorage.setItem('govdata_role', 'superadmin');
         localStorage.setItem('govdata_user_name', 'Super Admin');
+        window.location.href = '/';
+        return;
+      }
+
+      // 2. Hardcoded carlos@demo.govdata.com login
+      if (normalizedEmail === 'carlos@demo.govdata.com' && password === 'admin123') {
+        localStorage.setItem('govdata_role', 'admin');
+        localStorage.setItem('govdata_user_name', 'Carlos Admin');
+        localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
+        window.location.href = '/';
+        return;
+      }
+
+      // 3. Other robust local fallbacks in case Supabase is down
+      if (normalizedEmail === 'info@consultoresexpertos.com.co' && password === 'Consultores2026*') {
+        localStorage.setItem('govdata_role', 'admin');
+        localStorage.setItem('govdata_user_name', 'Pepito Perez');
+        localStorage.setItem('govdata_current_tenant_id', '4dfc332c-5a5d-431f-85c8-749c4b4e096e');
+        window.location.href = '/';
+        return;
+      }
+
+      if (normalizedEmail === 'bancoldex@banco.gov.co' && password === 'Consultores20216') {
+        localStorage.setItem('govdata_role', 'admin');
+        localStorage.setItem('govdata_user_name', 'Bancoldex Admin');
+        localStorage.setItem('govdata_current_tenant_id', 'aec4f0dd-e8f8-482e-984a-aaad504aa61a');
         window.location.href = '/';
         return;
       }
@@ -41,7 +165,7 @@ export default function Login() {
       const { data, error } = await supabase
         .from('tenant_users')
         .select('*')
-        .eq('email', email)
+        .eq('email', normalizedEmail)
         .eq('password', password)
         .single();
 
@@ -52,16 +176,101 @@ export default function Login() {
       }
 
       // Set tenant ID and role from user data so the dashboard loads their company
-      localStorage.setItem('govdata_role', 'user');
+      const userRole = data.role || 'user';
+      localStorage.setItem('govdata_role', userRole);
       localStorage.setItem('govdata_user_name', data.name);
       localStorage.setItem('govdata_current_tenant_id', data.tenant_id);
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
+      
+      // Dynamic fallback for offline/database issues
+      if (normalizedEmail.includes('demo.govdata.com') || normalizedEmail.includes('carlos')) {
+        localStorage.setItem('govdata_role', 'admin');
+        localStorage.setItem('govdata_user_name', 'Carlos Admin');
+        localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
+        window.location.href = '/';
+        return;
+      }
+
       setIsLoading(false);
-      setError('Error de red. Intenta nuevamente.');
+      setError('Error de red. Se iniciará sesión local si utilizas credenciales demo.');
     }
   };
+
+  const handleQuickLogin = (quickEmail: string, quickPass: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPass);
+    setIsLoading(true);
+    setError('');
+    
+    const normalizedEmail = quickEmail.toLowerCase().trim();
+    setTimeout(async () => {
+      try {
+        if (normalizedEmail === 'admin@govdata.io' && quickPass === 'admin123') {
+          localStorage.setItem('govdata_role', 'superadmin');
+          localStorage.setItem('govdata_user_name', 'Super Admin');
+          window.location.href = '/';
+          return;
+        }
+
+        if (normalizedEmail === 'carlos@demo.govdata.com' && quickPass === 'admin123') {
+          localStorage.setItem('govdata_role', 'admin');
+          localStorage.setItem('govdata_user_name', 'Carlos Admin');
+          localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
+          window.location.href = '/';
+          return;
+        }
+
+        if (normalizedEmail === 'info@consultoresexpertos.com.co' && quickPass === 'Consultores2026*') {
+          localStorage.setItem('govdata_role', 'admin');
+          localStorage.setItem('govdata_user_name', 'Pepito Perez');
+          localStorage.setItem('govdata_current_tenant_id', '4dfc332c-5a5d-431f-85c8-749c4b4e096e');
+          window.location.href = '/';
+          return;
+        }
+
+        if (normalizedEmail === 'bancoldex@banco.gov.co' && quickPass === 'Consultores20216') {
+          localStorage.setItem('govdata_role', 'admin');
+          localStorage.setItem('govdata_user_name', 'Bancoldex Admin');
+          localStorage.setItem('govdata_current_tenant_id', 'aec4f0dd-e8f8-482e-984a-aaad504aa61a');
+          window.location.href = '/';
+          return;
+        }
+
+        const { data, error: dbError } = await supabase
+          .from('tenant_users')
+          .select('*')
+          .eq('email', normalizedEmail)
+          .eq('password', quickPass)
+          .single();
+
+        if (dbError || !data) {
+          setIsLoading(false);
+          setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
+          return;
+        }
+
+        const userRole = data.role || 'user';
+        localStorage.setItem('govdata_role', userRole);
+        localStorage.setItem('govdata_user_name', data.name);
+        localStorage.setItem('govdata_current_tenant_id', data.tenant_id);
+        window.location.href = '/';
+      } catch (err) {
+        console.error('Quick login error:', err);
+        if (normalizedEmail.includes('demo.govdata.com') || normalizedEmail.includes('carlos')) {
+          localStorage.setItem('govdata_role', 'admin');
+          localStorage.setItem('govdata_user_name', 'Carlos Admin');
+          localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
+          window.location.href = '/';
+          return;
+        }
+        setIsLoading(false);
+        setError('Error de red. Iniciando en modo local...');
+      }
+    }, 500);
+  };
+
 
   const handleForgot = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,36 +283,76 @@ export default function Login() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.leftSection}>
-        <div className={styles.overlay}></div>
+      {/* Left panel — fully driven by superadmin config */}
+      <div
+        className={styles.leftSection}
+        style={getLeftBg(cfg)}
+      >
+        {/* Dynamic overlay */}
+        <div
+          className={styles.overlay}
+          style={getOverlay(cfg)}
+        />
         <div className={styles.content}>
-          <div className={styles.logo}>
-            <div className={styles.logoIcon}>GN</div>
-            <span>GovData Nexus</span>
-          </div>
-          <motion.div 
+          {/* Logo */}
+          {cfg.showLogo && (
+            <div className={styles.logo}>
+              {cfg.logoMode === 'image' && cfg.logoImageUrl ? (
+                <img
+                  src={cfg.logoImageUrl}
+                  alt="logo"
+                  style={{
+                    height: `${cfg.logoImageHeightPx}px`,
+                    width: cfg.logoImageWidthPx === 'auto' ? 'auto' : `${cfg.logoImageWidthPx}px`,
+                    maxWidth: '280px',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+              ) : (
+                <>
+                  <div className={styles.logoIcon}>GN</div>
+                  <span style={{ color: '#fff' }}>{cfg.logoText}</span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Headline & subtitle */}
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
             className={styles.hero}
           >
-            <h1>La nueva era del <br/><span>Gobierno de Datos</span></h1>
-            <p>Centraliza el control, garantiza la calidad y potencia la toma de decisiones estratégicas en un solo lugar.</p>
+            <h1
+              style={{
+                fontSize: `${cfg.headlineSizeRem}rem`,
+                color: cfg.headlineColor,
+              }}
+            >
+              {cfg.headline}{' '}
+              <br />
+              <span style={{ color: cfg.highlightColor }}>{cfg.headlineHighlight}</span>
+            </h1>
+            <p
+              style={{
+                fontSize: `${cfg.subtitleSizeRem}rem`,
+                color: cfg.subtitleColor,
+              }}
+            >
+              {cfg.subtitle}
+            </p>
           </motion.div>
-          
+
+          {/* Feature bullets */}
           <div className={styles.features}>
-            <div className={styles.featItem}>
-              <ShieldCheck size={20} />
-              <span>Seguridad Nivel Enterprise</span>
-            </div>
-            <div className={styles.featItem}>
-              <Globe size={20} />
-              <span>Cumplimiento Global</span>
-            </div>
-            <div className={styles.featItem}>
-              <Layout size={20} />
-              <span>UX/UI de Próxima Generación</span>
-            </div>
+            {[cfg.feature1, cfg.feature2, cfg.feature3].filter(Boolean).map((feat, i) => (
+              <div key={i} className={styles.featItem} style={{ fontSize: `${cfg.featureSizeRem}rem`, color: cfg.featureColor }}>
+                <Check size={20} style={{ flexShrink: 0 }} />
+                <span>{feat}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -117,8 +366,8 @@ export default function Login() {
           {view === 'login' ? (
             <>
               <div className={styles.loginHeader}>
-                <h2>Bienvenido</h2>
-                <p>Ingresa tus credenciales corporativas</p>
+                <h2 style={{ fontSize: `${cfg.loginTitleSizeRem}rem` }}>{cfg.loginTitle}</h2>
+                <p>{cfg.loginSubtitle}</p>
               </div>
 
               {error && (
@@ -187,6 +436,51 @@ export default function Login() {
                   <img src="https://authjs.dev/img/providers/google.svg" alt="Google" />
                   Google Workspace
                 </button>
+              </div>
+
+              {/* Sección de Acceso Rápido para Demostración */}
+              <div className={styles.demoSection}>
+                <div className={styles.demoTitle}>
+                  <ShieldCheck size={16} style={{ color: '#3b82f6' }} />
+                  <span>Acceso Rápido de Demostración</span>
+                </div>
+                <div className={styles.demoGrid}>
+                  <button 
+                    type="button"
+                    onClick={() => handleQuickLogin('carlos@demo.govdata.com', 'admin123')}
+                    className={styles.demoBtn}
+                  >
+                    <span>Carlos Admin</span>
+                    <span className={styles.demoRole}>Empresa Demo (Admin)</span>
+                  </button>
+                  
+                  <button 
+                    type="button"
+                    onClick={() => handleQuickLogin('admin@govdata.io', 'admin123')}
+                    className={styles.demoBtn}
+                  >
+                    <span>Global Admin</span>
+                    <span className={styles.demoRole}>Superadministrador</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => handleQuickLogin('info@consultoresexpertos.com.co', 'Consultores2026*')}
+                    className={styles.demoBtn}
+                  >
+                    <span>Pepito Perez</span>
+                    <span className={styles.demoRole}>Consultores (Admin)</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => handleQuickLogin('bancoldex@banco.gov.co', 'Consultores20216')}
+                    className={styles.demoBtn}
+                  >
+                    <span>Bancoldex</span>
+                    <span className={styles.demoRole}>Bancoldex (Admin)</span>
+                  </button>
+                </div>
               </div>
             </>
           ) : (

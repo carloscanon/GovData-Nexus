@@ -7,7 +7,6 @@
 .leftSection {
   flex: 1.2;
   position: relative;
-  background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');
   background-size: cover;
   background-position: center;
   display: flex;
@@ -347,3 +346,60 @@
   color: var(--primary);
   font-weight: 600;
 }
+
+/* Demo Quick Login */
+.demoSection {
+  margin-top: 32px;
+  background: rgba(30, 41, 59, 0.03);
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.demoTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.demoBtn {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.demoBtn:hover {
+  border-color: var(--primary);
+  background-color: rgba(59, 130, 246, 0.03);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.demoRole {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+}
+

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -26,8 +26,12 @@ import {
   TrendingUp,
   LayoutGrid,
   Table as TableIcon,
-  PieChart
+  PieChart,
+  Award,
+  Info,
+  X
 } from 'lucide-react';
+import { usePlatform } from '@/contexts/PlatformContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './team.module.css';
 
@@ -152,6 +156,8 @@ const raciData = [
 ];
 
 export default function Team() {
+  const { currentTenant } = usePlatform();
+  const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'team' | 'domains' | 'raci' | 'coverage'>('team');
   const [selectedMember, setSelectedMember] = useState<GovernanceMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -168,6 +174,21 @@ export default function Team() {
     country: 'México'
   });
 
+  useEffect(() => {
+    if (!currentTenant) return;
+    const key = `govdata_team_members_${currentTenant.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setMembers(JSON.parse(saved));
+      } catch (e) {
+        setMembers(governanceMembers);
+      }
+    } else {
+      setMembers(governanceMembers);
+    }
+  }, [currentTenant?.id]);
+
   const handleAddMember = () => {
     const id = members.length + 1;
     const memberToAdd: GovernanceMember = {
@@ -178,7 +199,11 @@ export default function Team() {
       stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
       assignments: { assets: [], policies: [], workflows: 0 }
     };
-    setMembers([...members, memberToAdd]);
+    const updated = [...members, memberToAdd];
+    setMembers(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_team_members_${currentTenant.id}`, JSON.stringify(updated));
+    }
     setIsAssignModalOpen(false);
     setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México' });
   };
@@ -203,50 +228,118 @@ export default function Team() {
         </div>
       </header>
 
-      {/* KPIs Superiores */}
-      <div className={styles.kpiGrid}>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#10b981' }}><CheckCircle2 size={24} /></div>
-          <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Ownership Coverage</span>
-            <div className={styles.kpiValueRow}>
-              <span className={styles.kpiValue}>92%</span>
-              <span className={styles.kpiTrend}><TrendingUp size={12} /> +2%</span>
+      {/* ── Consolidated Global Score Banner calculations ── */}
+      {(() => {
+        const ownersCount = members.filter(m => m.roleType === 'Data Owner').length;
+        const stewardsCount = members.filter(m => m.roleType === 'Data Steward').length;
+        const custodiansCount = members.filter(m => m.roleType === 'Data Custodian').length;
+        
+        const activeMembers = members.filter(m => m.status === 'Activo');
+        const slaEfficiency = activeMembers.length > 0 
+          ? Math.round(activeMembers.reduce((acc, m) => acc + (m.stats?.slaCompliance || 0), 0) / activeMembers.length)
+          : 100;
+        
+        const coveredDomainsCount = governanceDomains.filter(d => d.status !== 'Huérfano').length;
+        const coverageScore = 92; // baseline representing overall ownership coverage
+
+        let levelText = 'HUÉRFANO';
+        let levelColor = '#ef4444';
+        if (coverageScore >= 90) {
+          levelText = 'SÓLIDO';
+          levelColor = '#10b981';
+        } else if (coverageScore >= 75) {
+          levelText = 'ESTRUCTURADO';
+          levelColor = '#6366f1';
+        }
+
+        const circumference = 2 * Math.PI * 52;
+        const dashOffset = circumference - (coverageScore / 100) * circumference;
+
+        const kpiExplanations: Record<string, string> = {
+          'Dueños Asignados': 'Líderes de negocio responsables de definir la criticidad, el valor comercial y la autorización de acceso a los activos de información.',
+          'Stewards Activos': 'Especialistas técnicos responsables de velar por la calidad, definición y consistencia del catálogo de metadatos.',
+          'Custodians': 'Administradores de sistemas y bases de datos que ejecutan controles físicos de almacenamiento, respaldo y accesos de seguridad.',
+          'Cobertura': 'Porcentaje de activos de información críticos que cuentan con un Data Owner formalmente asignado en la organización.',
+          'Dominios Asignados': 'Áreas de negocio o dominios lógicos de datos que cuentan con asignaciones activas de gobierno.',
+          'Eficiencia SLA': 'Cumplimiento promedio en Acuerdos de Nivel de Servicio para la atención de solicitudes de acceso e incidentes de calidad.'
+        };
+
+        return (
+          <motion.div
+            className={styles.globalBanner}
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className={styles.globalLeft}>
+              <div className={styles.circleWrap}>
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+                  <circle
+                    cx="60" cy="60" r="52" fill="none"
+                    stroke={levelColor}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 60 60)"
+                    style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+                  />
+                  <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                    {coverageScore}%
+                  </text>
+                  <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                    COBERTURA
+                  </text>
+                </svg>
+              </div>
+              <div className={styles.globalInfo}>
+                <div className={styles.globalLevel} style={{ color: levelColor }}>
+                  <Award size={20} /> {levelText}
+                </div>
+                <h2 className={styles.globalTitle}>Índice de Ownership Coverage</h2>
+                <p className={styles.globalSub}>
+                  Porcentaje de dominios y activos de información con dueños de datos formalmente asignados.
+                </p>
+              </div>
             </div>
-            <div className={styles.kpiProgress}><div className={styles.progressBar} style={{ width: '92%', background: '#10b981' }} /></div>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiIcon} style={{ background: '#fffbeb', color: '#f59e0b' }}><Layers size={24} /></div>
-          <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Dominios Cubiertos</span>
-            <div className={styles.kpiValueRow}>
-              <span className={styles.kpiValue}>8 / 10</span>
+
+            {/* Mini dimension pills */}
+            <div className={styles.globalRight}>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Dueños Asignados', value: ownersCount.toString(), explanation: kpiExplanations['Dueños Asignados'], color: '#10b981' })}>
+                <Shield size={14} color="#10b981" />
+                <span>Dueños</span>
+                <strong style={{ color: '#10b981' }}>{ownersCount}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Stewards Activos', value: stewardsCount.toString(), explanation: kpiExplanations['Stewards Activos'], color: '#f59e0b' })}>
+                <Briefcase size={14} color="#f59e0b" />
+                <span>Stewards</span>
+                <strong style={{ color: '#f59e0b' }}>{stewardsCount}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Custodians', value: custodiansCount.toString(), explanation: kpiExplanations['Custodians'], color: '#ef4444' })}>
+                <Layers size={14} color="#ef4444" />
+                <span>Custodians</span>
+                <strong style={{ color: '#ef4444' }}>{custodiansCount}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Cobertura', value: `${coverageScore}%`, explanation: kpiExplanations['Cobertura'], color: '#6366f1' })}>
+                <CheckCircle2 size={14} color="#6366f1" />
+                <span>Cobertura</span>
+                <strong style={{ color: '#6366f1' }}>{coverageScore}%</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Dominios Asignados', value: coveredDomainsCount.toString(), explanation: kpiExplanations['Dominios Asignados'], color: '#8b5cf6' })}>
+                <LayoutGrid size={14} color="#8b5cf6" />
+                <span>Dominios</span>
+                <strong style={{ color: '#8b5cf6' }}>{coveredDomainsCount} / {governanceDomains.length}</strong>
+              </div>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Eficiencia SLA', value: `${slaEfficiency}%`, explanation: kpiExplanations['Eficiencia SLA'], color: '#06b6d4' })}>
+                <Clock size={14} color="#06b6d4" />
+                <span>Eficiencia</span>
+                <strong style={{ color: '#06b6d4' }}>{slaEfficiency}%</strong>
+              </div>
             </div>
-            <p className={styles.kpiSub}>2 Dominios huérfanos</p>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiIcon} style={{ background: '#fef2f2', color: '#ef4444' }}><ShieldAlert size={24} /></div>
-          <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Activos sin Dueño</span>
-            <div className={styles.kpiValueRow}>
-              <span className={styles.kpiValue}>14</span>
-            </div>
-            <p className={styles.kpiSub} style={{ color: '#ef4444' }}>Crítico: 5 activos PII</p>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#3b82f6' }}><TrendingUp size={24} /></div>
-          <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Eficiencia Operativa</span>
-            <div className={styles.kpiValueRow}>
-              <span className={styles.kpiValue}>88%</span>
-            </div>
-            <p className={styles.kpiSub}>SLA de respuesta promedio</p>
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Tabs de Navegación */}
       <div className={styles.tabContainer}>
@@ -646,6 +739,50 @@ export default function Team() {
            </div>
          )}
        </AnimatePresence>
+
+      {/* KPI Explainer Modal */}
+      <AnimatePresence>
+        {selectedKPI && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', padding: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '24px 32px', background: selectedKPI.color, color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
+                     <Award size={24} />
+                   </div>
+                   <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
+                </div>
+                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white', display: 'flex' }}>
+                   <X size={20} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
+                   {selectedKPI.explanation}
+                 </p>
+                 <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <Info size={20} color="#6366f1" style={{ flexShrink: 0 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Este indicador refleja el estado del modelo operativo de gobierno y es calculado en base a las asignaciones de red activas.
+                    </p>
+                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
+                 <button className={styles.primaryBtn} onClick={() => setSelectedKPI(null)}>
+                   Entendido
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

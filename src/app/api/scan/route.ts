@@ -76,7 +76,51 @@ export async function POST(req: Request) {
         quality_score: qualityScore
       },
       sensitive_data_catalog: sensitiveColumns,
-      lineage: dataLineage
+      lineage: dataLineage,
+      assets: [
+        {
+          id: 'as-1',
+          name: 'clientes',
+          description: 'Tabla de clientes con información de contacto y personal.',
+          risk: 'Alto',
+          type: 'Tabla SQL',
+          fields: [
+            { name: 'id', type: 'INTEGER' },
+            { name: 'nombre', type: 'VARCHAR' },
+            { name: 'email', type: 'VARCHAR' },
+            { name: 'rut', type: 'VARCHAR' },
+            { name: 'telefono', type: 'VARCHAR' },
+            { name: 'created_at', type: 'TIMESTAMP' }
+          ]
+        },
+        {
+          id: 'as-2',
+          name: 'transacciones',
+          description: 'Registro de transacciones financieras de clientes.',
+          risk: 'Crítico',
+          type: 'Tabla SQL',
+          fields: [
+            { name: 'id_transaccion', type: 'INTEGER' },
+            { name: 'cliente_id', type: 'INTEGER' },
+            { name: 'monto', type: 'NUMERIC' },
+            { name: 'tarjeta_hash', type: 'VARCHAR' },
+            { name: 'estado', type: 'VARCHAR' }
+          ]
+        },
+        {
+          id: 'as-3',
+          name: 'productos',
+          description: 'Catálogo de productos y precios unitarios.',
+          risk: 'Bajo',
+          type: 'Tabla SQL',
+          fields: [
+            { name: 'sku', type: 'VARCHAR' },
+            { name: 'nombre_producto', type: 'VARCHAR' },
+            { name: 'categoria', type: 'VARCHAR' },
+            { name: 'precio_unitario', type: 'NUMERIC' }
+          ]
+        }
+      ]
     });
 
   } catch (error: any) {
