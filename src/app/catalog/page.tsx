@@ -175,11 +175,6 @@ export default function Catalog() {
         });
       }
     }
-
-    // 2. Si estamos en ENTERPRISE, intentamos sincronizar con Supabase en segundo plano
-    if (mode === 'ENTERPRISE') {
-      fetchAssets();
-    }
   };
 
   const handleDelete = async (id: string) => {
