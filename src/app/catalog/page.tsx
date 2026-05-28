@@ -93,18 +93,34 @@ export default function Catalog() {
   }, []);
 
   useEffect(() => {
-    if (mode === 'ENTERPRISE') {
-      fetchAssets();
-    } else {
-      setAssets(demoAssets);
-      setLoading(false);
+    fetchAssets();
+  }, [mode, currentTenant?.id]);
+
+  // Persistir cambios en localStorage para que no se pierdan al cambiar de menú/tab
+  useEffect(() => {
+    if (!loading && currentTenant?.id) {
+      const localKey = `govdata_assets_${currentTenant.id}`;
+      localStorage.setItem(localKey, JSON.stringify(assets));
     }
-  }, [mode]);
+  }, [assets, loading, currentTenant?.id]);
 
   async function fetchAssets() {
-    if (mode === 'DEMO') return;
+    setLoading(true);
+    const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
+
+    if (mode === 'DEMO') {
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        setAssets(JSON.parse(saved));
+      } else {
+        const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+        setAssets(filteredDemo);
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
       let query = supabase
         .from('data_assets')
         .select('*');
@@ -116,11 +132,18 @@ export default function Catalog() {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
+      
+      localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
     } catch (error) {
-      console.warn('Error al cargar activos de Supabase, manteniendo estado local o aplicando fallback:', error);
-      // Mantener el estado actual en memoria si ya tiene elementos (evita borrar activos agregados en la sesión)
-      setAssets(prev => prev.length > 0 ? prev : demoAssets);
+      console.warn('Error al cargar activos de Supabase, cargando caché local o aplicando fallback:', error);
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        setAssets(JSON.parse(saved));
+      } else {
+        const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+        setAssets(filteredDemo);
+      }
     } finally {
       setLoading(false);
     }

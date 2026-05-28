@@ -50,7 +50,7 @@ function getDemoFields(assetId: string) {
 interface CreateRuleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newRule?: any) => void;
   ruleToEdit?: any;
   assetId?: string;
   fields?: any[];
@@ -152,9 +152,17 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
     setLoading(true);
     console.log("Saving Rule Payload:", ruleData);
     
+    const newRuleId = ruleToEdit ? ruleToEdit.id : `rule-${Date.now()}`;
+    const fullRuleData = {
+      id: newRuleId,
+      ...ruleData,
+      status: 'Activa',
+      created_at: new Date().toISOString()
+    };
+
     if (mode === 'DEMO') {
       alert('Regla de calidad configurada y activada exitosamente (Modo DEMO).');
-      onSuccess();
+      onSuccess(fullRuleData);
       onClose();
       setLoading(false);
       return;
@@ -162,19 +170,19 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
     try {
       const query = ruleToEdit 
-        ? supabase.from('quality_rules').update(ruleData).eq('id', ruleToEdit.id)
-        : supabase.from('quality_rules').insert([ruleData]);
+        ? supabase.from('quality_rules').update(ruleData).eq('id', ruleToEdit.id).select()
+        : supabase.from('quality_rules').insert([ruleData]).select();
       
-      const { error } = await query;
+      const { data, error } = await query;
       if (error) throw error;
       
       alert('Regla de calidad guardada y activada exitosamente.');
-      onSuccess();
+      onSuccess(data?.[0] || fullRuleData);
       onClose();
     } catch (err: any) {
       console.warn('Error al guardar la regla en base de datos. Aplicando fallback local:', err);
       alert('Regla de calidad configurada y activada exitosamente (Modo local - Base de datos desconectada).');
-      onSuccess();
+      onSuccess(fullRuleData);
       onClose();
     } finally {
       setLoading(false);
