@@ -112,30 +112,44 @@ export default function Catalog() {
       if (error) throw error;
       setAssets(data || []);
     } catch (error) {
-      console.warn('Error al cargar activos de Supabase, aplicando fallback a demoAssets:', error);
-      setAssets(demoAssets);
+      console.warn('Error al cargar activos de Supabase, manteniendo estado local o aplicando fallback:', error);
+      // Mantener el estado actual en memoria si ya tiene elementos (evita borrar activos agregados en la sesión)
+      setAssets(prev => prev.length > 0 ? prev : demoAssets);
     } finally {
       setLoading(false);
     }
   }
 
   const handleAddEditSuccess = (updatedAsset?: DataAsset | DataAsset[]) => {
-    if (mode === 'ENTERPRISE') {
-      fetchAssets();
-    } else if (updatedAsset) {
+    // 1. Actualizar el estado en memoria de forma inmediata e incondicional si se provee el activo
+    if (updatedAsset) {
       if (Array.isArray(updatedAsset)) {
         // Importación masiva de Excel
-        setAssets(prev => [...updatedAsset, ...prev]);
+        setAssets(prev => {
+          const newIds = new Set(updatedAsset.map(a => a.id));
+          return [...updatedAsset, ...prev.filter(a => !newIds.has(a.id))];
+        });
       } else {
         // Agregar/Editar manual o importación de AutoScan
-        if (assetToEdit) {
-          // Edición
-          setAssets(prev => prev.map(a => a.id === assetToEdit.id ? { ...a, ...updatedAsset } : a));
-        } else {
-          // Creación / Importación individual
-          setAssets(prev => [updatedAsset, ...prev]);
-        }
+        setAssets(prev => {
+          if (assetToEdit) {
+            // Edición
+            return prev.map(a => a.id === assetToEdit.id ? { ...a, ...updatedAsset } : a);
+          } else {
+            // Creación / Importación individual
+            // Evitar duplicados por ID o por nombre + sistema de origen
+            if (prev.some(a => a.id === updatedAsset.id || (a.name === updatedAsset.name && a.source === updatedAsset.source))) {
+              return prev.map(a => (a.id === updatedAsset.id || (a.name === updatedAsset.name && a.source === updatedAsset.source)) ? { ...a, ...updatedAsset } : a);
+            }
+            return [updatedAsset, ...prev];
+          }
+        });
       }
+    }
+
+    // 2. Si estamos en ENTERPRISE, intentamos sincronizar con Supabase en segundo plano
+    if (mode === 'ENTERPRISE') {
+      fetchAssets();
     }
   };
 
