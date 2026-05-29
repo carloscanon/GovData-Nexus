@@ -1,34 +1,120 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, Database, Search, ShieldAlert, Network, BookOpen, 
-  Plus, RefreshCw, ChevronDown, ArrowDown, Activity, Key, EyeOff
+  Plus, RefreshCw, ChevronDown, ArrowDown, Activity, Key, EyeOff, Save, X
 } from 'lucide-react';
 import styles from './page.module.css';
 import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 
 export default function MetadataPage() {
-  const { currentTenant } = usePlatform();
+  const { currentTenant, mode } = usePlatform();
   const [activeTab, setActiveTab] = useState('scanner');
   const [isScanning, setIsScanning] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // States para datos reales
+  const [assets, setAssets] = useState<any[]>([]);
+  const [fields, setFields] = useState<any[]>([]);
+  const [glossary, setGlossary] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal Glosario
+  const [showGlossaryModal, setShowGlossaryModal] = useState(false);
+  const [newTerm, setNewTerm] = useState({ term: '', definition: '', domain: '' });
+
+  useEffect(() => {
+    setIsMounted(true);
+    fetchMetadata();
+  }, [currentTenant?.id]);
+
+  const fetchMetadata = async () => {
+    if (!currentTenant?.id) return;
+    setLoading(true);
+    try {
+      // Fetch Assets (Scanner)
+      const { data: assetsData } = await supabase
+        .from('data_assets')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .order('created_at', { ascending: false });
+      
+      setAssets(assetsData || []);
+
+      // Fetch Fields for Classification
+      if (assetsData && assetsData.length > 0) {
+        const assetIds = assetsData.map(a => a.id);
+        const { data: fieldsData } = await supabase
+          .from('asset_fields')
+          .select('*, asset:data_assets(name)')
+          .in('asset_id', assetIds);
+        setFields(fieldsData || []);
+      } else {
+        setFields([]);
+      }
+
+      // Fetch Glossary
+      const { data: glossaryData } = await supabase
+        .from('glossary_terms')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .order('term', { ascending: true });
+      
+      setGlossary(glossaryData || []);
+    } catch (err) {
+      console.error('Error fetching metadata:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // KPIs
+  const piiFieldsCount = fields.filter(f => f.is_sensitive === true || f.sensitivity === 'Confidencial').length;
+  
   const kpis = [
-    { label: 'Activos Descubiertos', value: '12,450', icon: Database, color: 'blue' },
-    { label: 'Columnas Clasificadas', value: '88%', icon: Brain, color: 'purple' },
-    { label: 'PII Detectado', value: '2,340', icon: ShieldAlert, color: 'red' },
-    { label: 'Lineage Completo', value: '71%', icon: Network, color: 'green' },
+    { label: 'Activos Descubiertos', value: assets.length.toString(), icon: Database, color: 'blue' },
+    { label: 'Columnas Analizadas', value: fields.length.toString(), icon: Brain, color: 'purple' },
+    { label: 'Campos Sensibles', value: piiFieldsCount.toString(), icon: ShieldAlert, color: 'red' },
+    { label: 'Términos de Negocio', value: glossary.length.toString(), icon: BookOpen, color: 'green' },
   ];
 
   const handleScan = () => {
     setIsScanning(true);
     setTimeout(() => {
+      fetchMetadata();
       setIsScanning(false);
-      alert('Escaneo completado. Se descubrieron 45 nuevas tablas y se clasificaron 120 columnas (30 PII).');
     }, 2000);
   };
+
+  const handleSaveGlossaryTerm = async () => {
+    if (!newTerm.term || !newTerm.definition) return;
+    if (!currentTenant?.id) return;
+    
+    try {
+      const { data, error } = await supabase.from('glossary_terms').insert([{
+        tenant_id: currentTenant.id,
+        term: newTerm.term,
+        definition: newTerm.definition,
+        domain: newTerm.domain || 'General',
+        status: 'Publicado'
+      }]).select();
+
+      if (error) throw error;
+      if (data) {
+        setGlossary([...glossary, data[0]]);
+        setShowGlossaryModal(false);
+        setNewTerm({ term: '', definition: '', domain: '' });
+      }
+    } catch (err) {
+      console.error('Error saving glossary term:', err);
+      alert('Error al guardar el término en el glosario.');
+    }
+  };
+
+  if (!isMounted) return null;
 
   return (
     <div className={styles.container}>
@@ -43,12 +129,9 @@ export default function MetadataPage() {
           </div>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.secondaryBtn} onClick={handleScan} disabled={isScanning}>
+          <button className={styles.secondaryBtn} onClick={handleScan} disabled={isScanning || loading}>
             <RefreshCw size={18} className={isScanning ? 'animate-spin' : ''} />
-            {isScanning ? 'Escaneando...' : 'Escanear Fuentes'}
-          </button>
-          <button className={styles.primaryBtn}>
-            <Plus size={18} /> Conectar Fuente
+            {isScanning ? 'Sincronizando...' : 'Sincronizar Catálogo'}
           </button>
         </div>
       </header>
@@ -64,7 +147,7 @@ export default function MetadataPage() {
               </div>
               <div className={styles.kpiInfo}>
                 <h3>{kpi.label}</h3>
-                <div className={styles.kpiValue}>{kpi.value}</div>
+                <div className={styles.kpiValue}>{loading ? '...' : kpi.value}</div>
               </div>
             </div>
           );
@@ -74,16 +157,16 @@ export default function MetadataPage() {
       {/* Tabs */}
       <div className={styles.tabs}>
         <button className={`${styles.tab} ${activeTab === 'scanner' ? styles.active : ''}`} onClick={() => setActiveTab('scanner')}>
-          <Search size={18} /> Scanner & Descubrimiento
+          <Search size={18} /> Fuentes Conectadas
         </button>
         <button className={`${styles.tab} ${activeTab === 'classification' ? styles.active : ''}`} onClick={() => setActiveTab('classification')}>
-          <ShieldAlert size={18} /> Clasificación IA
+          <ShieldAlert size={18} /> Clasificación de Campos
         </button>
         <button className={`${styles.tab} ${activeTab === 'lineage' ? styles.active : ''}`} onClick={() => setActiveTab('lineage')}>
-          <Network size={18} /> Data Lineage
+          <Network size={18} /> Trazabilidad Lógica
         </button>
         <button className={`${styles.tab} ${activeTab === 'glossary' ? styles.active : ''}`} onClick={() => setActiveTab('glossary')}>
-          <BookOpen size={18} /> Glosario de Negocio
+          <BookOpen size={18} /> Glosario Corporativo
         </button>
       </div>
 
@@ -98,52 +181,47 @@ export default function MetadataPage() {
           <div className={styles.contentGrid}>
             <div className={styles.card}>
               <div className={styles.cardHeader}>
-                <h3>Fuentes Conectadas y Activos Descubiertos</h3>
+                <h3>Activos Importados del Catálogo de Datos</h3>
               </div>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Activo (Tabla/Vista)</th>
-                    <th>Fuente</th>
-                    <th>Columnas</th>
-                    <th>Último Escaneo</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>CLIENTES</strong></td>
-                    <td>Oracle ERP (Finanzas)</td>
-                    <td>45</td>
-                    <td>Hace 10 min</td>
-                    <td><span className={`${styles.badge} ${styles.active}`}>Sincronizado</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>TRANSACCIONES</strong></td>
-                    <td>PostgreSQL (Core)</td>
-                    <td>12</td>
-                    <td>Hace 1 hora</td>
-                    <td><span className={`${styles.badge} ${styles.active}`}>Sincronizado</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>empleados_hist_2023.csv</strong></td>
-                    <td>Data Lake (S3)</td>
-                    <td>8</td>
-                    <td>Hace 2 días</td>
-                    <td><span className={`${styles.badge} ${styles.standard}`}>Archivado</span></td>
-                  </tr>
-                </tbody>
-              </table>
+              {loading ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Cargando activos...</div>
+              ) : assets.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay activos registrados en tu catálogo.</div>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Activo (Tabla/Vista)</th>
+                      <th>Fuente (Origen)</th>
+                      <th>Propietario</th>
+                      <th>Registros</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assets.map(asset => (
+                      <tr key={asset.id}>
+                        <td><strong>{asset.name}</strong></td>
+                        <td>{asset.source || 'Base de Datos'}</td>
+                        <td>{asset.data_owner || asset.owner || 'No asignado'}</td>
+                        <td>{asset.records_count || 'N/A'}</td>
+                        <td><span className={`${styles.badge} ${styles.active}`}>Sincronizado</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
             <div className={styles.card}>
               <div className={styles.cardHeader}>
-                <h3>Scanner Logs</h3>
+                <h3>Scanner Logs (Tiempo Real)</h3>
               </div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p><strong>10:45 AM</strong> - [Oracle ERP] Conexión exitosa.</p>
-                <p><strong>10:46 AM</strong> - [Oracle ERP] 15 tablas detectadas en esquema HR.</p>
-                <p><strong>10:46 AM</strong> - [AI Classifier] 3 columnas marcadas como PII (EMAIL, SSN, PHONE).</p>
-                <p><strong>10:47 AM</strong> - [Catálogo] Actualización de activos finalizada.</p>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+                <p><strong>{new Date().toLocaleTimeString()}</strong> - Scanner inicializado. Conectado a tenant {currentTenant?.name}.</p>
+                {assets.slice(0, 5).map((a, i) => (
+                  <p key={a.id}><strong>{new Date(new Date().getTime() - (i * 60000)).toLocaleTimeString()}</strong> - [Catálogo] Activo sincronizado: {a.name} ({a.source}).</p>
+                ))}
+                {assets.length === 0 && <p>Esperando la creación de activos en el catálogo de datos...</p>}
               </div>
             </div>
           </div>
@@ -153,55 +231,43 @@ export default function MetadataPage() {
           <div className={styles.contentGrid} style={{ gridTemplateColumns: '1fr' }}>
             <div className={styles.card}>
               <div className={styles.cardHeader}>
-                <h3>Clasificación Automática de Columnas</h3>
-                <button className={styles.secondaryBtn}>Re-Clasificar Todo</button>
+                <h3>Clasificación de Sensibilidad de Columnas</h3>
+                <button className={styles.secondaryBtn} onClick={fetchMetadata}>Refrescar</button>
               </div>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Columna</th>
-                    <th>Activo</th>
-                    <th>Tipo Dato Detectado</th>
-                    <th>Clasificación IA</th>
-                    <th>Confianza</th>
-                    <th>Acción Auto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>correo_electronico</strong></td>
-                    <td>CLIENTES</td>
-                    <td>VARCHAR(255)</td>
-                    <td><span className={`${styles.badge} ${styles.pii}`}><EyeOff size={12} style={{display:'inline', marginRight:'4px'}}/> PII Sensible</span></td>
-                    <td>99%</td>
-                    <td>Regla Calidad: Email Regex</td>
-                  </tr>
-                  <tr>
-                    <td><strong>numero_tarjeta</strong></td>
-                    <td>PAGOS</td>
-                    <td>VARCHAR(16)</td>
-                    <td><span className={`${styles.badge} ${styles.financial}`}><Key size={12} style={{display:'inline', marginRight:'4px'}}/> Financiero PCI</span></td>
-                    <td>98%</td>
-                    <td>Alerta Seguridad: Encriptación requerida</td>
-                  </tr>
-                  <tr>
-                    <td><strong>fecha_nacimiento</strong></td>
-                    <td>CLIENTES</td>
-                    <td>DATE</td>
-                    <td><span className={`${styles.badge} ${styles.pii}`}><EyeOff size={12} style={{display:'inline', marginRight:'4px'}}/> PII Moderado</span></td>
-                    <td>95%</td>
-                    <td>Regla Calidad: Not Null</td>
-                  </tr>
-                  <tr>
-                    <td><strong>estado_civil</strong></td>
-                    <td>EMPLEADOS</td>
-                    <td>VARCHAR(20)</td>
-                    <td><span className={`${styles.badge} ${styles.standard}`}>Estándar</span></td>
-                    <td>85%</td>
-                    <td>Sugerencia: Crear diccionario</td>
-                  </tr>
-                </tbody>
-              </table>
+              {loading ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Cargando campos...</div>
+              ) : fields.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay columnas o campos registrados.</div>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Columna</th>
+                      <th>Activo Relacionado</th>
+                      <th>Tipo Dato</th>
+                      <th>Sensibilidad</th>
+                      <th>Regla de Calidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map(field => (
+                      <tr key={field.id}>
+                        <td><strong>{field.field_name}</strong></td>
+                        <td>{field.asset?.name || 'Desconocido'}</td>
+                        <td>{field.data_type || 'VARCHAR'}</td>
+                        <td>
+                          {field.is_sensitive || field.sensitivity === 'Confidencial' || field.sensitivity === 'Restringido' ? (
+                            <span className={`${styles.badge} ${styles.pii}`}><EyeOff size={12} style={{display:'inline', marginRight:'4px'}}/> Sensible ({field.sensitivity || 'PII'})</span>
+                          ) : (
+                            <span className={`${styles.badge} ${styles.standard}`}>Estándar ({field.sensitivity || 'Público'})</span>
+                          )}
+                        </td>
+                        <td>{field.quality_rule || 'Sin reglas'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}
@@ -214,7 +280,7 @@ export default function MetadataPage() {
                 <div className={styles.headerActions}>
                   <select className={styles.secondaryBtn} style={{ padding: '8px' }}>
                     <option>Buscar activo...</option>
-                    <option>CLIENTES.correo_electronico</option>
+                    {assets.map(a => <option key={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -222,24 +288,24 @@ export default function MetadataPage() {
                 <div className={styles.lineageFlow} style={{ width: '400px' }}>
                   <div className={styles.lineageNode}>
                     <div>
-                      <h4>Oracle ERP (Fuente)</h4>
-                      <p>CRM_DB.USERS.EMAIL</p>
+                      <h4>Fuente de Origen</h4>
+                      <p>Sistemas Conectados</p>
                     </div>
                     <Database size={20} color="#3b82f6" />
                   </div>
                   <div className={styles.arrowDown}><ArrowDown size={20} /></div>
                   <div className={styles.lineageNode}>
                     <div>
-                      <h4>Data Lake (Procesamiento ETL)</h4>
-                      <p>S3://raw/users/data.parquet</p>
+                      <h4>Data Lake / DWH (Procesamiento)</h4>
+                      <p>Transformaciones de Calidad</p>
                     </div>
                     <RefreshCw size={20} color="#8b5cf6" />
                   </div>
                   <div className={styles.arrowDown}><ArrowDown size={20} /></div>
                   <div className={styles.lineageNode}>
                     <div>
-                      <h4>Catálogo / PowerBI (Consumo)</h4>
-                      <p>Dataset: Dim_Clientes.Email</p>
+                      <h4>Catálogo de Datos</h4>
+                      <p>Exposición a Usuarios</p>
                     </div>
                     <Activity size={20} color="#10b981" />
                   </div>
@@ -254,39 +320,106 @@ export default function MetadataPage() {
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <h3>Diccionario de Términos</h3>
-                <button className={styles.primaryBtn} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>+ Nuevo Término</button>
+                <button className={styles.primaryBtn} style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => setShowGlossaryModal(true)}>
+                  <Plus size={16} /> Nuevo Término
+                </button>
               </div>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Término</th>
-                    <th>Definición Negocio</th>
-                    <th>Dominio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Cliente Activo</strong></td>
-                    <td>Usuario que ha realizado al menos 1 transacción en los últimos 90 días.</td>
-                    <td>Ventas</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Churn Rate</strong></td>
-                    <td>Porcentaje de clientes que dejan de usar el servicio en un periodo.</td>
-                    <td>Marketing</td>
-                  </tr>
-                  <tr>
-                    <td><strong>PII</strong></td>
-                    <td>Información Personal Identificable (Cédula, Email, Teléfono).</td>
-                    <td>Legal/Compliance</td>
-                  </tr>
-                </tbody>
-              </table>
+              {loading ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Cargando glosario...</div>
+              ) : glossary.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>El glosario está vacío. Agrega tu primer término de negocio.</div>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Término</th>
+                      <th>Definición Negocio</th>
+                      <th>Dominio</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {glossary.map(term => (
+                      <tr key={term.id}>
+                        <td><strong>{term.term}</strong></td>
+                        <td>{term.definition}</td>
+                        <td>{term.domain || 'General'}</td>
+                        <td><span className={`${styles.badge} ${styles.active}`}>{term.status || 'Publicado'}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}
 
       </motion.div>
+
+      {/* MODAL: Nuevo Término de Glosario */}
+      <AnimatePresence>
+        {showGlossaryModal && (
+          <div className={styles.modalOverlay}>
+            <motion.div 
+              className={styles.modalContent}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+            >
+              <div className={styles.modalHeader}>
+                <h2>Agregar Término al Glosario</h2>
+                <button className={styles.closeBtn} onClick={() => setShowGlossaryModal(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label>Término de Negocio</label>
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    placeholder="Ej. Cliente Activo"
+                    value={newTerm.term}
+                    onChange={(e) => setNewTerm({...newTerm, term: e.target.value})}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Definición</label>
+                  <textarea 
+                    className={styles.input} 
+                    rows={3} 
+                    placeholder="Describe claramente el concepto..."
+                    value={newTerm.definition}
+                    onChange={(e) => setNewTerm({...newTerm, definition: e.target.value})}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Dominio</label>
+                  <select 
+                    className={styles.input}
+                    value={newTerm.domain}
+                    onChange={(e) => setNewTerm({...newTerm, domain: e.target.value})}
+                  >
+                    <option value="">Seleccionar Dominio...</option>
+                    <option value="Finanzas">Finanzas</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Operaciones">Operaciones</option>
+                    <option value="Recursos Humanos">Recursos Humanos</option>
+                    <option value="Legal">Legal</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button className={styles.secondaryBtn} onClick={() => setShowGlossaryModal(false)}>Cancelar</button>
+                <button className={styles.primaryBtn} onClick={handleSaveGlossaryTerm}>
+                  <Save size={18} /> Guardar Término
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

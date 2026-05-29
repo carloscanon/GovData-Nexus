@@ -280,3 +280,15 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Modals */
+.modalOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modalContent { background-color: white; border-radius: 24px; width: 90%; max-width: 520px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; }
+.modalHeader { padding: 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+.modalHeader h2 { font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+.closeBtn { background: none; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modalBody { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.formGroup { display: flex; flex-direction: column; gap: 6px; }
+.formGroup label { font-size: 0.75rem; font-weight: 800; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; }
+.input { border: 1px solid #d1d5db; border-radius: 12px; padding: 10px 14px; font-size: 0.85rem; font-weight: 700; color: #1f2937; outline: none; background-color: white; }
+.modalFooter { padding: 20px 24px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
