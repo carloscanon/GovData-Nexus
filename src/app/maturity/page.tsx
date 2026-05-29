@@ -168,11 +168,18 @@ export default function Maturity() {
         approvedWorkflows: workflows.filter(w => w.status === 'Aprobado').length,
       });
 
-      // --- Calidad: average quality_score ---
+      // --- Calidad: exact global health from incidents ---
       let calidad = 65;
-      if (assets.length > 0) {
-        const sum = assets.reduce((acc, a) => acc + (a.quality_score ?? 0), 0);
-        calidad = Math.round(sum / assets.length);
+      if (incidents.length > 0) {
+        let totalRecords = 0;
+        let totalAffected = 0;
+        incidents.forEach((inc: any) => {
+          totalRecords += (inc.total_records || 0);
+          totalAffected += (inc.affected_records || 0);
+        });
+        if (totalRecords > 0) {
+          calidad = Math.round(((totalRecords - totalAffected) / totalRecords) * 100);
+        }
       }
 
       // --- Organización: % assets with data_owner + questionnaire ---

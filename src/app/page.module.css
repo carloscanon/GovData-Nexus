@@ -967,77 +967,106 @@
 }
 
 .classic_premiumCard {
-  background: var(--card-bg, white);
-  border: var(--card-border-width, 1px) solid var(--card-border-color, #e2e8f0);
-  border-radius: var(--card-border-radius, 24px);
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: 
+    0 10px 30px -10px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .classic_premiumCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e1;
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 
+    0 25px 40px -12px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  z-index: 10;
 }
 
 .classic_cardHeaderRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .classic_cardIconBox {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: white;
+  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.classic_premiumCard:hover .classic_cardIconBox {
+  transform: rotate(8deg) scale(1.1);
 }
 
 .classic_cardTrend {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .classic_positiveTrend {
   background-color: #ecfdf5;
   color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
 .classic_negativeTrend {
   background-color: #fef2f2;
   color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
 .classic_cardValue {
-  font-size: 2rem;
-  font-weight: 800;
+  font-size: 2.2rem;
+  font-weight: 900;
   color: #0f172a;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  background: linear-gradient(to right, #0f172a, #334155);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
 }
 
 .classic_cardTitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 600;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .classic_sparklineWrapper {
   width: 100%;
-  height: 50px;
-  margin-top: 8px;
+  height: 56px;
+  margin-top: 4px;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+.classic_premiumCard:hover .classic_sparklineWrapper {
+  opacity: 1;
 }
 
 .classic_mainGrid {

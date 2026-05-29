@@ -422,40 +422,15 @@ export default function Dashboard() {
           ((resolved / totalInc) * 60) + (answers.q4 * 8)
         ));
 
-        // Load unified maturity scores from the Maturity Module if they exist
-        let estrategiaVal = estrategia;
-        let organizacionVal = organizacion;
-        let calidadVal = calidad;
-        let arquitecturaVal = arquitectura;
-        let seguridadVal = seguridad;
-        let complianceVal = compliance;
-
-        try {
-          const savedScores = localStorage.getItem(`govdata_maturity_scores_${currentTenant.id}`);
-          if (savedScores) {
-            const parsed = JSON.parse(savedScores);
-            if (parsed.estrategia !== undefined) estrategiaVal = Number(parsed.estrategia);
-            if (parsed.organizacion !== undefined) organizacionVal = Number(parsed.organizacion);
-            if (parsed.calidad !== undefined) calidadVal = Number(parsed.calidad);
-            if (parsed.arquitectura !== undefined) arquitecturaVal = Number(parsed.arquitectura);
-            if (parsed.seguridad !== undefined) seguridadVal = Number(parsed.seguridad);
-            if (parsed.compliance !== undefined) complianceVal = Number(parsed.compliance);
-          }
-        } catch (e) {
-          console.error("Error loading maturity scores from maturity module:", e);
-        }
-
-        const globalScore = Math.round((estrategiaVal + organizacionVal + calidadVal + arquitecturaVal + seguridadVal + complianceVal) / 6);
+        // Use the exact database computed values for Dashboard
+        let finalQuality = calidad;
+        let finalCompliance = compliance;
+        let globalScore = Math.round((estrategia + organizacion + calidad + arquitectura + seguridad + compliance) / 6);
+        let finalMaturity = globalScore;
 
         // Calculate critical incidents count
         let criticalCount = incidents.filter((inc: any) => inc.status === 'Abierto' && (inc.priority === 'Crítico' || inc.priority === 'Alta')).length;
         let activeDbIncidentsCount = incidents.filter((inc: any) => inc.status === 'Abierto').length;
-
-        // Apply selected executivePeriod adjustments dynamically
-        let multiplier = executivePeriod === 'trimestral' ? 1.02 : executivePeriod === 'anual' ? 0.96 : 1.0;
-        let finalQuality = Math.min(100, Math.round(calidadVal * multiplier * 10) / 10);
-        let finalMaturity = Math.min(100, Math.round(globalScore * multiplier));
-        let finalCompliance = Math.min(100, Math.round(complianceVal * multiplier));
 
         setDbKpis({
           quality: `${finalQuality}%`,
@@ -463,11 +438,11 @@ export default function Dashboard() {
           compliance: `${finalCompliance}%`,
           incidents: String(activeDbIncidentsCount),
           criticalIncidents: criticalCount,
-          seguridad: `${Math.min(100, Math.round(seguridadVal * multiplier))}%`,
+          seguridad: `${seguridad}%`,
           catalogo: String(assets.length),
-          estrategia: `${Math.min(100, Math.round(estrategiaVal * multiplier))}%`,
-          organizacion: `${Math.min(100, Math.round(organizacionVal * multiplier))}%`,
-          arquitectura: `${Math.min(100, Math.round(arquitecturaVal * multiplier))}%`
+          estrategia: `${estrategia}%`,
+          organizacion: `${organizacion}%`,
+          arquitectura: `${arquitectura}%`
         });
 
         setQualityScore(finalQuality);
@@ -957,6 +932,42 @@ export default function Dashboard() {
 
           {/* Premium Stat Cards with Sparklines */}
           <div className={styles.classic_statsGrid}>
+            <svg style={{ height: 0, width: 0, position: 'absolute' }}>
+              <defs>
+                <linearGradient id="grad-blue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-green" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-red" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-purple" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-orange" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-indigo" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-slate" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#64748b" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#64748b" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad-darkblue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+            </svg>
             <div className={styles.classic_premiumCard}>
               <div className={styles.classic_cardHeaderRow}>
                 <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(30, 58, 138, 0.08)', color: '#1e3a8a' }}>
@@ -971,7 +982,7 @@ export default function Dashboard() {
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.madurez}>
-                    <Area type="monotone" dataKey="value" stroke="#1e3a8a" fill="rgba(30, 58, 138, 0.03)" strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="value" stroke="#1e3a8a" fill="url(#grad-darkblue)" strokeWidth={3} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -991,7 +1002,7 @@ export default function Dashboard() {
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.calidad}>
-                    <Area type="monotone" dataKey="value" stroke="#10b981" fill="rgba(16, 185, 129, 0.03)" strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#grad-green)" strokeWidth={3} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1011,7 +1022,7 @@ export default function Dashboard() {
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.compliance}>
-                    <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="rgba(59, 130, 246, 0.03)" strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#grad-blue)" strokeWidth={3} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1107,7 +1118,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={styles.classic_cardValue}>{dbKpis?.organizacion || '60%'}</div>
-              <div className={styles.classic_cardTitle}>Organización y Roles</div>
+              <div className={styles.classic_cardTitle}>Roles y Equipo</div>
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.calidad}>
@@ -1131,7 +1142,7 @@ export default function Dashboard() {
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.madurez}>
-                    <Area type="monotone" dataKey="value" stroke="#6366f1" fill="rgba(99, 102, 241, 0.03)" strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="value" stroke="#6366f1" fill="url(#grad-indigo)" strokeWidth={3} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
