@@ -226,9 +226,9 @@ export default function Catalog() {
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = 
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.owner.toLowerCase().includes(searchTerm.toLowerCase());
+      (asset.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (asset.source?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (asset.owner?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const matchesType = !filters.type || asset.type === filters.type;
     const matchesSensitivity = !filters.sensitivity || asset.sensitivity === filters.sensitivity;
@@ -517,8 +517,8 @@ export default function Catalog() {
                     <tr key={asset.id} className={styles.row}>
                       <td className={styles.nameCell}>
                         <div className={styles.iconBox}>
-                          {asset.type.includes('Tabla') ? <TableIcon size={16} /> : 
-                           asset.type.includes('API') ? <FileJson size={16} /> : 
+                          {asset.type?.includes('Tabla') ? <TableIcon size={16} /> : 
+                           asset.type?.includes('API') ? <FileJson size={16} /> : 
                            <Database size={16} />}
                         </div>
                         <div>
