@@ -25,7 +25,8 @@ import {
   Zap,
   ShieldCheck,
   AlertOctagon,
-  Award
+  Award,
+  Brain
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AddAssetModal from '@/components/catalog/AddAssetModal';
@@ -469,6 +470,24 @@ export default function Catalog() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 🚀 Banner de Integración Metadata Engine */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ marginBottom: '24px', backgroundColor: '#eef2ff', border: '1px solid #e0e7ff', borderRadius: '12px', padding: '16px', display: 'flex', gap: '16px' }}
+      >
+        <div style={{ background: '#6366f1', color: 'white', padding: '8px', borderRadius: '8px', flexShrink: 0 }}>
+          <Brain size={20} />
+        </div>
+        <div>
+          <h4 style={{ color: '#312e81', fontWeight: 600, fontSize: '0.95rem', marginBottom: '4px' }}>Integrado con Metadata Intelligence</h4>
+          <p style={{ color: '#4338ca', fontSize: '0.85rem', margin: 0 }}>
+            Este catálogo ahora se sincroniza de forma automática con las fuentes de datos configuradas en el <strong>Metadata Engine</strong>. 
+            Las nuevas columnas, tipos de datos y tags de clasificación (PII) fluirán directamente hacia aquí tras cada escaneo.
+          </p>
+        </div>
+      </motion.div>
 
       <div className={styles.mainGrid}>
         <div className={styles.leftColumn}>

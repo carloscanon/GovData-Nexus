@@ -23,7 +23,8 @@ import {
   LogOut,
   Crown,
   Sparkles,
-  LayoutGrid
+  LayoutGrid,
+  Brain
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -31,6 +32,7 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
   { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },

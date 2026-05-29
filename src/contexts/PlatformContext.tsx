@@ -108,7 +108,7 @@ const defaultPlans: SaaSPlan[] = [
     prioritySupport: true,
     apiAccess: true,
     active: true,
-    modules: ['catalog', 'quality', 'team']
+    modules: ['catalog', 'metadata', 'quality', 'team']
   },
   {
     id: 'enterprise',
@@ -121,7 +121,7 @@ const defaultPlans: SaaSPlan[] = [
     prioritySupport: true,
     apiAccess: true,
     active: true,
-    modules: ['catalog', 'quality', 'workflows', 'security', 'team', 'maturity']
+    modules: ['catalog', 'metadata', 'quality', 'workflows', 'security', 'team', 'maturity']
   }
 ];
 
@@ -131,7 +131,7 @@ const defaultTenants: Tenant[] = [
     name: 'Gobierno de la Ciudad',
     domain: 'ciudad.govdata.com',
     plan: 'Enterprise',
-    modules: ['catalog', 'quality', 'workflows', 'security', 'team', 'maturity'],
+    modules: ['catalog', 'metadata', 'quality', 'workflows', 'security', 'team', 'maturity'],
     monthlyCost: '$4,500',
     status: 'active',
     nit: '900.123.001-1',
@@ -143,7 +143,7 @@ const defaultTenants: Tenant[] = [
     name: 'Ministerio de Salud',
     domain: 'minsalud.govdata.com',
     plan: 'Professional',
-    modules: ['catalog', 'quality', 'team'],
+    modules: ['catalog', 'metadata', 'quality', 'team'],
     monthlyCost: '$1,200',
     status: 'active',
     nit: '800.500.120-4',
