@@ -178,11 +178,13 @@ export default function QualityModule() {
              targetTable = targetTable.toLowerCase().replace(/[^a-z0-9_]/g, '_');
           }
 
-          if (targetTable && fieldName) {
-            // Pre-validar que la columna existe en la tabla
-            const { error: colCheck } = await supabase.from(targetTable).select(fieldName).limit(1);
-            if (colCheck) {
-              console.warn(`⚠️ Columna "${fieldName}" no encontrada en tabla "${targetTable}". Verifique que el nombre del campo coincide exactamente con la columna en la base de datos.`);
+          if (!fieldName) {
+            // Intento de fallback si es un campo mock (f-gen-1 -> id)
+            if (rule.field_id === 'f-gen-1') fieldName = 'id';
+            else if (rule.field_id === 'f-gen-2') fieldName = 'nombre';
+            else if (rule.field_id === 'f-gen-3') fieldName = 'email';
+            else if (rule.field_id === 'f-gen-4') fieldName = 'estado';
+            else {
               return {
                 id: rule.id.slice(0, 8),
                 name: rule.name,
@@ -193,8 +195,30 @@ export default function QualityModule() {
                 pct: '0.00',
                 severity: rule.severity,
                 owner: 'Nexus AI',
-                date: 'Error de columna',
-                status: `⚠️ Campo "${fieldName}" no existe en "${targetTable}"`,
+                date: 'Error',
+                status: `⚠️ No se pudo determinar el nombre de la columna para el ID: ${rule.field_id}`,
+                fieldError: true
+              };
+            }
+          }
+
+          if (targetTable && fieldName) {
+            // Pre-validar que la columna existe en la tabla
+            const { error: colCheck } = await supabase.from(targetTable).select(fieldName).limit(1);
+            if (colCheck) {
+              console.warn(`⚠️ Error validando columna "${fieldName}" en tabla "${targetTable}":`, colCheck);
+              return {
+                id: rule.id.slice(0, 8),
+                name: rule.name,
+                system: asset?.source || 'N/A',
+                total: 0,
+                compliant: 0,
+                affected: 0,
+                pct: '0.00',
+                severity: rule.severity,
+                owner: 'Nexus AI',
+                date: 'Error de BD',
+                status: `⚠️ ${colCheck.message || 'La tabla o columna no existe en la base de datos.'}`,
                 fieldError: true
               };
             }
@@ -202,7 +226,21 @@ export default function QualityModule() {
             // Siempre extraer el total real de la tabla
             const { count: tCount, error: tErr } = await supabase.from(targetTable).select('*', { count: 'exact', head: true });
             if (tErr) {
-              console.error(`Error contando total en ${targetTable}:`, tErr?.message, tErr?.code, tErr?.details);
+              console.error(`Error contando total en ${targetTable}:`, tErr);
+              return {
+                id: rule.id.slice(0, 8),
+                name: rule.name,
+                system: asset?.source || 'N/A',
+                total: 0,
+                compliant: 0,
+                affected: 0,
+                pct: '0.00',
+                severity: rule.severity,
+                owner: 'Nexus AI',
+                date: 'Error de BD',
+                status: `⚠️ No se pudo consultar la tabla ${targetTable}. Detalle: ${tErr.message}`,
+                fieldError: true
+              };
             }
             total = tCount || 0;
 
