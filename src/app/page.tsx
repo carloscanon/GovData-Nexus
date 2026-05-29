@@ -244,7 +244,7 @@ export default function Dashboard() {
   const [remediatedIncidents, setRemediatedIncidents] = useState<number[]>([]);
 
   // Dynamic database indicators state
-  const [dbKpis, setDbKpis] = useState<{ quality: string; maturity: string; compliance: string; incidents: string; criticalIncidents: number } | null>(null);
+  const [dbKpis, setDbKpis] = useState<{ quality: string; maturity: string; compliance: string; incidents: string; criticalIncidents: number; seguridad: string; catalogo: string } | null>(null);
   const [dbIncidents, setDbIncidents] = useState<any[]>([]);
 
   // Dynamic sparkline and executive data states
@@ -373,11 +373,18 @@ export default function Dashboard() {
           }
         } catch {}
 
-        // --- Calidad: average quality_score ---
-        let calidad = 65;
-        if (assets.length > 0) {
-          const sum = assets.reduce((acc, a) => acc + (a.quality_score ?? 0), 0);
-          calidad = Math.round(sum / assets.length);
+        // --- Calidad: exact global health from incidents ---
+        let calidad = 0;
+        if (incidents.length > 0) {
+          let totalRecords = 0;
+          let totalAffected = 0;
+          incidents.forEach((inc: any) => {
+            totalRecords += (inc.total_records || 0);
+            totalAffected += (inc.affected_records || 0);
+          });
+          if (totalRecords > 0) {
+            calidad = Math.round(((totalRecords - totalAffected) / totalRecords) * 100);
+          }
         }
 
         // --- Organización: % assets with data_owner + questionnaire ---
@@ -455,7 +462,9 @@ export default function Dashboard() {
           maturity: `${finalMaturity}%`,
           compliance: `${finalCompliance}%`,
           incidents: String(activeDbIncidentsCount),
-          criticalIncidents: criticalCount
+          criticalIncidents: criticalCount,
+          seguridad: `${Math.min(100, Math.round(seguridadVal * multiplier))}%`,
+          catalogo: String(assets.length)
         });
 
         setQualityScore(finalQuality);
@@ -1020,6 +1029,46 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.incidentes}>
                     <Area type="monotone" dataKey="value" stroke="#ef4444" fill="rgba(239, 68, 68, 0.03)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.classic_premiumCard}>
+              <div className={styles.classic_cardHeaderRow}>
+                <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', color: '#f59e0b' }}>
+                  <Lock size={22} />
+                </div>
+                <div className={`${styles.classic_cardTrend} ${styles.classic_positiveTrend}`}>
+                  <span>Protegido</span>
+                </div>
+              </div>
+              <div className={styles.classic_cardValue}>{dbKpis?.seguridad || '60%'}</div>
+              <div className={styles.classic_cardTitle}>Seguridad PII</div>
+              <div className={styles.classic_sparklineWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={classicSparklineData.madurez}>
+                    <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="rgba(245, 158, 11, 0.03)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.classic_premiumCard}>
+              <div className={styles.classic_cardHeaderRow}>
+                <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(168, 85, 247, 0.08)', color: '#a855f7' }}>
+                  <BookOpen size={22} />
+                </div>
+                <div className={`${styles.classic_cardTrend} ${styles.classic_positiveTrend}`}>
+                  <span>Activos</span>
+                </div>
+              </div>
+              <div className={styles.classic_cardValue}>{dbKpis?.catalogo || '0'}</div>
+              <div className={styles.classic_cardTitle}>Catálogo de Datos</div>
+              <div className={styles.classic_sparklineWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={classicSparklineData.calidad}>
+                    <Area type="monotone" dataKey="value" stroke="#a855f7" fill="rgba(168, 85, 247, 0.03)" strokeWidth={2} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
