@@ -207,22 +207,19 @@ export default function QualityModule() {
             const { error: colCheck } = await supabase.from(targetTable).select(fieldName).limit(1);
             if (colCheck) {
               console.warn(`⚠️ Error validando columna "${fieldName}" en tabla "${targetTable}":`, colCheck);
-              // Fallback a simulación
-              const simTotal = Math.floor(Math.random() * 5000) + 1000;
-              const simAffected = Math.floor(simTotal * (Math.random() * 0.15));
               return {
                 id: rule.id.slice(0, 8),
                 name: rule.name,
                 system: asset?.source || 'N/A',
-                total: simTotal,
-                compliant: simTotal - simAffected,
-                affected: simAffected,
-                pct: (((simTotal - simAffected) / simTotal) * 100).toFixed(2),
+                total: 0,
+                compliant: 0,
+                affected: 0,
+                pct: '0.00',
                 severity: rule.severity,
                 owner: 'Nexus AI',
-                date: new Date().toISOString().split('T')[0],
-                status: `⚠️ Datos Simulados (Tabla/Columna no hallada)`,
-                fieldError: false
+                date: 'Error de BD',
+                status: `⚠️ ${colCheck.message || 'La tabla o columna no existe en la base de datos.'}`,
+                fieldError: true
               };
             }
 
@@ -230,22 +227,19 @@ export default function QualityModule() {
             const { count: tCount, error: tErr } = await supabase.from(targetTable).select('*', { count: 'exact', head: true });
             if (tErr) {
               console.error(`Error contando total en ${targetTable}:`, tErr);
-              // Fallback a simulación
-              const simTotal = Math.floor(Math.random() * 5000) + 1000;
-              const simAffected = Math.floor(simTotal * (Math.random() * 0.15));
               return {
                 id: rule.id.slice(0, 8),
                 name: rule.name,
                 system: asset?.source || 'N/A',
-                total: simTotal,
-                compliant: simTotal - simAffected,
-                affected: simAffected,
-                pct: (((simTotal - simAffected) / simTotal) * 100).toFixed(2),
+                total: 0,
+                compliant: 0,
+                affected: 0,
+                pct: '0.00',
                 severity: rule.severity,
                 owner: 'Nexus AI',
-                date: new Date().toISOString().split('T')[0],
-                status: `⚠️ Datos Simulados (Tabla inaccesible)`,
-                fieldError: false
+                date: 'Error de BD',
+                status: `⚠️ No se pudo consultar la tabla ${targetTable}. Detalle: ${tErr.message}`,
+                fieldError: true
               };
             }
             total = tCount || 0;
