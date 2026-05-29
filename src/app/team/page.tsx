@@ -698,41 +698,52 @@ export default function Team() {
                  </div>
                  <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
                     {/* CDO */}
-                    <div className={styles.orgNode} data-role="CDO">
-                       <strong>CDO</strong>
-                       <span>Carlos Director</span>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {members.filter(m => m.roleType === 'CDO').length === 0 ? (
+                        <div className={styles.orgNode} data-role="CDO">
+                          <strong>CDO</strong>
+                          <span>Vacante</span>
+                        </div>
+                      ) : (
+                        members.filter(m => m.roleType === 'CDO').map(cdo => (
+                          <div key={cdo.id} className={styles.orgNode} data-role="CDO">
+                             <strong>CDO</strong>
+                             <span>{cdo.name}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                     
                     <div className={styles.orgLine} />
 
                     {/* Owners */}
-                    <div style={{ display: 'flex', gap: '40px' }}>
-                       <div className={styles.orgNode} data-role="Data Owner">
-                          <strong>Data Owner</strong>
-                          <span>Luis Martínez</span>
-                       </div>
-                       <div className={styles.orgNode} data-role="Data Owner">
-                          <strong>Data Owner</strong>
-                          <span>Marketing</span>
-                       </div>
+                    <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {members.filter(m => m.roleType === 'Data Owner').length === 0 ? (
+                        <span style={{ color: '#94a3b8' }}>Sin Data Owners asignados</span>
+                      ) : (
+                        members.filter(m => m.roleType === 'Data Owner').map(owner => (
+                          <div key={owner.id} className={styles.orgNode} data-role="Data Owner">
+                             <strong>Data Owner</strong>
+                             <span>{owner.name}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
 
                     <div className={styles.orgLine} />
 
-                    {/* Stewards */}
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                       <div className={styles.orgNode} data-role="Data Steward">
-                          <strong>Steward</strong>
-                          <span>Ana García</span>
-                       </div>
-                       <div className={styles.orgNode} data-role="Data Steward">
-                          <strong>Steward</strong>
-                          <span>Elena Gómez</span>
-                       </div>
-                       <div className={styles.orgNode} data-role="Data Custodian">
-                          <strong>Custodian</strong>
-                          <span>Sofía R.</span>
-                       </div>
+                    {/* Stewards, Custodians & Auditors */}
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {members.filter(m => m.roleType !== 'CDO' && m.roleType !== 'Data Owner').length === 0 ? (
+                        <span style={{ color: '#94a3b8' }}>Sin responsables técnicos asignados</span>
+                      ) : (
+                        members.filter(m => m.roleType !== 'CDO' && m.roleType !== 'Data Owner').map(member => (
+                          <div key={member.id} className={styles.orgNode} data-role={member.roleType}>
+                             <strong>{member.roleType.split(' ')[1] || member.roleType}</strong>
+                             <span>{member.name}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                  </div>
               </motion.div>
