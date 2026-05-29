@@ -39,7 +39,8 @@ import {
   Share2,
   Lock,
   ArrowRight,
-  Sparkle
+  Sparkle,
+  Trash2
 } from 'lucide-react';
 import styles from './page.module.css';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -59,7 +60,12 @@ import {
   PieChart,
   Pie,
   LineChart,
-  Line
+  Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
 
 
@@ -96,9 +102,9 @@ const DEFAULT_WEEKLY_HOURS = [
 const DEFAULT_AUDITED_HOURS = 9.8;
 
 const DEFAULT_STEWARDS = [
-  { name: 'Juan Lopez', role: 'Data Owner', hours: 14.5, maxHours: 20, color: '#f59e0b', initial: 'JL', points: 120 },
-  { name: 'Maria Garcia', role: 'Data Steward', hours: 18.2, maxHours: 20, color: '#10b981', initial: 'MG', points: 185 },
-  { name: 'Carlos Canon', role: 'Data Steward', hours: 9.8, maxHours: 20, color: '#3b82f6', initial: 'CC', points: 95 },
+  { name: 'Juan Lopez', role: 'Data Owner', hours: 14.5, maxHours: 20, color: '#f59e0b', initial: 'JL', points: 120, avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Juan' },
+  { name: 'Maria Garcia', role: 'Data Steward', hours: 18.2, maxHours: 20, color: '#10b981', initial: 'MG', points: 185, avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Maria' },
+  { name: 'Carlos Canon', role: 'Data Steward', hours: 9.8, maxHours: 20, color: '#3b82f6', initial: 'CC', points: 95, avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Carlos' },
 ];
 
 const DEFAULT_MEETINGS = [
@@ -107,7 +113,7 @@ const DEFAULT_MEETINGS = [
 ];
 
 export default function Dashboard() {
-  const { currentTenant, mode } = usePlatform();
+  const { currentTenant, mode, dashboardChartType, dashboardChartColors, pieChartType, dashboardFont, cardBg, cardBorderColor, cardBorderWidth, cardBorderRadius, dashboardTextColor, dashboardTitleColor, dashboardTextScale, dashboardContent } = usePlatform();
   const [dashboardAssets, setDashboardAssets] = React.useState<any[]>([]);
 
   // Distribución dinámica de activos por área/responsable de la empresa activa
@@ -124,9 +130,9 @@ export default function Dashboard() {
     return Array.from(map.entries()).map(([name, value], i) => ({
       name,
       value,
-      color: AREA_COLORS[i % AREA_COLORS.length]
+      color: (dashboardChartColors && dashboardChartColors.length > 0) ? dashboardChartColors[i % dashboardChartColors.length] : AREA_COLORS[i % AREA_COLORS.length]
     }));
-  }, [dashboardAssets]);
+  }, [dashboardAssets, dashboardChartColors]);
   const [userName, setUserName] = useState('Carlos');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytic' | 'history' | 'report'>('dashboard');
   const [dashboardLayout, setDashboardLayout] = useState<'classic' | 'moneed'>('classic');
@@ -246,6 +252,7 @@ export default function Dashboard() {
   // Dynamic database indicators state
   const [dbKpis, setDbKpis] = useState<{ quality: string; maturity: string; compliance: string; incidents: string; criticalIncidents: number; seguridad: string; catalogo: string; estrategia: string; organizacion: string; arquitectura: string } | null>(null);
   const [dbIncidents, setDbIncidents] = useState<any[]>([]);
+  const [radarData, setRadarData] = useState<any[]>([]);
 
   // Dynamic sparkline and executive data states
   const [classicSparklineData, setClassicSparklineData] = useState({
@@ -297,7 +304,7 @@ export default function Dashboard() {
           const rawAnswers = localStorage.getItem(`govdata_maturity_answers_${currentTenant.id}`);
           if (rawAnswers) answers = JSON.parse(rawAnswers);
         } catch {}
-        let estrategiaVal = 64, organizacionVal = 72, calidadVal = avgQuality, arquitecturaVal = 55, seguridadVal = 60, complianceVal = 88;
+        let estrategiaVal = 78, organizacionVal = 82, calidadVal = 65, arquitecturaVal = 55, seguridadVal = 60, complianceVal = 24;
         try {
           const savedScores = localStorage.getItem(`govdata_maturity_scores_${currentTenant.id}`);
           if (savedScores) {
@@ -311,12 +318,12 @@ export default function Dashboard() {
           }
         } catch {}
         const globalScore = Math.round((estrategiaVal + organizacionVal + calidadVal + arquitecturaVal + seguridadVal + complianceVal) / 6);
-        let multiplier = executivePeriod === 'trimestral' ? 1.02 : executivePeriod === 'anual' ? 0.96 : 1.0;
-        setQualityScore(Math.min(100, Math.round(calidadVal * multiplier * 10) / 10));
+        // Ensure values synchronize perfectly by removing timeline multiplier logic from final strings
+        setQualityScore(Math.min(100, calidadVal));
         setDbKpis({
-          quality: `${Math.min(100, Math.round(calidadVal * multiplier * 10) / 10)}%`,
-          maturity: `${Math.min(100, Math.round(globalScore * multiplier))}%`,
-          compliance: `${Math.min(100, Math.round(complianceVal * multiplier))}%`,
+          quality: `${calidadVal}%`,
+          maturity: `${globalScore}%`,
+          compliance: `${complianceVal}%`,
           incidents: '0',
           criticalIncidents: 0,
           seguridad: `${seguridadVal}%`,
@@ -325,6 +332,14 @@ export default function Dashboard() {
           organizacion: `${organizacionVal}%`,
           arquitectura: `${arquitecturaVal}%`
         });
+        setRadarData([
+          { subject: 'Estrategia',   A: estrategiaVal,   B: 70, fullMark: 100 },
+          { subject: 'Organización', A: organizacionVal, B: 65, fullMark: 100 },
+          { subject: 'Calidad',      A: calidadVal,      B: 80, fullMark: 100 },
+          { subject: 'Arquitectura', A: arquitecturaVal, B: 75, fullMark: 100 },
+          { subject: 'Seguridad',    A: seguridadVal,    B: 85, fullMark: 100 },
+          { subject: 'Compliance',   A: complianceVal,   B: 90, fullMark: 100 },
+        ]);
         const semestralMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
         setExecutiveData(semestralMonths.map((m, i) => ({ name: m, calidad: Math.max(50, calidadVal - (5 - i) * 2), madurez: Math.max(30, globalScore - (5 - i) * 3) })));
         return;
@@ -379,7 +394,7 @@ export default function Dashboard() {
         } catch {}
 
         // --- Calidad: exact global health from incidents ---
-        let calidad = 0;
+        let calidad = 65;
         if (incidents.length > 0) {
           let totalRecords = 0;
           let totalAffected = 0;
@@ -449,6 +464,15 @@ export default function Dashboard() {
           organizacion: `${organizacion}%`,
           arquitectura: `${arquitectura}%`
         });
+
+        setRadarData([
+          { subject: 'Estrategia',   A: estrategia,   B: 70, fullMark: 100 },
+          { subject: 'Organización', A: organizacion, B: 65, fullMark: 100 },
+          { subject: 'Calidad',      A: calidad,      B: 80, fullMark: 100 },
+          { subject: 'Arquitectura', A: arquitectura, B: 75, fullMark: 100 },
+          { subject: 'Seguridad',    A: seguridad,    B: 85, fullMark: 100 },
+          { subject: 'Compliance',   A: compliance,   B: 90, fullMark: 100 },
+        ]);
 
         setQualityScore(finalQuality);
 
@@ -554,6 +578,75 @@ export default function Dashboard() {
 
   // Stewards Leaderboard
   const [stewards, setStewards] = useState(DEFAULT_STEWARDS);
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
+  const [isAssignStewardModalOpen, setIsAssignStewardModalOpen] = useState(false);
+  const [assignStewardForm, setAssignStewardForm] = useState({ userId: '', hours: 20, role: 'Data Steward' });
+
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const fetchUsers = async () => {
+      const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(currentTenant.id);
+      if (!isUUID) {
+        setTenantUsers([
+          { id: 'u1', name: 'Juan Lopez', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Juan' },
+          { id: 'u2', name: 'Maria Garcia', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Maria' },
+          { id: 'u3', name: 'Carlos Canon', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Carlos' },
+          { id: 'u4', name: 'Andres Sanchez', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Andres' }
+        ]);
+        return;
+      }
+      try {
+        const { data } = await supabase.from('tenant_users').select('id, name, avatar').eq('tenant_id', currentTenant.id).order('name');
+        if (data) setTenantUsers(data);
+      } catch (e) {
+        console.error('Error fetching tenant users:', e);
+      }
+    };
+    fetchUsers();
+  }, [currentTenant?.id]);
+
+  const handleAssignSteward = () => {
+    if (!assignStewardForm.userId) {
+      alert('Por favor selecciona un usuario.');
+      return;
+    }
+    const selectedUser = tenantUsers.find(u => u.id === assignStewardForm.userId);
+    if (!selectedUser) return;
+    
+    if (stewards.some(s => s.name === selectedUser.name)) {
+      alert('Este usuario ya está asignado como responsable.');
+      return;
+    }
+    
+    const newSteward = {
+      name: selectedUser.name,
+      role: assignStewardForm.role,
+      hours: 0,
+      maxHours: assignStewardForm.hours,
+      color: '#3b82f6',
+      initial: selectedUser.name.substring(0, 2).toUpperCase(),
+      points: 0,
+      avatar: selectedUser.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${selectedUser.name.replace(' ', '')}`
+    };
+
+    const updated = [newSteward, ...stewards];
+    setStewards(updated);
+    if (currentTenant?.id) {
+      localStorage.setItem(`govdata_stewards_${currentTenant.id}`, JSON.stringify(updated));
+    }
+    setIsAssignStewardModalOpen(false);
+    setAssignStewardForm({ userId: '', hours: 20, role: 'Data Steward' });
+    triggerToast(`Responsable asignado exitosamente.`);
+  };
+
+  const handleRemoveSteward = (name: string) => {
+    const updated = stewards.filter(s => s.name !== name);
+    setStewards(updated);
+    if (currentTenant?.id) {
+      localStorage.setItem(`govdata_stewards_${currentTenant.id}`, JSON.stringify(updated));
+    }
+    triggerToast(`Responsable removido exitosamente.`);
+  };
 
   const [meetings, setMeetings] = useState(DEFAULT_MEETINGS);
 
@@ -896,11 +989,11 @@ export default function Dashboard() {
       const activeIncidentsCount = Math.max(0, baseIncidents - remediatedIncidents.length);
 
       return (
-        <div className={styles.classic_container}>
+        <div className={styles.classic_container} style={{ fontFamily: dashboardFont, '--card-bg': cardBg, '--card-border-color': cardBorderColor, '--card-border-width': cardBorderWidth, '--card-border-radius': cardBorderRadius, '--dyn-text-color': dashboardTextColor, '--dyn-title-color': dashboardTitleColor, '--dyn-text-scale': dashboardTextScale } as React.CSSProperties}>
           <header className={styles.classic_header}>
             <div className={styles.classic_headerTitle}>
-              <h1>Executive Command Center</h1>
-              <p>Bienvenido, {userName}. Control inteligente y analítica macro de gobernanza.</p>
+              <h1>{dashboardContent?.mainTitle || 'Executive Command Center'}</h1>
+              <p>Bienvenido, {userName}. {dashboardContent?.mainSubtitle || 'Control inteligente y analítica macro de gobernanza.'}</p>
             </div>
             
             <div className={styles.classic_headerActions}>
@@ -983,7 +1076,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={styles.classic_cardValue}>{kpis.maturity}</div>
-              <div className={styles.classic_cardTitle}>Madurez Global</div>
+              <div className={styles.classic_cardTitle}>{dashboardContent?.kpi2Title || 'Madurez Global'}</div>
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.madurez}>
@@ -1003,7 +1096,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={styles.classic_cardValue}>{kpis.quality}</div>
-              <div className={styles.classic_cardTitle}>Calidad de Datos Promedio</div>
+              <div className={styles.classic_cardTitle}>{dashboardContent?.kpi1Title || 'Calidad de Datos Promedio'}</div>
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.calidad}>
@@ -1023,7 +1116,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={styles.classic_cardValue}>{kpis.compliance}</div>
-              <div className={styles.classic_cardTitle}>Compliance Score</div>
+              <div className={styles.classic_cardTitle}>{dashboardContent?.kpi3Title || 'Cumplimiento Normativo'}</div>
               <div className={styles.classic_sparklineWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.compliance}>
@@ -1158,8 +1251,8 @@ export default function Dashboard() {
             <div className={styles.classic_chartCard}>
               <div className={styles.classic_cardHeader}>
                 <div>
-                  <h3>Evolución de Calidad vs Madurez</h3>
-                  <p>Análisis de madurez del ecosistema organizativo - Periodo {executivePeriod === 'anual' ? '2025' : '2024'}</p>
+                  <h3 className={styles.classic_cardTitle}>{dashboardContent?.chart1Title || 'Evolución de Métricas Clave'}</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Desempeño mensual consolidado</p>
                 </div>
                 <div className={styles.classic_legend}>
                   <div className={styles.classic_legendItem}><i style={{ backgroundColor: '#3b82f6' }}></i> Calidad</div>
@@ -1168,57 +1261,106 @@ export default function Dashboard() {
               </div>
               <div className={styles.classic_chartWrapper}>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={currentData as any[]}>
-                    <defs>
-                      <linearGradient id="colorQual" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                    <Tooltip contentStyle={{ borderRadius: '16px', background: 'rgba(15, 23, 42, 0.9)', color: 'white', border: 'none', boxShadow: '0 10px 25px -3px rgba(0,0,0,0.3)' }} />
-                    <Area type="monotone" dataKey="calidad" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorQual)" />
-                    <Area type="monotone" dataKey="madurez" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
-                  </AreaChart>
+                  {dashboardChartType === 'area' ? (
+                    <AreaChart data={currentData as any[]}>
+                      <defs>
+                        <linearGradient id="colorQual" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={dashboardChartColors[0] || "#3b82f6"} stopOpacity={0.15}/>
+                          <stop offset="95%" stopColor={dashboardChartColors[0] || "#3b82f6"} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', background: 'rgba(15, 23, 42, 0.9)', color: 'white', border: 'none', boxShadow: '0 10px 25px -3px rgba(0,0,0,0.3)' }} />
+                      <Area type="monotone" dataKey="calidad" stroke={dashboardChartColors[0] || "#3b82f6"} strokeWidth={3} fillOpacity={1} fill="url(#colorQual)" />
+                      <Area type="monotone" dataKey="madurez" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
+                    </AreaChart>
+                  ) : dashboardChartType === 'bar' ? (
+                    <BarChart data={currentData as any[]}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', background: 'rgba(15, 23, 42, 0.9)', color: 'white', border: 'none', boxShadow: '0 10px 25px -3px rgba(0,0,0,0.3)' }} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+                      <Bar dataKey="calidad" fill={dashboardChartColors[0] || "#3b82f6"} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="madurez" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={currentData as any[]}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', background: 'rgba(15, 23, 42, 0.9)', color: 'white', border: 'none', boxShadow: '0 10px 25px -3px rgba(0,0,0,0.3)' }} />
+                      <Line type="monotone" dataKey="calidad" stroke={dashboardChartColors[0] || "#3b82f6"} strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                      <Line type="monotone" dataKey="madurez" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    </LineChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className={styles.classic_sideCard}>
-              <div className={styles.classic_cardHeader}>
-                <h3>Distribución de Activos</h3>
-                <p>Clasificados por área</p>
-              </div>
-              <div className={styles.classic_chartWrapper} style={{ minHeight: '220px' }}>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={computedAreaData}
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={6}
-                      dataKey="value"
-                    >
-                      {computedAreaData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className={styles.classic_incidentList} style={{ marginTop: '20px' }}>
-                  {computedAreaData.map(area => (
-                    <div key={area.name} className={styles.classic_incidentItem} style={{ padding: '10px 14px' }}>
-                      <div className={styles.classic_statusDot} style={{ backgroundColor: area.color }}></div>
-                      <div className={styles.classic_incidentInfo}>
-                        <h4 style={{ fontSize: '0.85rem' }}>{area.name}</h4>
-                        <p style={{ fontSize: '0.75rem' }}>{((area.value / Math.max(1, dashboardAssets.length)) * 100).toFixed(1)}% del total</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className={styles.classic_sideCard}>
+                <div className={styles.classic_cardHeader}>
+                  <h3 className={styles.classic_cardTitle}>{dashboardContent?.chart2Title || 'Distribución de Activos'}</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Clasificados por área</p>
+                </div>
+                <div className={styles.classic_chartWrapper} style={{ minHeight: '220px' }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={computedAreaData}
+                        innerRadius={pieChartType === 'pie' ? 0 : 60}
+                        outerRadius={80}
+                        paddingAngle={pieChartType === 'pie' ? 0 : 6}
+                        dataKey="value"
+                      >
+                        {computedAreaData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className={styles.classic_incidentList} style={{ marginTop: '20px' }}>
+                    {computedAreaData.map(area => (
+                      <div key={area.name} className={styles.classic_incidentItem} style={{ padding: '10px 14px' }}>
+                        <div className={styles.classic_statusDot} style={{ backgroundColor: area.color }}></div>
+                        <div className={styles.classic_incidentInfo}>
+                          <h4 style={{ fontSize: '0.85rem' }}>{area.name}</h4>
+                          <p style={{ fontSize: '0.75rem' }}>{((area.value / Math.max(1, dashboardAssets.length)) * 100).toFixed(1)}% del total</p>
+                        </div>
+                        <ChevronRight size={14} color="#94a3b8" />
                       </div>
-                      <ChevronRight size={14} color="#94a3b8" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.classic_sideCard}>
+                <div className={styles.classic_cardHeader}>
+                  <h3 className={styles.classic_cardTitle}>Dimensiones de Gobierno</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Capacidades de madurez</p>
+                </div>
+                <div className={styles.classic_chartWrapper} style={{ minHeight: '220px' }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Actual" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+                      <Radar name="Industria" dataKey="B" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.1} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#64748b' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6' }}></div> Actual
                     </div>
-                  ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#64748b' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#94a3b8' }}></div> Industria
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1297,7 +1439,7 @@ export default function Dashboard() {
 
     if (dashboardType === 'technical') {
       return (
-        <div className={styles.classic_dashboardTech}>
+        <div className={styles.classic_dashboardTech} style={{ fontFamily: dashboardFont, '--card-bg': cardBg, '--card-border-color': cardBorderColor, '--card-border-width': cardBorderWidth, '--card-border-radius': cardBorderRadius, '--dyn-text-color': dashboardTextColor, '--dyn-title-color': dashboardTitleColor, '--dyn-text-scale': dashboardTextScale } as React.CSSProperties}>
           <header className={styles.classic_header}>
             <div className={styles.classic_headerTitle}>
               <h1>Technical Operations Dashboard</h1>
@@ -1562,9 +1704,9 @@ export default function Dashboard() {
                   <PieChart>
                     <Pie
                       data={techPieData}
-                      innerRadius={50}
+                      innerRadius={pieChartType === 'pie' ? 0 : 50}
                       outerRadius={65}
-                      paddingAngle={3}
+                      paddingAngle={pieChartType === 'pie' ? 0 : 3}
                       dataKey="value"
                     >
                       {techPieData.map((entry, index) => (
@@ -1601,7 +1743,7 @@ export default function Dashboard() {
 
     if (dashboardType === 'collaborative') {
       return (
-        <div className={styles.classic_dashboardCollab}>
+        <div className={styles.classic_dashboardCollab} style={{ fontFamily: dashboardFont, '--card-bg': cardBg, '--card-border-color': cardBorderColor, '--card-border-width': cardBorderWidth, '--card-border-radius': cardBorderRadius, '--dyn-text-color': dashboardTextColor, '--dyn-title-color': dashboardTitleColor, '--dyn-text-scale': dashboardTextScale } as React.CSSProperties}>
           <header className={styles.classic_header}>
             <div className={styles.classic_headerTitle}>
               <h1>Data Stewardship Portal</h1>
@@ -1775,17 +1917,33 @@ export default function Dashboard() {
 
             {/* Stewards Scorecard / Leaderboard */}
             <div className={styles.classic_chartCard}>
-              <div className={styles.classic_cardHeader}>
+              <div className={styles.classic_cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3>Stewards del Mes</h3>
+                <button 
+                  onClick={() => setIsAssignStewardModalOpen(true)}
+                  style={{ backgroundColor: '#f1f5f9', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} /> Asignar Responsable
+                </button>
               </div>
               <div className={styles.classic_stewardsGrid}>
                 {stewards.map(steward => (
                   <div key={steward.name} className={styles.classic_stewardCard}>
-                    <div className={styles.classic_stewardAvatar} style={{ backgroundColor: steward.color }}>
+                    <div 
+                      className={styles.classic_stewardAvatar} 
+                      style={{ 
+                        backgroundColor: steward.color,
+                        backgroundImage: steward.avatar ? `url(${steward.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${steward.name.replace(' ', '')})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        color: 'transparent'
+                      }}
+                    >
                       {steward.initial}
                     </div>
                     <div className={styles.classic_stewardInfo}>
-                      <h4>{steward.name}</h4>
+                      <h4 style={{ fontWeight: 700 }}>{steward.name}</h4>
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, margin: '2px 0 4px 0' }}>{steward.role}</p>
                       <div className="flex justify-between items-center mt-1">
                         <span className={styles.classic_stewardHoursText}>{steward.hours} hrs registradas</span>
                         <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">{steward.points} pts</span>
@@ -1797,12 +1955,22 @@ export default function Dashboard() {
                         ></div>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => handleRecognizeSteward(steward.name)}
-                      className={styles.classic_recognizeBtn}
-                    >
-                      ⭐
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <button 
+                        onClick={() => handleRecognizeSteward(steward.name)}
+                        className={styles.classic_recognizeBtn}
+                        title="Reconocer esfuerzo"
+                      >
+                        ⭐
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveSteward(steward.name)}
+                        style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px', display: 'flex', justifyContent: 'center' }}
+                        title="Eliminar asignación"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1949,7 +2117,7 @@ export default function Dashboard() {
   // RENDER PREMIUM MONEED DASHBOARD
   // ==========================================
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ fontFamily: dashboardFont, '--card-bg': cardBg, '--card-border-color': cardBorderColor, '--card-border-width': cardBorderWidth, '--card-border-radius': cardBorderRadius, '--dyn-text-color': dashboardTextColor, '--dyn-title-color': dashboardTitleColor, '--dyn-text-scale': dashboardTextScale } as React.CSSProperties}>
       
       {/* Toast alert banner */}
       <AnimatePresence>
@@ -2640,6 +2808,87 @@ export default function Dashboard() {
                   }}
                 >
                   Aplicar Parámetros
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAssignStewardModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsAssignStewardModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent} 
+              style={{ maxWidth: '400px' }}
+              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <div className={styles.modalHeader}>
+                <div>
+                  <h2>Asignar Responsable</h2>
+                  <p>Selecciona un usuario de Gestión de Accesos.</p>
+                </div>
+                <button className={styles.closeBtn} onClick={() => setIsAssignStewardModalOpen(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className={styles.modalBody}>
+                <div className={styles.formField}>
+                  <label>Usuario</label>
+                  <select 
+                    value={assignStewardForm.userId}
+                    onChange={e => setAssignStewardForm({...assignStewardForm, userId: e.target.value})}
+                    className={styles.selectLarge}
+                  >
+                    <option value="">Seleccione un usuario...</option>
+                    {tenantUsers.filter(u => !stewards.some(s => s.name === u.name)).map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={styles.formField}>
+                  <label>Rol de Gobernanza</label>
+                  <select 
+                    value={assignStewardForm.role}
+                    onChange={e => setAssignStewardForm({...assignStewardForm, role: e.target.value})}
+                    className={styles.selectLarge}
+                  >
+                    <option value="Data Steward">Data Steward</option>
+                    <option value="Data Owner">Data Owner</option>
+                    <option value="Data Custodian">Data Custodian</option>
+                    <option value="CDO">Chief Data Officer</option>
+                  </select>
+                </div>
+
+                <div className={styles.formField}>
+                  <label>Horas Mensuales Dedicadas</label>
+                  <input 
+                    type="number" 
+                    value={assignStewardForm.hours}
+                    onChange={e => setAssignStewardForm({...assignStewardForm, hours: parseInt(e.target.value) || 0})}
+                    className={styles.selectLarge}
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button 
+                  className={styles.btnSecondary}
+                  onClick={() => setIsAssignStewardModalOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  className={styles.btnPrimary}
+                  onClick={handleAssignSteward}
+                >
+                  Confirmar Asignación
                 </button>
               </div>
             </motion.div>

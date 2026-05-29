@@ -26,7 +26,8 @@ import {
   ExternalLink,
   Shield,
   Info,
-  Award
+  Award,
+  Fingerprint
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './security.module.css';
@@ -177,9 +178,14 @@ export default function SecurityModule() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <h1>Seguridad y Riesgos</h1>
-          <p>Gobierno de seguridad, cumplimiento normativo y gestión de riesgos corporativos.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <ShieldAlert size={24} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Seguridad y Riesgos</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Gobierno de seguridad, cumplimiento normativo y gestión de riesgos corporativos.</p>
+          </div>
         </div>
       </header>
 

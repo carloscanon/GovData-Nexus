@@ -284,9 +284,14 @@ export default function Catalog() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <h1>Catálogo de Datos</h1>
-          <p>Inventario centralizado de activos de información corporativa.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <Database size={24} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Catálogo de Datos</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Inventario centralizado de activos de información corporativa.</p>
+          </div>
         </div>
         <div className={styles.headerActions}>
           <button className={styles.primaryBtn} onClick={openCreateModal}>

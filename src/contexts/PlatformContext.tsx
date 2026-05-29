@@ -11,6 +11,26 @@ interface BrandColors {
   theme: string;
 }
 
+export interface DashboardContent {
+  mainTitle: string;
+  mainSubtitle: string;
+  kpi1Title: string;
+  kpi2Title: string;
+  kpi3Title: string;
+  chart1Title: string;
+  chart2Title: string;
+}
+
+export const DEFAULT_DASHBOARD_CONTENT: DashboardContent = {
+  mainTitle: 'Executive Command Center',
+  mainSubtitle: 'Resumen estratégico de gobernanza de datos',
+  kpi1Title: 'Calidad Global',
+  kpi2Title: 'Madurez Global',
+  kpi3Title: 'Cumplimiento',
+  chart1Title: 'Evolución de Métricas',
+  chart2Title: 'Distribución de Activos',
+};
+
 export interface Tenant {
   id: string;
   name: string;
@@ -68,6 +88,23 @@ interface PlatformContextType {
   setCardBorderRadius: (radius: string) => void;
   cardBorderWidth: string;
   setCardBorderWidth: (width: string) => void;
+  // Dashboard parameters
+  dashboardChartType: 'area' | 'bar' | 'line';
+  setDashboardChartType: (type: 'area' | 'bar' | 'line') => void;
+  dashboardChartColors: string[];
+  setDashboardChartColors: (colors: string[]) => void;
+  pieChartType: 'pie' | 'donut';
+  setPieChartType: (type: 'pie' | 'donut') => void;
+  dashboardFont: string;
+  setDashboardFont: (font: string) => void;
+  dashboardTextColor: string;
+  setDashboardTextColor: (color: string) => void;
+  dashboardTitleColor: string;
+  setDashboardTitleColor: (color: string) => void;
+  dashboardTextScale: string;
+  setDashboardTextScale: (scale: string) => void;
+  dashboardContent: DashboardContent;
+  setDashboardContent: (content: DashboardContent) => void;
   // Tenants
   tenants: Tenant[];
   currentTenant: Tenant;
@@ -201,6 +238,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [cardBorderRadius, setCardBorderRadiusState] = useState<string>('24px');
   const [cardBorderWidth, setCardBorderWidthState] = useState<string>('1px');
 
+  const [dashboardChartType, setDashboardChartTypeState] = useState<'area' | 'bar' | 'line'>('area');
+  const [dashboardChartColors, setDashboardChartColorsState] = useState<string[]>(['#60a5fa', '#3b82f6', '#2563eb']);
+  const [pieChartType, setPieChartTypeState] = useState<'pie' | 'donut'>('donut');
+  const [dashboardFont, setDashboardFontState] = useState<string>('Inter, sans-serif');
+  const [dashboardTextColor, setDashboardTextColorState] = useState<string>('#0f172a');
+  const [dashboardTitleColor, setDashboardTitleColorState] = useState<string>('#475569');
+  const [dashboardTextScale, setDashboardTextScaleState] = useState<string>('1');
+  const [dashboardContent, setDashboardContentState] = useState<DashboardContent>(DEFAULT_DASHBOARD_CONTENT);
+
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
   const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
@@ -216,19 +262,65 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         setSaThemeState(JSON.parse(savedSaTheme));
       } catch(e) {}
     }
+  }, []);
 
-    const savedCardBg = localStorage.getItem('govdata_card_bg');
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const tid = currentTenant.id;
+    const getVar = (key: string) => localStorage.getItem(`${key}_${tid}`) || localStorage.getItem(key);
+
+    const savedCardBg = getVar('govdata_card_bg');
     if (savedCardBg) setCardBgState(savedCardBg);
 
-    const savedCardBorderColor = localStorage.getItem('govdata_card_border_color');
+    const savedCardBorderColor = getVar('govdata_card_border_color');
     if (savedCardBorderColor) setCardBorderColorState(savedCardBorderColor);
 
-    const savedCardBorderRadius = localStorage.getItem('govdata_card_border_radius');
+    const savedCardBorderRadius = getVar('govdata_card_border_radius');
     if (savedCardBorderRadius) setCardBorderRadiusState(savedCardBorderRadius);
 
-    const savedCardBorderWidth = localStorage.getItem('govdata_card_border_width');
+    const savedCardBorderWidth = getVar('govdata_card_border_width');
     if (savedCardBorderWidth) setCardBorderWidthState(savedCardBorderWidth);
 
+    const savedChartType = getVar('govdata_dashboard_chart_type');
+    if (savedChartType === 'area' || savedChartType === 'bar' || savedChartType === 'line') {
+      setDashboardChartTypeState(savedChartType);
+    }
+
+    const savedChartColors = getVar('govdata_dashboard_chart_colors');
+    if (savedChartColors) {
+      try {
+        setDashboardChartColorsState(JSON.parse(savedChartColors));
+      } catch (e) {}
+    }
+
+    const savedPieChartType = getVar('govdata_pie_chart_type');
+    if (savedPieChartType === 'pie' || savedPieChartType === 'donut') {
+      setPieChartTypeState(savedPieChartType);
+    }
+
+    const savedFont = getVar('govdata_dashboard_font');
+    if (savedFont) setDashboardFontState(savedFont);
+
+    const savedTextColor = getVar('govdata_dashboard_text_color');
+    if (savedTextColor) setDashboardTextColorState(savedTextColor);
+
+    const savedTitleColor = getVar('govdata_dashboard_title_color');
+    if (savedTitleColor) setDashboardTitleColorState(savedTitleColor);
+
+    const savedTextScale = getVar('govdata_dashboard_text_scale');
+    if (savedTextScale) setDashboardTextScaleState(savedTextScale);
+
+    const savedContent = getVar('govdata_dashboard_content');
+    if (savedContent) {
+      try {
+        setDashboardContentState({ ...DEFAULT_DASHBOARD_CONTENT, ...JSON.parse(savedContent) });
+      } catch (e) {}
+    } else {
+      setDashboardContentState(DEFAULT_DASHBOARD_CONTENT);
+    }
+  }, [currentTenant?.id]);
+
+  useEffect(() => {
     const fetchTenants = async () => {
       try {
         const { data: tenantsData, error } = await supabase
@@ -542,24 +634,71 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('govdata_plans', JSON.stringify(updated));
   };
 
+  const saveTenantSetting = (key: string, value: string) => {
+    localStorage.setItem(key, value); // Fallback guardado a nivel global
+    if (currentTenant?.id) {
+      localStorage.setItem(`${key}_${currentTenant.id}`, value);
+    }
+  };
+
   const handleSetCardBg = (bg: string) => {
     setCardBgState(bg);
-    localStorage.setItem('govdata_card_bg', bg);
+    saveTenantSetting('govdata_card_bg', bg);
   };
 
   const handleSetCardBorderColor = (color: string) => {
     setCardBorderColorState(color);
-    localStorage.setItem('govdata_card_border_color', color);
+    saveTenantSetting('govdata_card_border_color', color);
   };
 
   const handleSetCardBorderRadius = (radius: string) => {
     setCardBorderRadiusState(radius);
-    localStorage.setItem('govdata_card_border_radius', radius);
+    saveTenantSetting('govdata_card_border_radius', radius);
   };
 
   const handleSetCardBorderWidth = (width: string) => {
     setCardBorderWidthState(width);
-    localStorage.setItem('govdata_card_border_width', width);
+    saveTenantSetting('govdata_card_border_width', width);
+  };
+
+  const handleSetDashboardChartType = (type: 'area' | 'bar' | 'line') => {
+    setDashboardChartTypeState(type);
+    saveTenantSetting('govdata_dashboard_chart_type', type);
+  };
+
+  const handleSetDashboardChartColors = (colors: string[]) => {
+    setDashboardChartColorsState(colors);
+    saveTenantSetting('govdata_dashboard_chart_colors', JSON.stringify(colors));
+  };
+
+  const handleSetPieChartType = (type: 'pie' | 'donut') => {
+    setPieChartTypeState(type);
+    saveTenantSetting('govdata_pie_chart_type', type);
+  };
+
+  const handleSetDashboardFont = (font: string) => {
+    setDashboardFontState(font);
+    saveTenantSetting('govdata_dashboard_font', font);
+  };
+
+  const handleSetDashboardTextColor = (color: string) => {
+    setDashboardTextColorState(color);
+    saveTenantSetting('govdata_dashboard_text_color', color);
+  };
+
+  const handleSetDashboardTitleColor = (color: string) => {
+    setDashboardTitleColorState(color);
+    saveTenantSetting('govdata_dashboard_title_color', color);
+  };
+
+  const handleSetDashboardTextScale = (scale: string) => {
+    setDashboardTextScaleState(scale);
+    saveTenantSetting('govdata_dashboard_text_scale', scale);
+  };
+
+  const handleSetDashboardContent = (content: DashboardContent) => {
+    setDashboardContentState(content);
+    saveTenantSetting('govdata_dashboard_content', JSON.stringify(content));
   };
 
   return (
@@ -578,6 +717,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setCardBorderRadius: handleSetCardBorderRadius,
       cardBorderWidth,
       setCardBorderWidth: handleSetCardBorderWidth,
+      dashboardChartType,
+      setDashboardChartType: handleSetDashboardChartType,
+      dashboardChartColors,
+      setDashboardChartColors: handleSetDashboardChartColors,
+      pieChartType,
+      setPieChartType: handleSetPieChartType,
+      dashboardFont,
+      setDashboardFont: handleSetDashboardFont,
+      dashboardTextColor,
+      setDashboardTextColor: handleSetDashboardTextColor,
+      dashboardTitleColor,
+      setDashboardTitleColor: handleSetDashboardTitleColor,
+      dashboardTextScale,
+      setDashboardTextScale: handleSetDashboardTextScale,
+      dashboardContent,
+      setDashboardContent: handleSetDashboardContent,
       tenants,
       currentTenant,
       setCurrentTenant,

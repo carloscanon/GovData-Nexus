@@ -31,7 +31,8 @@ import {
   Cpu,
   GitBranch,
   Trash2,
-  Award
+  Award,
+  Scale
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './policies.module.css';
@@ -334,10 +335,15 @@ export default function PoliciesModule() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.titleArea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1>Centro de Gobierno Normativo</h1>
-            <p>Definición, control y auditoría de políticas corporativas y estándares de datos.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <Scale size={24} />
           </div>
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Centro de Gobierno Normativo</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Definición, control y auditoría de políticas corporativas y estándares de datos.</p>
+          </div>
+        </div>
           <button className={styles.primaryBtn} onClick={() => setIsCreateModalOpen(true)}>
             <Plus size={18} style={{ marginRight: '8px' }} /> Nueva Política
           </button>

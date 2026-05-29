@@ -674,20 +674,20 @@
 .globalRight {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 420px;
+  gap: 12px;
+  flex: 1.2;
   justify-content: flex-end;
 }
 
 .miniPill {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 8px;
+  padding: 8px 16px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #475569;
   cursor: pointer;

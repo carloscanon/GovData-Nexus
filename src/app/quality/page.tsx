@@ -814,12 +814,12 @@ export default function QualityModule() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <div className={styles.iconCircle}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
             <Activity size={24} />
           </div>
           <div>
-            <h1>Salud de los Datos</h1>
-            <p>Monitoreo en tiempo real de dimensiones de calidad por sistema y dominio.</p>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Salud de los Datos</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Monitoreo en tiempo real de dimensiones de calidad por sistema y dominio.</p>
           </div>
         </div>
 

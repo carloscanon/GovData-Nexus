@@ -29,9 +29,11 @@ import {
   PieChart,
   Award,
   Info,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './team.module.css';
 
@@ -58,6 +60,7 @@ interface GovernanceMember {
     policies: string[];
     workflows: number;
   };
+  avatar?: string;
 }
 
 interface GovernanceDomain {
@@ -162,8 +165,35 @@ export default function Team() {
   const [selectedMember, setSelectedMember] = useState<GovernanceMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
   const [isOrgChartModalOpen, setIsOrgChartModalOpen] = useState(false);
   const [members, setMembers] = useState<GovernanceMember[]>(governanceMembers);
+  const [domains, setDomains] = useState<GovernanceDomain[]>(governanceDomains);
+  const [newDomain, setNewDomain] = useState<Partial<GovernanceDomain>>({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const fetchUsers = async () => {
+      const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(currentTenant.id);
+      if (!isUUID) {
+        setTenantUsers([
+          { id: 'u1', name: 'Juan Lopez', email: 'juan@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Juan' },
+          { id: 'u2', name: 'Maria Garcia', email: 'maria@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Maria' },
+          { id: 'u3', name: 'Carlos Canon', email: 'carlos@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Carlos' },
+          { id: 'u4', name: 'Andres Sanchez', email: 'andres@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Andres' }
+        ]);
+        return;
+      }
+      try {
+        const { data } = await supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', currentTenant.id).order('name');
+        if (data) setTenantUsers(data);
+      } catch (e) {
+        console.error('Error fetching tenant users:', e);
+      }
+    };
+    fetchUsers();
+  }, [currentTenant?.id]);
 
   const [newMember, setNewMember] = useState({
     name: '',
@@ -171,7 +201,8 @@ export default function Team() {
     area: '',
     domain: 'Comercial',
     email: '',
-    country: 'México'
+    country: 'México',
+    avatar: ''
   });
 
   useEffect(() => {
@@ -187,6 +218,18 @@ export default function Team() {
     } else {
       setMembers(governanceMembers);
     }
+
+    const domainsKey = `govdata_team_domains_${currentTenant.id}`;
+    const savedDomains = localStorage.getItem(domainsKey);
+    if (savedDomains) {
+      try {
+        setDomains(JSON.parse(savedDomains));
+      } catch (e) {
+        setDomains(governanceDomains);
+      }
+    } else {
+      setDomains(governanceDomains);
+    }
   }, [currentTenant?.id]);
 
   const handleAddMember = () => {
@@ -196,6 +239,7 @@ export default function Team() {
       id,
       role: newMember.roleType,
       status: 'Activo',
+      avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(' ', '')}`,
       stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
       assignments: { assets: [], policies: [], workflows: 0 }
     };
@@ -205,7 +249,46 @@ export default function Team() {
       localStorage.setItem(`govdata_team_members_${currentTenant.id}`, JSON.stringify(updated));
     }
     setIsAssignModalOpen(false);
-    setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México' });
+    setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
+  };
+
+  const handleAddDomain = () => {
+    if (!newDomain.name || !newDomain.description) {
+      alert("Por favor completa el nombre y descripción del dominio.");
+      return;
+    }
+    const id = `DOM-${(domains.length + 1).toString().padStart(2, '0')}`;
+    const domainToAdd: GovernanceDomain = {
+      id,
+      name: newDomain.name!,
+      description: newDomain.description!,
+      owner: newDomain.owner || 'Por definir',
+      steward: newDomain.steward || 'Por definir',
+      custodian: newDomain.custodian || 'Por definir',
+      coverage: 0,
+      status: 'Huérfano'
+    };
+    
+    let assignedRoles = 0;
+    if (domainToAdd.owner !== 'Por definir') assignedRoles++;
+    if (domainToAdd.steward !== 'Por definir') assignedRoles++;
+    if (domainToAdd.custodian !== 'Por definir') assignedRoles++;
+    
+    if (assignedRoles === 3) {
+      domainToAdd.coverage = 100;
+      domainToAdd.status = 'Cubierto';
+    } else if (assignedRoles > 0) {
+      domainToAdd.coverage = Math.round((assignedRoles / 3) * 100);
+      domainToAdd.status = 'Parcial';
+    }
+
+    const updated = [...domains, domainToAdd];
+    setDomains(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_team_domains_${currentTenant.id}`, JSON.stringify(updated));
+    }
+    setIsDomainModalOpen(false);
+    setNewDomain({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
   };
 
   const filteredMembers = members.filter(m => 
@@ -217,10 +300,14 @@ export default function Team() {
     <div className={styles.container}>
       {/* Header Enterprise */}
       <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <div className={styles.breadcrumb}>Gobierno &gt; Modelo Operativo</div>
-          <h1>🚀 Centro Operativo de Gobierno de Datos</h1>
-          <p>Gestión de roles, ownership, responsabilidades y capacidad operativa de la red de gobierno.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <Users size={24} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Centro Operativo de Gobierno de Datos</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Definición de roles, estructura organizativa y asignación de dominios de datos.</p>
+          </div>
         </div>
         <div className={styles.headerActions}>
            <button className={styles.secondaryBtn} onClick={() => setIsOrgChartModalOpen(true)}><Activity size={16} /> Ver Organigrama</button>
@@ -239,8 +326,8 @@ export default function Team() {
           ? Math.round(activeMembers.reduce((acc, m) => acc + (m.stats?.slaCompliance || 0), 0) / activeMembers.length)
           : 100;
         
-        const coveredDomainsCount = governanceDomains.filter(d => d.status !== 'Huérfano').length;
-        const coverageScore = 92; // baseline representing overall ownership coverage
+        const coveredDomainsCount = domains.filter(d => d.status !== 'Huérfano').length;
+        const coverageScore = domains.length > 0 ? Math.round((coveredDomainsCount / domains.length) * 100) : 0;
 
         let levelText = 'HUÉRFANO';
         let levelColor = '#ef4444';
@@ -329,7 +416,7 @@ export default function Team() {
               <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Dominios Asignados', value: coveredDomainsCount.toString(), explanation: kpiExplanations['Dominios Asignados'], color: '#8b5cf6' })}>
                 <LayoutGrid size={14} color="#8b5cf6" />
                 <span>Dominios</span>
-                <strong style={{ color: '#8b5cf6' }}>{coveredDomainsCount} / {governanceDomains.length}</strong>
+                <strong style={{ color: '#8b5cf6' }}>{coveredDomainsCount} / {domains.length}</strong>
               </div>
               <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Eficiencia SLA', value: `${slaEfficiency}%`, explanation: kpiExplanations['Eficiencia SLA'], color: '#06b6d4' })}>
                 <Clock size={14} color="#06b6d4" />
@@ -384,7 +471,17 @@ export default function Team() {
                   <div className={styles.cardStatus} style={{ background: member.status === 'Activo' ? '#10b981' : '#f59e0b' }} />
                   <div className={styles.memberHeader}>
                     <div className={styles.avatarArea}>
-                      <div className={styles.avatar}>{member.name.split(' ').map(n => n[0]).join('')}</div>
+                      <div 
+                        className={styles.avatar}
+                        style={{
+                          backgroundImage: member.avatar ? `url(${member.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name.replace(' ', '')})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          color: 'transparent'
+                        }}
+                      >
+                        {member.name.split(' ').map(n => n[0]).join('')}
+                      </div>
                       <div className={styles.scoreBadge} title="Steward Score">{member.stats.stewardScore}%</div>
                     </div>
                     <button className={styles.moreBtn} onClick={(e) => e.stopPropagation()}><MoreVertical size={18} /></button>
@@ -422,6 +519,11 @@ export default function Team() {
 
         {activeTab === 'domains' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.domainView}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+              <button className={styles.primaryBtn} onClick={() => setIsDomainModalOpen(true)}>
+                <Plus size={16} /> Crear Dominio
+              </button>
+            </div>
             <div className={styles.domainTableContainer}>
               <table className={styles.domainTable}>
                 <thead>
@@ -436,7 +538,7 @@ export default function Team() {
                   </tr>
                 </thead>
                 <tbody>
-                  {governanceDomains.map(domain => (
+                  {domains.map(domain => (
                     <tr key={domain.id}>
                       <td>
                         <div className={styles.domainCol}>
@@ -531,7 +633,17 @@ export default function Team() {
               <div className={styles.profileHeader}>
                 <button className={styles.closeBtn} onClick={() => setSelectedMember(null)}><XCircle size={24} /></button>
                 <div className={styles.profileBasicInfo}>
-                   <div className={styles.largeAvatar}>{selectedMember.name.split(' ').map(n => n[0]).join('')}</div>
+                   <div 
+                     className={styles.largeAvatar}
+                     style={{
+                       backgroundImage: selectedMember.avatar ? `url(${selectedMember.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${selectedMember.name.replace(' ', '')})`,
+                       backgroundSize: 'cover',
+                       backgroundPosition: 'center',
+                       color: 'transparent'
+                     }}
+                   >
+                     {selectedMember.name.split(' ').map(n => n[0]).join('')}
+                   </div>
                    <div>
                       <h2>{selectedMember.name}</h2>
                       <span className={styles.roleTag} data-role={selectedMember.roleType}>{selectedMember.role}</span>
@@ -626,14 +738,24 @@ export default function Team() {
                  </div>
                  <div style={{ padding: '32px' }}>
                     <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre Completo</label>
-                       <input 
-                         type="text" 
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Seleccionar Usuario</label>
+                       <select 
                          className={styles.modalInput} 
                          value={newMember.name}
-                         onChange={e => setNewMember({...newMember, name: e.target.value})}
-                         placeholder="Ej: Roberto Sánchez"
-                       />
+                         onChange={e => {
+                           const user = tenantUsers.find(u => u.name === e.target.value);
+                           if (user) {
+                             setNewMember({ ...newMember, name: user.name, email: user.email, avatar: user.avatar || '' });
+                           } else {
+                             setNewMember({ ...newMember, name: e.target.value });
+                           }
+                         }}
+                       >
+                         <option value="">Seleccione un usuario...</option>
+                         {tenantUsers.filter(u => !members.some(m => m.name === u.name)).map(u => (
+                           <option key={u.id} value={u.name}>{u.name}</option>
+                         ))}
+                       </select>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                        <div>
@@ -681,6 +803,93 @@ export default function Team() {
          )}
        </AnimatePresence>
 
+       {/* Modal: Crear Dominio */}
+       <AnimatePresence>
+         {isDomainModalOpen && (
+           <div className={styles.modalOverlay} onClick={() => setIsDomainModalOpen(false)}>
+              <motion.div 
+                className={styles.assignModal}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={e => e.stopPropagation()}
+              >
+                 <div className={styles.modalHeader} style={{ background: '#3b82f6', color: 'white', padding: '24px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'white' }}>Crear Nuevo Dominio de Datos</h2>
+                    <button onClick={() => setIsDomainModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
+                 </div>
+                 <div style={{ padding: '32px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Dominio</label>
+                       <input 
+                         type="text" 
+                         className={styles.modalInput} 
+                         value={newDomain.name}
+                         onChange={e => setNewDomain({...newDomain, name: e.target.value})}
+                         placeholder="Ej: Logística, Operaciones"
+                       />
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Descripción</label>
+                       <input 
+                         type="text" 
+                         className={styles.modalInput} 
+                         value={newDomain.description}
+                         onChange={e => setNewDomain({...newDomain, description: e.target.value})}
+                         placeholder="Descripción de los datos que abarca"
+                       />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Owner</label>
+                          <select 
+                            className={styles.modalInput}
+                            value={newDomain.owner}
+                            onChange={e => setNewDomain({...newDomain, owner: e.target.value})}
+                          >
+                             <option value="Por definir">Por definir</option>
+                             {tenantUsers.map(u => (
+                               <option key={u.id} value={u.name}>{u.name}</option>
+                             ))}
+                          </select>
+                       </div>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Steward</label>
+                          <select 
+                            className={styles.modalInput}
+                            value={newDomain.steward}
+                            onChange={e => setNewDomain({...newDomain, steward: e.target.value})}
+                          >
+                             <option value="Por definir">Por definir</option>
+                             {tenantUsers.map(u => (
+                               <option key={u.id} value={u.name}>{u.name}</option>
+                             ))}
+                          </select>
+                       </div>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Custodian</label>
+                          <select 
+                            className={styles.modalInput}
+                            value={newDomain.custodian}
+                            onChange={e => setNewDomain({...newDomain, custodian: e.target.value})}
+                          >
+                             <option value="Por definir">Por definir</option>
+                             {tenantUsers.map(u => (
+                               <option key={u.id} value={u.name}>{u.name}</option>
+                             ))}
+                          </select>
+                       </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                       <button className={styles.secondaryBtn} onClick={() => setIsDomainModalOpen(false)}>Cancelar</button>
+                       <button className={styles.primaryBtn} onClick={handleAddDomain}>Guardar Dominio</button>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
        {/* Modal: Organigrama */}
        <AnimatePresence>
          {isOrgChartModalOpen && (
@@ -701,12 +910,14 @@ export default function Team() {
                     <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {members.filter(m => m.roleType === 'CDO').length === 0 ? (
                         <div className={styles.orgNode} data-role="CDO">
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', marginBottom: '8px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '1.2rem', fontWeight: 800 }}>?</div>
                           <strong>CDO</strong>
                           <span>Vacante</span>
                         </div>
                       ) : (
                         members.filter(m => m.roleType === 'CDO').map(cdo => (
                           <div key={cdo.id} className={styles.orgNode} data-role="CDO">
+                             <div style={{ width: '40px', height: '40px', borderRadius: '50%', marginBottom: '8px', backgroundImage: cdo.avatar ? `url(${cdo.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${cdo.name.replace(' ', '')})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                              <strong>CDO</strong>
                              <span>{cdo.name}</span>
                           </div>
@@ -723,6 +934,7 @@ export default function Team() {
                       ) : (
                         members.filter(m => m.roleType === 'Data Owner').map(owner => (
                           <div key={owner.id} className={styles.orgNode} data-role="Data Owner">
+                             <div style={{ width: '40px', height: '40px', borderRadius: '50%', marginBottom: '8px', backgroundImage: owner.avatar ? `url(${owner.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${owner.name.replace(' ', '')})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                              <strong>Data Owner</strong>
                              <span>{owner.name}</span>
                           </div>
@@ -739,6 +951,7 @@ export default function Team() {
                       ) : (
                         members.filter(m => m.roleType !== 'CDO' && m.roleType !== 'Data Owner').map(member => (
                           <div key={member.id} className={styles.orgNode} data-role={member.roleType}>
+                             <div style={{ width: '40px', height: '40px', borderRadius: '50%', marginBottom: '8px', backgroundImage: member.avatar ? `url(${member.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name.replace(' ', '')})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                              <strong>{member.roleType.split(' ')[1] || member.roleType}</strong>
                              <span>{member.name}</span>
                           </div>

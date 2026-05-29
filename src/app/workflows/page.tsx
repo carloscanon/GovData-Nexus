@@ -27,7 +27,9 @@ import {
   BookOpen,
   Award,
   Info,
-  X
+  X,
+  RefreshCw,
+  GitMerge
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -39,15 +41,24 @@ interface WorkflowReq {
   title: string;
   requester: string;
   type: string;
-  category: 'Catalogo' | 'Calidad' | 'Seguridad' | 'Politicas' | 'Riesgos';
+  category: string;
   status: 'Pendiente' | 'En Revisión' | 'Aprobado' | 'Rechazado' | 'Escalado' | 'Cerrado';
   priority: 'Baja' | 'Media' | 'Alta' | 'Crítica';
   date: string;
   sla: string;
   slaStatus: 'Ok' | 'Warning' | 'Overdue';
   description?: string;
+  assignee?: string;
   currentStep: string;
   timeline: { step: string; user: string; date: string; status: string }[];
+}
+
+interface SlaRule {
+  id: string;
+  name: string;
+  priority: string;
+  domain: string;
+  hours: number;
 }
 
 const demoRequests: WorkflowReq[] = [
@@ -142,15 +153,20 @@ export default function Workflows() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pendientes');
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
+  const [domains, setDomains] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<WorkflowReq | null>(null);
   const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const [modalTab, setModalTab] = useState('general');
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isSlaModalOpen, setIsSlaModalOpen] = useState(false);
+  const [slaRules, setSlaRules] = useState<SlaRule[]>([]);
+  const [newSlaRule, setNewSlaRule] = useState<Partial<SlaRule>>({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48 });
   const [newReq, setNewReq] = useState({
     title: '',
-    category: 'Seguridad' as any,
-    priority: 'Media' as any,
+    category: '',
+    priority: 'Media',
     description: ''
   });
 
@@ -163,6 +179,17 @@ export default function Workflows() {
 
   const handleCreateRequest = () => {
     const id = `REQ-00${requests.length + 1}`;
+    
+    // SLA Calculation
+    let assignedHours = 48; // default
+    const matchingRules = slaRules.filter(r => 
+      (r.priority === 'Cualquiera' || r.priority === newReq.priority) &&
+      (r.domain === 'General' || r.domain === newReq.category)
+    );
+    if (matchingRules.length > 0) {
+      assignedHours = Math.min(...matchingRules.map(r => r.hours));
+    }
+
     const reqToAdd: WorkflowReq = {
       ...newReq,
       id,
@@ -170,7 +197,7 @@ export default function Workflows() {
       type: 'Solicitud Manual',
       status: 'Pendiente',
       date: 'Ahora',
-      sla: '48h',
+      sla: `${assignedHours}h`,
       slaStatus: 'Ok',
       currentStep: 'Validación Inicial',
       timeline: [
@@ -183,16 +210,42 @@ export default function Workflows() {
       localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
     }
     setIsNewRequestModalOpen(false);
-    setNewReq({ title: '', category: 'Seguridad', priority: 'Media', description: '' });
+    setNewReq({ title: '', category: '', priority: 'Media', description: '' });
   };
 
-  const handleUpdateStatus = (reqId: string, newStatus: WorkflowReq['status']) => {
-    const updated = requests.map(r => r.id === reqId ? { ...r, status: newStatus } : r);
+  const handleSaveChanges = () => {
+    if (!selectedReq) return;
+    const updated = requests.map(r => r.id === selectedReq.id ? selectedReq : r);
     setRequests(updated);
     if (currentTenant) {
       localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
     }
-    setSelectedReq(prev => prev ? { ...prev, status: newStatus } : null);
+    setSelectedReq(null);
+  };
+
+  const handleAddSlaRule = () => {
+    if (!newSlaRule.name || !newSlaRule.hours) return;
+    const ruleToAdd: SlaRule = {
+      id: `SLA-0${slaRules.length + 1}`,
+      name: newSlaRule.name,
+      priority: newSlaRule.priority || 'Cualquiera',
+      domain: newSlaRule.domain || 'General',
+      hours: Number(newSlaRule.hours)
+    };
+    const updated = [...slaRules, ruleToAdd];
+    setSlaRules(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_sla_rules_${currentTenant.id}`, JSON.stringify(updated));
+    }
+    setNewSlaRule({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48 });
+  };
+
+  const handleDeleteSlaRule = (id: string) => {
+    const updated = slaRules.filter(r => r.id !== id);
+    setSlaRules(updated);
+    if (currentTenant) {
+      localStorage.setItem(`govdata_sla_rules_${currentTenant.id}`, JSON.stringify(updated));
+    }
   };
 
   useEffect(() => {
@@ -208,6 +261,52 @@ export default function Workflows() {
     } else {
       setRequests(demoRequests);
     }
+    
+    // Load Dynamic Domains
+    const domainsKey = `govdata_team_domains_${currentTenant.id}`;
+    const savedDomains = localStorage.getItem(domainsKey);
+    if (savedDomains) {
+      try {
+        setDomains(JSON.parse(savedDomains));
+      } catch (e) {
+        setDomains([]);
+      }
+    } else {
+      setDomains([
+        { id: 'DOM-01', name: 'Finanzas' },
+        { id: 'DOM-02', name: 'Ventas' },
+        { id: 'DOM-03', name: 'Recursos Humanos' },
+        { id: 'DOM-04', name: 'Logística' }
+      ]);
+    }
+
+    // Load Team Members
+    const teamKey = `govdata_team_members_${currentTenant.id}`;
+    const savedTeam = localStorage.getItem(teamKey);
+    if (savedTeam) {
+      try {
+        setTeamMembers(JSON.parse(savedTeam));
+      } catch (e) {
+        setTeamMembers([]);
+      }
+    }
+    
+    // Load SLA Rules
+    const slaKey = `govdata_sla_rules_${currentTenant.id}`;
+    const savedSla = localStorage.getItem(slaKey);
+    if (savedSla) {
+      try {
+        setSlaRules(JSON.parse(savedSla));
+      } catch (e) {
+        setSlaRules([]);
+      }
+    } else {
+      setSlaRules([
+        { id: 'SLA-01', name: 'Resolución Estándar', priority: 'Cualquiera', domain: 'General', hours: 48 },
+        { id: 'SLA-02', name: 'Atención Crítica', priority: 'Crítica', domain: 'General', hours: 4 }
+      ]);
+    }
+
     setLoading(false);
   }, [currentTenant?.id]);
 
@@ -238,11 +337,17 @@ export default function Workflows() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <h1>🎯 Centro de Operaciones de Gobierno</h1>
-          <p>Gestión integral de flujos, aprobaciones y cumplimiento normativo.</p>
+        <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <GitMerge size={24} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Centro de Operaciones de Gobierno</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Gestión centralizada de solicitudes, aprobaciones y cumplimiento de SLA.</p>
+          </div>
         </div>
         <div className={styles.headerActions}>
+           <button className={styles.secondaryBtn} onClick={() => setIsSlaModalOpen(true)}><Clock size={16} /> Configurar SLAs</button>
            <button className={styles.secondaryBtn} onClick={() => setIsAuditModalOpen(true)}><History size={16} /> Auditoría Log</button>
            <button className={styles.primaryBtn} onClick={() => setIsNewRequestModalOpen(true)}><Plus size={16} /> Nueva Solicitud</button>
         </div>
@@ -390,19 +495,13 @@ export default function Workflows() {
 
            <div className={styles.sidebarSection}>
               <h4 className={styles.sidebarTitle}>Dominios</h4>
-              {[
-                { id: 'Catalogo', label: 'Catálogo', icon: <Layers size={16} /> },
-                { id: 'Calidad', label: 'Calidad', icon: <Activity size={16} /> },
-                { id: 'Seguridad', label: 'Seguridad', icon: <Shield size={16} /> },
-                { id: 'Politicas', label: 'Políticas', icon: <BookOpen size={16} /> },
-                { id: 'Riesgos', label: 'Riesgos', icon: <ShieldAlert size={16} /> },
-              ].map(domain => (
+              {domains.map(domain => (
                 <button 
                   key={domain.id}
-                  className={`${styles.sideTab} ${activeDomain === domain.id ? styles.activeSideTab : ''}`} 
-                  onClick={() => setActiveDomain(domain.id)}
+                  className={`${styles.sideTab} ${activeDomain === domain.name ? styles.activeSideTab : ''}`} 
+                  onClick={() => setActiveDomain(domain.name)}
                 >
-                   {domain.icon} {domain.label}
+                   <Layers size={16} /> {domain.name}
                 </button>
               ))}
            </div>
@@ -422,6 +521,7 @@ export default function Workflows() {
                  <thead>
                     <tr>
                        <th>Solicitud</th>
+                       <th>Fecha</th>
                        <th>Tipo / Dominio</th>
                        <th>Estado</th>
                        <th>SLA / Prioridad</th>
@@ -439,8 +539,11 @@ export default function Workflows() {
                             </div>
                          </td>
                          <td>
+                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{req.date}</div>
+                         </td>
+                         <td>
                             <div className={styles.typeTag}>
-                               <span className={styles.categoryDot} style={{ background: req.category === 'Seguridad' ? '#8b5cf6' : req.category === 'Calidad' ? '#3b82f6' : req.category === 'Catalogo' ? '#6366f1' : req.category === 'Politicas' ? '#10b981' : '#ef4444' }} />
+                               <span className={styles.categoryDot} style={{ background: '#6366f1' }} />
                                {req.type}
                             </div>
                          </td>
@@ -526,11 +629,28 @@ export default function Workflows() {
                            </div>
                            <div className={styles.infoItem}>
                               <label>Dominio</label>
-                              <div>{selectedReq.category}</div>
+                              <select 
+                                className={styles.modalInput}
+                                style={{ padding: '4px 8px' }}
+                                value={selectedReq.category}
+                                onChange={(e) => setSelectedReq({...selectedReq, category: e.target.value})}
+                              >
+                                {domains.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                              </select>
                            </div>
                            <div className={styles.infoItem}>
-                              <label>SLA Acordado</label>
-                              <div style={{ color: getSlaColor(selectedReq.slaStatus) }}>{selectedReq.sla}</div>
+                              <label>Asignar Regla SLA</label>
+                              <select 
+                                className={styles.modalInput}
+                                style={{ padding: '4px 8px', color: getSlaColor(selectedReq.slaStatus) }}
+                                value={selectedReq.sla.replace('h', '')}
+                                onChange={(e) => setSelectedReq({...selectedReq, sla: `${e.target.value}h`})}
+                              >
+                                 <option value={selectedReq.sla.replace('h', '')}>Actual ({selectedReq.sla})</option>
+                                 {slaRules.map(rule => (
+                                   <option key={rule.id} value={rule.hours}>{rule.name} ({rule.hours}h)</option>
+                                 ))}
+                              </select>
                            </div>
                         </div>
                      </motion.div>
@@ -590,28 +710,45 @@ export default function Workflows() {
                    )}
                 </div>
 
-                <div className={styles.modalFooter}>
-                   <button 
-                     className={styles.secondaryBtn} 
-                     style={{ color: '#ef4444', borderColor: '#fecaca' }}
-                     onClick={() => handleUpdateStatus(selectedReq.id, 'Rechazado')}
-                   >
-                     Rechazar
-                   </button>
-                   <button 
-                     className={styles.secondaryBtn} 
-                     style={{ color: '#f59e0b', borderColor: '#fde68a' }}
-                     onClick={() => handleUpdateStatus(selectedReq.id, 'En Revisión')}
-                   >
-                     Solicitar Cambios
-                   </button>
-                   <button 
-                     className={styles.primaryBtn} 
-                     style={{ background: '#10b981' }}
-                     onClick={() => handleUpdateStatus(selectedReq.id, 'Aprobado')}
-                   >
-                     Aprobar Solicitud
-                   </button>
+                <div className={styles.modalFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '16px', background: '#f8fafc', padding: '16px 24px', borderTop: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Estado:</label>
+                       <select 
+                         className={styles.modalInput} 
+                         style={{ padding: '6px 12px', minWidth: '150px' }}
+                         value={selectedReq.status}
+                         onChange={(e) => setSelectedReq({...selectedReq, status: e.target.value as any})}
+                       >
+                          <option value="Pendiente">Pendiente</option>
+                          <option value="En Revisión">En Revisión</option>
+                          <option value="Aprobado">Aprobado</option>
+                          <option value="Rechazado">Rechazado</option>
+                          <option value="Escalado">Escalado</option>
+                          <option value="Cerrado">Cerrado</option>
+                       </select>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Asignado a:</label>
+                       <select 
+                         className={styles.modalInput}
+                         style={{ padding: '6px 12px', minWidth: '180px' }}
+                         value={selectedReq.assignee || ''}
+                         onChange={(e) => setSelectedReq({...selectedReq, assignee: e.target.value})}
+                       >
+                          <option value="">-- Sin asignar --</option>
+                          {teamMembers.map(m => (
+                            <option key={m.id} value={m.name}>{m.name}</option>
+                          ))}
+                       </select>
+                    </div>
+                    <button 
+                      className={styles.primaryBtn} 
+                      style={{ background: '#10b981' }}
+                      onClick={handleSaveChanges}
+                    >
+                      Guardar Cambios
+                    </button>
                 </div>
              </motion.div>
           </div>
@@ -650,13 +787,12 @@ export default function Workflows() {
                          <select 
                            className={styles.modalInput}
                            value={newReq.category}
-                           onChange={e => setNewReq({...newReq, category: e.target.value as any})}
+                           onChange={e => setNewReq({...newReq, category: e.target.value})}
                          >
-                            <option>Seguridad</option>
-                            <option>Calidad</option>
-                            <option>Catalogo</option>
-                            <option>Politicas</option>
-                            <option>Riesgos</option>
+                            <option value="">Seleccionar...</option>
+                            {domains.map(d => (
+                              <option key={d.id} value={d.name}>{d.name}</option>
+                            ))}
                          </select>
                       </div>
                       <div>
@@ -725,6 +861,125 @@ export default function Workflows() {
                                  <td><span className={styles.auditActionBadge}>{event.action}</span></td>
                                  <td><strong>{event.user}</strong></td>
                                  <td style={{ fontSize: '0.85rem' }}>{event.detail}</td>
+                              </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SLA Configuration Modal */}
+      <AnimatePresence>
+        {isSlaModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsSlaModalOpen(false)}>
+             <motion.div 
+               className={styles.newReqModal}
+               style={{ maxWidth: '700px' }}
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 0.95 }}
+               onClick={e => e.stopPropagation()}
+             >
+                <div className={styles.modalHeader}>
+                   <h2>Configuración de Acuerdos de Nivel de Servicio (SLA)</h2>
+                   <button onClick={() => setIsSlaModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
+                </div>
+                <div style={{ padding: '24px' }}>
+                   <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Crear Nueva Regla SLA</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                         <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre de la Regla</label>
+                            <input 
+                              type="text" 
+                              className={styles.modalInput} 
+                              placeholder="Ej: Resolución Crítica"
+                              value={newSlaRule.name}
+                              onChange={e => setNewSlaRule({...newSlaRule, name: e.target.value})}
+                            />
+                         </div>
+                         <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Tiempo Límite (Horas)</label>
+                            <input 
+                              type="number" 
+                              className={styles.modalInput} 
+                              placeholder="Ej: 24"
+                              value={newSlaRule.hours}
+                              onChange={e => setNewSlaRule({...newSlaRule, hours: Number(e.target.value)})}
+                            />
+                         </div>
+                         <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Aplica a Prioridad</label>
+                            <select 
+                              className={styles.modalInput}
+                              value={newSlaRule.priority}
+                              onChange={e => setNewSlaRule({...newSlaRule, priority: e.target.value})}
+                            >
+                               <option>Cualquiera</option>
+                               <option>Baja</option>
+                               <option>Media</option>
+                               <option>Alta</option>
+                               <option>Crítica</option>
+                            </select>
+                         </div>
+                         <div>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Aplica a Dominio</label>
+                            <select 
+                              className={styles.modalInput}
+                              value={newSlaRule.domain}
+                              onChange={e => setNewSlaRule({...newSlaRule, domain: e.target.value})}
+                            >
+                               <option value="General">Todos (General)</option>
+                               {domains.map(d => (
+                                 <option key={d.id} value={d.name}>{d.name}</option>
+                               ))}
+                            </select>
+                         </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                         <button className={styles.primaryBtn} onClick={handleAddSlaRule}><Plus size={16} /> Añadir Regla</button>
+                      </div>
+                   </div>
+
+                   <hr style={{ borderTop: '1px solid #e2e8f0', margin: '24px 0' }} />
+
+                   <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>Reglas Activas</h3>
+                   <div className={styles.tableContainer} style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <table className={styles.table}>
+                         <thead>
+                            <tr>
+                               <th>Nombre</th>
+                               <th>Prioridad</th>
+                               <th>Dominio</th>
+                               <th>Tiempo</th>
+                               <th>Acción</th>
+                            </tr>
+                         </thead>
+                         <tbody>
+                            {slaRules.length === 0 && (
+                              <tr>
+                                 <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>No hay reglas SLA definidas.</td>
+                              </tr>
+                            )}
+                            {slaRules.map(rule => (
+                              <tr key={rule.id}>
+                                 <td><strong>{rule.name}</strong></td>
+                                 <td>{rule.priority}</td>
+                                 <td>{rule.domain}</td>
+                                 <td><span className={styles.statusBadge} style={{ background: '#f5f3ff', color: '#8b5cf6' }}>{rule.hours}h</span></td>
+                                 <td>
+                                    <button 
+                                      className={styles.actionIcon} 
+                                      onClick={() => handleDeleteSlaRule(rule.id)}
+                                      style={{ color: '#ef4444' }}
+                                    >
+                                       <XCircle size={16} />
+                                    </button>
+                                 </td>
                               </tr>
                             ))}
                          </tbody>

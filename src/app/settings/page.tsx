@@ -54,7 +54,23 @@ export default function Settings() {
     cardBorderRadius,
     setCardBorderRadius,
     cardBorderWidth,
-    setCardBorderWidth
+    setCardBorderWidth,
+    dashboardChartType,
+    setDashboardChartType,
+    dashboardChartColors,
+    setDashboardChartColors,
+    pieChartType,
+    setPieChartType,
+    dashboardFont,
+    setDashboardFont,
+    dashboardTextColor,
+    setDashboardTextColor,
+    dashboardTitleColor,
+    setDashboardTitleColor,
+    dashboardTextScale,
+    setDashboardTextScale,
+    dashboardContent,
+    setDashboardContent
   } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
@@ -304,9 +320,14 @@ export default function Settings() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <h1>Configuración del Sistema</h1>
-        <p>Administra los parámetros globales, seguridad e integraciones de GovData Nexus.</p>
+      <header className={styles.header} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+          <SettingsIcon size={24} />
+        </div>
+        <div>
+          <h1 style={{ margin: 0, marginBottom: '4px', fontSize: '1.8rem' }}>Configuración del Sistema</h1>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Administra los parámetros globales, seguridad e integraciones de GovData Nexus.</p>
+        </div>
       </header>
 
       <div className={styles.layout}>
@@ -632,6 +653,275 @@ export default function Settings() {
                       </div>
                     </motion.div>
                   )}
+
+                  {/* Asistente de Parametrización del Dashboard */}
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '24px', marginTop: '32px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '8px' }}>Asistente de Parametrización del Dashboard</h3>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                      Ajusta cómo se renderizan los gráficos de métricas y la tipografía base en tu Dashboard.
+                    </p>
+
+                    <div className={styles.section} style={{ background: 'rgba(0,0,0,0.15)', padding: '20px', borderRadius: '12px' }}>
+                      <div className={styles.field}>
+                        <label>Tipo de Gráfica Evolutiva</label>
+                        <select 
+                          className={styles.select} 
+                          value={dashboardChartType} 
+                          onChange={(e) => setDashboardChartType(e.target.value as any)}
+                        >
+                          <option value="area">Área (Relleno Suave)</option>
+                          <option value="bar">Barras (Histórico)</option>
+                          <option value="line">Líneas (Tendencia)</option>
+                        </select>
+                      </div>
+
+                      <div className={styles.field} style={{ marginTop: '16px' }}>
+                        <label>Paleta de Colores de Gráficas</label>
+                        <select 
+                          className={styles.select} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === 'ocean') setDashboardChartColors(['#3b82f6', '#0ea5e9', '#0284c7']);
+                            else if (val === 'emerald') setDashboardChartColors(['#10b981', '#059669', '#047857']);
+                            else if (val === 'warm') setDashboardChartColors(['#f59e0b', '#d97706', '#b45309']);
+                            else if (val === 'corporate') setDashboardChartColors(['#1e3a8a', '#312e81', '#1e1b4b']);
+                          }}
+                          value={
+                            dashboardChartColors[0] === '#3b82f6' ? 'ocean' :
+                            dashboardChartColors[0] === '#10b981' ? 'emerald' :
+                            dashboardChartColors[0] === '#f59e0b' ? 'warm' :
+                            dashboardChartColors[0] === '#1e3a8a' ? 'corporate' : 'custom'
+                          }
+                        >
+                          <option value="ocean">Oceánico (Azules)</option>
+                          <option value="emerald">Esmeralda (Verdes)</option>
+                          <option value="warm">Cálido (Naranjas/Amarillos)</option>
+                          <option value="corporate">Corporativo (Azul Oscuro/Indigo)</option>
+                          <option value="custom">Personalizado</option>
+                        </select>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                          {dashboardChartColors.map((col, idx) => (
+                            <input 
+                              key={idx}
+                              type="color" 
+                              value={col} 
+                              onChange={(e) => {
+                                const newCols = [...dashboardChartColors];
+                                newCols[idx] = e.target.value;
+                                setDashboardChartColors(newCols);
+                              }}
+                              style={{ width: '32px', height: '32px', padding: '0', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={styles.field} style={{ marginTop: '16px' }}>
+                        <label>Tipografía del Dashboard</label>
+                        <select 
+                          className={styles.select} 
+                          value={dashboardFont} 
+                          onChange={(e) => setDashboardFont(e.target.value)}
+                        >
+                          <option value="'Inter', sans-serif">Inter (Moderna/Limpia)</option>
+                          <option value="'Roboto', sans-serif">Roboto (Corporativa)</option>
+                          <option value="'Poppins', sans-serif">Poppins (Geométrica)</option>
+                          <option value="'Outfit', sans-serif">Outfit (Tecnológica)</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                        <div className={styles.field}>
+                          <label>Color de Textos Principales</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input 
+                              type="color" 
+                              value={dashboardTextColor} 
+                              onChange={(e) => setDashboardTextColor(e.target.value)}
+                              style={{ width: '40px', height: '40px', padding: '0', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                            <select 
+                              className={styles.select} 
+                              value={dashboardTextColor} 
+                              onChange={(e) => setDashboardTextColor(e.target.value)}
+                            >
+                              <option value="#0f172a">Azul Oscuro (Pizarra)</option>
+                              <option value="#111827">Gris Muy Oscuro</option>
+                              <option value="#ffffff">Blanco Nieve</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className={styles.field}>
+                          <label>Color de Títulos Secundarios</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input 
+                              type="color" 
+                              value={dashboardTitleColor} 
+                              onChange={(e) => setDashboardTitleColor(e.target.value)}
+                              style={{ width: '40px', height: '40px', padding: '0', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                            <select 
+                              className={styles.select} 
+                              value={dashboardTitleColor} 
+                              onChange={(e) => setDashboardTitleColor(e.target.value)}
+                            >
+                              <option value="#475569">Gris Suave (Slate)</option>
+                              <option value="#6b7280">Gris Medio</option>
+                              <option value="#94a3b8">Gris Claro / Translúcido</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className={styles.field}>
+                          <label>Tamaño General de Textos</label>
+                          <select 
+                            className={styles.select} 
+                            value={dashboardTextScale} 
+                            onChange={(e) => setDashboardTextScale(e.target.value)}
+                          >
+                            <option value="0.85">Pequeño (85%)</option>
+                            <option value="1">Normal (100%)</option>
+                            <option value="1.15">Grande (115%)</option>
+                            <option value="1.3">Extra Grande (130%)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className={styles.field} style={{ marginTop: '16px' }}>
+                        <label>Estilo de Gráficas de Distribución</label>
+                        <select 
+                          className={styles.select} 
+                          value={pieChartType} 
+                          onChange={(e) => setPieChartType(e.target.value as any)}
+                        >
+                          <option value="donut">Anillo (Donut) - Estilo Moderno</option>
+                          <option value="pie">Pastel (Pie) - Sólido Completo</option>
+                        </select>
+                      </div>
+
+                      <h4 style={{ marginTop: '32px', marginBottom: '16px', fontSize: '1rem', fontWeight: 'bold', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>Textos y Títulos del Dashboard Principal</h4>
+                      
+                      <div className={styles.field}>
+                        <label>Título Principal</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={dashboardContent.mainTitle}
+                          onChange={e => setDashboardContent({...dashboardContent, mainTitle: e.target.value})}
+                        />
+                      </div>
+                      <div className={styles.field} style={{ marginTop: '12px' }}>
+                        <label>Subtítulo / Saludo</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={dashboardContent.mainSubtitle}
+                          onChange={e => setDashboardContent({...dashboardContent, mainSubtitle: e.target.value})}
+                        />
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                        <div className={styles.field}>
+                          <label>Título KPI 1</label>
+                          <input type="text" className={styles.input} value={dashboardContent.kpi1Title} onChange={e => setDashboardContent({...dashboardContent, kpi1Title: e.target.value})} />
+                        </div>
+                        <div className={styles.field}>
+                          <label>Título KPI 2</label>
+                          <input type="text" className={styles.input} value={dashboardContent.kpi2Title} onChange={e => setDashboardContent({...dashboardContent, kpi2Title: e.target.value})} />
+                        </div>
+                        <div className={styles.field}>
+                          <label>Título KPI 3</label>
+                          <input type="text" className={styles.input} value={dashboardContent.kpi3Title} onChange={e => setDashboardContent({...dashboardContent, kpi3Title: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                        <div className={styles.field}>
+                          <label>Título Gráfica Principal (Evolución)</label>
+                          <input type="text" className={styles.input} value={dashboardContent.chart1Title} onChange={e => setDashboardContent({...dashboardContent, chart1Title: e.target.value})} />
+                        </div>
+                        <div className={styles.field}>
+                          <label>Título Gráfica Secundaria (Distribución)</label>
+                          <input type="text" className={styles.input} value={dashboardContent.chart2Title} onChange={e => setDashboardContent({...dashboardContent, chart2Title: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <h4 style={{ marginTop: '32px', marginBottom: '12px', fontSize: '1rem', fontWeight: 'bold', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>Estilo de Tarjetas y Contenedores</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className={styles.field}>
+                          <label>Fondo de Tarjeta</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input 
+                              type="color" 
+                              value={cardBg.startsWith('rgba') || cardBg.startsWith('transparent') ? '#ffffff' : cardBg} 
+                              onChange={(e) => setCardBg(e.target.value)}
+                              style={{ width: '40px', height: '40px', padding: '0', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                            <select 
+                              className={styles.select} 
+                              value={cardBg} 
+                              onChange={(e) => setCardBg(e.target.value)}
+                            >
+                              <option value="rgba(255,255,255,0.03)">Cristal Oscuro (Glassmorphism)</option>
+                              <option value="rgba(15,23,42,0.8)">Sólido Oscuro (Slate)</option>
+                              <option value="#ffffff">Blanco Sólido</option>
+                              <option value="transparent">Transparente</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className={styles.field}>
+                          <label>Color de Borde</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input 
+                              type="color" 
+                              value={cardBorderColor.startsWith('rgba') || cardBorderColor.startsWith('transparent') ? '#ffffff' : cardBorderColor} 
+                              onChange={(e) => setCardBorderColor(e.target.value)}
+                              style={{ width: '40px', height: '40px', padding: '0', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                            <select 
+                              className={styles.select} 
+                              value={cardBorderColor} 
+                              onChange={(e) => setCardBorderColor(e.target.value)}
+                            >
+                              <option value="rgba(255, 255, 255, 0.1)">Translúcido Fino</option>
+                              <option value="rgba(59, 130, 246, 0.3)">Brillo Azul</option>
+                              <option value="transparent">Sin Color</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className={styles.field}>
+                          <label>Grosor del Borde</label>
+                          <select 
+                            className={styles.select} 
+                            value={cardBorderWidth} 
+                            onChange={(e) => setCardBorderWidth(e.target.value)}
+                          >
+                            <option value="0px">Sin Borde (0px)</option>
+                            <option value="1px">Delgado (1px)</option>
+                            <option value="2px">Medio (2px)</option>
+                            <option value="4px">Grueso (4px)</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.field}>
+                          <label>Bordes Redondeados (Radius)</label>
+                          <select 
+                            className={styles.select} 
+                            value={cardBorderRadius} 
+                            onChange={(e) => setCardBorderRadius(e.target.value)}
+                          >
+                            <option value="4px">Recto (4px)</option>
+                            <option value="12px">Ligero (12px)</option>
+                            <option value="24px">Curvo (24px)</option>
+                            <option value="32px">Pastilla (32px)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
