@@ -130,7 +130,7 @@ export default function Catalog() {
       const { data, error } = await supabase
         .from('data_assets')
         .select('*')
-        .eq('tenant_id', currentTenant?.id || '')
+        .or(`tenant_id.eq.${currentTenant?.id || ''},tenant_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

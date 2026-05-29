@@ -132,7 +132,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
       const { data, error } = await supabase
         .from('data_assets')
         .select('id, name')
-        .eq('tenant_id', currentTenant?.id || '');
+        .or(`tenant_id.eq.${currentTenant?.id || ''},tenant_id.is.null`);
       if (error) throw error;
       setAssets(data || []);
     } catch (err) {

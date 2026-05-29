@@ -615,7 +615,7 @@ export default function QualityModule() {
       const { data, error } = await supabase
         .from('data_assets')
         .select('id, name, source, tags, table_name, quality_score')
-        .eq('tenant_id', currentTenant?.id || '')
+        .or(`tenant_id.eq.${currentTenant?.id || ''},tenant_id.is.null`)
         .order('name');
 
       if (error) throw error;
