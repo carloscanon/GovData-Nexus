@@ -57,7 +57,7 @@ interface CreateRuleModalProps {
 }
 
 export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit, assetId, fields: propFields }: CreateRuleModalProps) {
-  const { mode } = usePlatform();
+  const { mode, currentTenant } = usePlatform();
   const [step, setStep] = useState(1);
   const [assets, setAssets] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
@@ -111,16 +111,39 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
   async function fetchAssets() {
     if (mode === 'DEMO') {
+      // Cargar activos desde localStorage de la empresa activa para que aparezcan los activos nuevos
+      const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
+      try {
+        const saved = localStorage.getItem(localKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setAssets(parsed.map((a: any) => ({ id: a.id, name: a.name })));
+          return;
+        }
+      } catch {}
       setAssets(demoAssets);
       return;
     }
 
     try {
-      const { data, error } = await supabase.from('data_assets').select('id, name');
+      const { data, error } = await supabase
+        .from('data_assets')
+        .select('id, name')
+        .eq('tenant_id', currentTenant?.id || '');
       if (error) throw error;
       setAssets(data || []);
     } catch (err) {
       console.warn('Error al cargar activos de base de datos en CreateRuleModal, aplicando fallback:', err);
+      // Fallback a localStorage con aislamiento por empresa
+      const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
+      try {
+        const saved = localStorage.getItem(localKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setAssets(parsed.map((a: any) => ({ id: a.id, name: a.name })));
+          return;
+        }
+      } catch {}
       setAssets(demoAssets);
     }
   }

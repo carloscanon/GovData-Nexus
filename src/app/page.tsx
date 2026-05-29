@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Database, 
   Activity, 
@@ -107,7 +107,26 @@ const DEFAULT_MEETINGS = [
 ];
 
 export default function Dashboard() {
-  const { currentTenant } = usePlatform();
+  const { currentTenant, mode } = usePlatform();
+  const [dashboardAssets, setDashboardAssets] = React.useState<any[]>([]);
+
+  // Distribución dinámica de activos por área/responsable de la empresa activa
+  const AREA_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#14b8a6'];
+  const computedAreaData = useMemo(() => {
+    if (dashboardAssets.length === 0) return [
+      { name: 'Sin datos', value: 1, color: '#94a3b8' }
+    ];
+    const map = new Map<string, number>();
+    dashboardAssets.forEach((a: any) => {
+      const area = a.owner || a.data_owner || 'Otro';
+      map.set(area, (map.get(area) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value], i) => ({
+      name,
+      value,
+      color: AREA_COLORS[i % AREA_COLORS.length]
+    }));
+  }, [dashboardAssets]);
   const [userName, setUserName] = useState('Carlos');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytic' | 'history' | 'report'>('dashboard');
   const [dashboardLayout, setDashboardLayout] = useState<'classic' | 'moneed'>('classic');
@@ -247,6 +266,65 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchDashboardData() {
       if (!currentTenant) return;
+
+      // ── MODO DEMO: cargar activos desde localStorage con aislamiento por empresa ──
+      if (mode === 'DEMO') {
+        const localKey = `govdata_assets_${currentTenant.id || 'demo'}`;
+        let demoAssets: any[] = [];
+        try {
+          const saved = localStorage.getItem(localKey);
+          if (saved) {
+            demoAssets = JSON.parse(saved);
+          } else {
+            // Activos de prueba alineados con IDs simples de las empresas demo
+            const fallback = [
+              { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', owner: 'Ventas', type: 'Tabla SQL', quality_score: 94, sensitivity: 'Confidencial', tenant_id: '1' },
+              { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', owner: 'Finanzas', type: 'Vista', quality_score: 88, sensitivity: 'Restringido', tenant_id: '2' },
+              { id: '3', name: 'Leads Marketing', source: 'Salesforce', owner: 'Marketing', type: 'API', quality_score: 72, sensitivity: 'Público', tenant_id: '1' },
+              { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', owner: 'Estrategia', type: 'Power BI', quality_score: 99, sensitivity: 'Confidencial', tenant_id: '3' },
+            ];
+            demoAssets = fallback.filter(a => a.tenant_id === currentTenant.id);
+          }
+        } catch {}
+        setDashboardAssets(demoAssets);
+
+        // KPIs demo basados en activos de la empresa
+        const avgQuality = demoAssets.length > 0
+          ? Math.round(demoAssets.reduce((acc, a) => acc + (a.quality_score ?? 85), 0) / demoAssets.length)
+          : 85;
+        let answers = { q1: 3, q2: 4, q3: 3, q4: 3 };
+        try {
+          const rawAnswers = localStorage.getItem(`govdata_maturity_answers_${currentTenant.id}`);
+          if (rawAnswers) answers = JSON.parse(rawAnswers);
+        } catch {}
+        let estrategiaVal = 64, organizacionVal = 72, calidadVal = avgQuality, arquitecturaVal = 55, seguridadVal = 60, complianceVal = 88;
+        try {
+          const savedScores = localStorage.getItem(`govdata_maturity_scores_${currentTenant.id}`);
+          if (savedScores) {
+            const parsed = JSON.parse(savedScores);
+            if (parsed.estrategia !== undefined) estrategiaVal = Number(parsed.estrategia);
+            if (parsed.organizacion !== undefined) organizacionVal = Number(parsed.organizacion);
+            if (parsed.calidad !== undefined) calidadVal = Number(parsed.calidad);
+            if (parsed.arquitectura !== undefined) arquitecturaVal = Number(parsed.arquitectura);
+            if (parsed.seguridad !== undefined) seguridadVal = Number(parsed.seguridad);
+            if (parsed.compliance !== undefined) complianceVal = Number(parsed.compliance);
+          }
+        } catch {}
+        const globalScore = Math.round((estrategiaVal + organizacionVal + calidadVal + arquitecturaVal + seguridadVal + complianceVal) / 6);
+        let multiplier = executivePeriod === 'trimestral' ? 1.02 : executivePeriod === 'anual' ? 0.96 : 1.0;
+        setQualityScore(Math.min(100, Math.round(calidadVal * multiplier * 10) / 10));
+        setDbKpis({
+          quality: `${Math.min(100, Math.round(calidadVal * multiplier * 10) / 10)}%`,
+          maturity: `${Math.min(100, Math.round(globalScore * multiplier))}%`,
+          compliance: `${Math.min(100, Math.round(complianceVal * multiplier))}%`,
+          incidents: '0',
+          criticalIncidents: 0
+        });
+        const semestralMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+        setExecutiveData(semestralMonths.map((m, i) => ({ name: m, calidad: Math.max(50, calidadVal - (5 - i) * 2), madurez: Math.max(30, globalScore - (5 - i) * 3) })));
+        return;
+      }
+
       try {
         // Query assets, workflows and incidents in parallel
         const [
@@ -272,6 +350,8 @@ export default function Dashboard() {
         const assets = assetsData ?? [];
         const workflows = workflowsData ?? [];
         const incidents = incidentsData ?? [];
+
+        setDashboardAssets(assets);
 
         // Format incidents list
         let formattedIncidents = incidents.map((inc: any) => ({
@@ -452,7 +532,7 @@ export default function Dashboard() {
       }
     }
     fetchDashboardData();
-  }, [currentTenant?.id, executivePeriod]);
+  }, [currentTenant?.id, executivePeriod, mode]);
 
   // Technical Dashboard State (FitSpark Style)
   const [scannedGb, setScannedGb] = useState(12.4);
@@ -987,13 +1067,13 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
-                      data={areaData}
+                      data={computedAreaData}
                       innerRadius={60}
                       outerRadius={80}
                       paddingAngle={6}
                       dataKey="value"
                     >
-                      {areaData.map((entry, index) => (
+                      {computedAreaData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -1001,12 +1081,12 @@ export default function Dashboard() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className={styles.classic_incidentList} style={{ marginTop: '20px' }}>
-                  {areaData.map(area => (
+                  {computedAreaData.map(area => (
                     <div key={area.name} className={styles.classic_incidentItem} style={{ padding: '10px 14px' }}>
                       <div className={styles.classic_statusDot} style={{ backgroundColor: area.color }}></div>
                       <div className={styles.classic_incidentInfo}>
                         <h4 style={{ fontSize: '0.85rem' }}>{area.name}</h4>
-                        <p style={{ fontSize: '0.75rem' }}>{(area.value / 12).toFixed(1)}% del total</p>
+                        <p style={{ fontSize: '0.75rem' }}>{((area.value / Math.max(1, dashboardAssets.length)) * 100).toFixed(1)}% del total</p>
                       </div>
                       <ChevronRight size={14} color="#94a3b8" />
                     </div>
@@ -1942,7 +2022,7 @@ export default function Dashboard() {
               <div className={styles.hugeValue}>
                 {card2Metric === 'incidentes' 
                   ? (dbKpis ? dbKpis.incidents : '14')
-                  : '145'}
+                  : String(dashboardAssets.length)}
               </div>
               <span className={styles.tagGreen}>
                 {card2Metric === 'incidentes' ? '+$456' : '+15%'}
@@ -1963,7 +2043,7 @@ export default function Dashboard() {
                 {card2Metric === 'incidentes' ? 'Críticos' : 'SQL'}
               </span>
               <span className={styles.subStatVal}>
-                {card2Metric === 'incidentes' ? '8' : '95'}
+                {card2Metric === 'incidentes' ? (dbKpis ? dbKpis.criticalIncidents : 8) : dashboardAssets.filter(a => a.type?.toLowerCase().includes('tabla') || a.type?.toLowerCase().includes('sql') || a.type?.toLowerCase().includes('vista')).length}
               </span>
             </div>
 
@@ -1973,7 +2053,7 @@ export default function Dashboard() {
                 {card2Metric === 'incidentes' ? 'Medios' : 'NoSQL'}
               </span>
               <span className={styles.subStatVal}>
-                {card2Metric === 'incidentes' ? '6' : '50'}
+                {card2Metric === 'incidentes' ? (dbKpis ? Math.max(0, Number(dbKpis.incidents) - (dbKpis.criticalIncidents || 0)) : 6) : Math.max(0, dashboardAssets.length - dashboardAssets.filter(a => a.type?.toLowerCase().includes('tabla') || a.type?.toLowerCase().includes('sql') || a.type?.toLowerCase().includes('vista')).length)}
               </span>
             </div>
           </div>

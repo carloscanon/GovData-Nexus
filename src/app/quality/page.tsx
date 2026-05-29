@@ -394,6 +394,18 @@ export default function QualityModule() {
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('¿Está seguro de que desea eliminar esta regla?')) return;
 
+    // En modo DEMO solo operamos en memoria y localStorage
+    if (mode === 'DEMO') {
+      setRules(prev => {
+        const updated = prev.filter(r => r.id !== ruleId);
+        if (selectedAssetId) {
+          localStorage.setItem(`govdata_rules_${selectedAssetId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.from('quality_rules').delete().eq('id', ruleId);
       if (error) throw error;
@@ -407,6 +419,19 @@ export default function QualityModule() {
 
   const handleToggleRule = async (ruleId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Activa' ? 'Inactiva' : 'Activa';
+
+    // En modo DEMO solo operamos en memoria y localStorage
+    if (mode === 'DEMO') {
+      setRules(prev => {
+        const updated = prev.map(r => r.id === ruleId ? { ...r, status: newStatus } : r);
+        if (selectedAssetId) {
+          localStorage.setItem(`govdata_rules_${selectedAssetId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('quality_rules')
@@ -547,16 +572,21 @@ export default function QualityModule() {
 
   const fetchAssets = async () => {
     const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
-    
+
+    // ── MODO DEMO: localStorage por empresa ──
     if (mode === 'DEMO') {
       const saved = localStorage.getItem(localKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        setAssets(parsed);
-        // Calcular estadísticas de fuente sobre el fallback de localStorage
-        if (parsed.length > 0) {
+        // Filtrar solo activos de esta empresa
+        const filtered = currentTenant?.id
+          ? parsed.filter((a: any) => !a.tenant_id || a.tenant_id === currentTenant.id)
+          : parsed;
+        setAssets(filtered);
+        // Calcular estadísticas de fuente
+        if (filtered.length > 0) {
           const stats: any[] = [];
-          parsed.forEach((item: any) => {
+          filtered.forEach((item: any) => {
             const idx = stats.findIndex(s => s.name === item.source);
             if (idx === -1) {
               stats.push({ name: item.source, score: item.quality_score || 100, assets: 1, alerts: 0 });
@@ -569,10 +599,10 @@ export default function QualityModule() {
         }
       } else {
         const localDemoAssets = [
-          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
-          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
+          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '1' },
+          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '2' },
+          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '1' },
+          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: '3' },
         ];
         const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
         setAssets(filteredDemo);
@@ -580,20 +610,16 @@ export default function QualityModule() {
       return;
     }
 
+    // ── MODO ENTERPRISE: Supabase con aislamiento por tenant_id ──
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('data_assets')
-        .select('id, name, source, tags, table_name, quality_score, tenant_id');
-
-      if (currentTenant?.id) {
-        query = query.eq('tenant_id', currentTenant.id);
-      }
-
-      const { data, error } = await query.order('name');
+        .select('id, name, source, tags, table_name, quality_score')
+        .eq('tenant_id', currentTenant?.id || '')
+        .order('name');
 
       if (error) throw error;
 
-      console.log(`Successfully fetched ${data?.length || 0} assets.`);
       localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
 
@@ -608,61 +634,21 @@ export default function QualityModule() {
           existing.count += 1;
           sourceMap.set(src, existing);
         });
-
         const stats = Array.from(sourceMap.entries()).map(([name, info]) => ({
           name,
           score: info.count > 0 ? Math.round(info.scoreSum / info.count) : 0,
           assets: info.total,
           alerts: 0
         }));
-
-        // Contar incidentes por sistema
-        const { data: incData } = await supabase
-          .from('quality_incidents')
-          .select('asset_id, status')
-          .eq('status', 'Abierto');
-
-        if (incData) {
-          incData.forEach((inc: any) => {
-            const asset = data.find((a: any) => a.id === inc.asset_id);
-            if (asset) {
-              const src = asset.source || 'Sin Fuente';
-              const stat = stats.find(s => s.name === src);
-              if (stat) stat.alerts += 1;
-            }
-          });
-        }
-
         setSourceStats(stats.sort((a, b) => b.score - a.score));
       }
     } catch (err) {
-      console.warn('Error al cargar activos de Supabase para Calidad, aplicando fallback de localStorage:', err);
+      console.warn('Error al cargar activos de Supabase para Calidad:', err);
       const saved = localStorage.getItem(localKey);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setAssets(parsed);
-        if (parsed.length > 0) {
-          const stats: any[] = [];
-          parsed.forEach((item: any) => {
-            const idx = stats.findIndex(s => s.name === item.source);
-            if (idx === -1) {
-              stats.push({ name: item.source, score: item.quality_score || 100, assets: 1, alerts: 0 });
-            } else {
-              stats[idx].score = Math.round((stats[idx].score * stats[idx].assets + (item.quality_score || 100)) / (stats[idx].assets + 1));
-              stats[idx].assets += 1;
-            }
-          });
-          setSourceStats(stats.sort((a, b) => b.score - a.score));
-        }
+        setAssets(JSON.parse(saved));
       } else {
-        const localDemoAssets = [
-          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e' },
-          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '00000000-0000-0000-0000-000000000001' },
-          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a' },
-        ];
-        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-        setAssets(filteredDemo);
+        setAssets([]);
       }
     }
   };
@@ -777,21 +763,19 @@ export default function QualityModule() {
           </div>
         </div>
 
-        {mode === 'ENTERPRISE' && (
-          <div className={styles.assetSelector}>
-            <Database size={18} className={styles.selectorIcon} />
-            <select
-              value={selectedAssetId}
-              onChange={(e) => setSelectedAssetId(e.target.value)}
-              className={styles.select}
-            >
-              <option value="">Seleccionar Activo...</option>
-              {assets.map(a => (
-                <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className={styles.assetSelector}>
+          <Database size={18} className={styles.selectorIcon} />
+          <select
+            value={selectedAssetId}
+            onChange={(e) => setSelectedAssetId(e.target.value)}
+            className={styles.select}
+          >
+            <option value="">Seleccionar Activo...</option>
+            {assets.map(a => (
+              <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+            ))}
+          </select>
+        </div>
 
         <div className={styles.headerActions}>
           <button

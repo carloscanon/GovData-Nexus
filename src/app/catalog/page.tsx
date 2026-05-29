@@ -56,10 +56,10 @@ interface DataAsset {
 }
 
 const demoAssets: DataAsset[] = [
-  { id: '1', code_id: 'AST-001', name: 'Maestro de Clientes', type: 'Tabla SQL', source: 'SAP ERP', owner: 'Ventas', data_owner: 'Juan Perez', sensitivity: 'Confidencial', quality_score: 94, status: 'Vigente', risk_level: 'Bajo', records_count: 12450, tenant_id: '00000000-0000-0000-0000-000000000001', tags: ['Maestro', 'IA Ready'], updated_at: '2024-05-10' },
-  { id: '2', code_id: 'AST-002', name: 'Transacciones Q2', type: 'Vista', source: 'Oracle DB', owner: 'Finanzas', data_owner: 'Maria Silva', sensitivity: 'Restringido', quality_score: 88, status: 'Vigente', risk_level: 'Medio', records_count: 852000, tenant_id: '4dfc332c-5a5d-431f-85c8-749c4b4e096e', tags: ['Financiero'], updated_at: '2024-05-12' },
-  { id: '3', code_id: 'AST-003', name: 'Leads Marketing', type: 'API', source: 'Salesforce', owner: 'Marketing', data_owner: 'Carlos Ruiz', sensitivity: 'Público', quality_score: 72, status: 'En Revisión', risk_level: 'Bajo', records_count: 5310, tenant_id: '00000000-0000-0000-0000-000000000001', tags: ['Marketing'], updated_at: '2024-05-08' },
-  { id: '4', code_id: 'AST-004', name: 'Reporte Consolidado', type: 'Power BI', source: 'Data Lake', owner: 'Estrategia', data_owner: 'Ana Belen', sensitivity: 'Confidencial', quality_score: 99, status: 'Vigente', risk_level: 'Bajo', records_count: 1200, tenant_id: 'aec4f0dd-e8f8-482e-984a-aaad504aa61a', tags: ['Crítico'], updated_at: '2024-05-13' },
+  { id: '1', code_id: 'AST-001', name: 'Maestro de Clientes', type: 'Tabla SQL', source: 'SAP ERP', owner: 'Ventas', data_owner: 'Juan Perez', sensitivity: 'Confidencial', quality_score: 94, status: 'Vigente', risk_level: 'Bajo', records_count: 12450, tenant_id: '1', tags: ['Maestro', 'IA Ready'], updated_at: '2024-05-10' },
+  { id: '2', code_id: 'AST-002', name: 'Transacciones Q2', type: 'Vista', source: 'Oracle DB', owner: 'Finanzas', data_owner: 'Maria Silva', sensitivity: 'Restringido', quality_score: 88, status: 'Vigente', risk_level: 'Medio', records_count: 852000, tenant_id: '2', tags: ['Financiero'], updated_at: '2024-05-12' },
+  { id: '3', code_id: 'AST-003', name: 'Leads Marketing', type: 'API', source: 'Salesforce', owner: 'Marketing', data_owner: 'Carlos Ruiz', sensitivity: 'Público', quality_score: 72, status: 'En Revisión', risk_level: 'Bajo', records_count: 5310, tenant_id: '1', tags: ['Marketing'], updated_at: '2024-05-08' },
+  { id: '4', code_id: 'AST-004', name: 'Reporte Consolidado', type: 'Power BI', source: 'Data Lake', owner: 'Estrategia', data_owner: 'Ana Belen', sensitivity: 'Confidencial', quality_score: 99, status: 'Vigente', risk_level: 'Bajo', records_count: 1200, tenant_id: '3', tags: ['Crítico'], updated_at: '2024-05-13' },
 ];
 
 export default function Catalog() {
@@ -108,10 +108,15 @@ export default function Catalog() {
     setLoading(true);
     const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
 
+    // ── MODO DEMO: localStorage por empresa ──
     if (mode === 'DEMO') {
       const saved = localStorage.getItem(localKey);
       if (saved) {
-        setAssets(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const filtered = currentTenant?.id
+          ? parsed.filter((a: DataAsset) => !a.tenant_id || a.tenant_id === currentTenant.id)
+          : parsed;
+        setAssets(filtered);
       } else {
         const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
         setAssets(filteredDemo);
@@ -120,29 +125,25 @@ export default function Catalog() {
       return;
     }
 
+    // ── MODO ENTERPRISE: Supabase con aislamiento por tenant_id ──
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('data_assets')
-        .select('*');
-
-      if (currentTenant?.id) {
-        query = query.eq('tenant_id', currentTenant.id);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+        .select('*')
+        .eq('tenant_id', currentTenant?.id || '')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
     } catch (error) {
-      console.warn('Error al cargar activos de Supabase, cargando caché local o aplicando fallback:', error);
+      console.warn('Error al cargar activos desde Supabase:', error);
       const saved = localStorage.getItem(localKey);
       if (saved) {
         setAssets(JSON.parse(saved));
       } else {
-        const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-        setAssets(filteredDemo);
+        setAssets([]);
       }
     } finally {
       setLoading(false);
