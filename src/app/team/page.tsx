@@ -209,14 +209,18 @@ export default function Team() {
     if (!currentTenant) return;
     const key = `govdata_team_members_${currentTenant.id}`;
     const saved = localStorage.getItem(key);
+    
+    // Si estamos en modo demo (id = 'demo' o 1, 2, 3) y no hay datos, inicializar con mock
+    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
+    
     if (saved) {
       try {
         setMembers(JSON.parse(saved));
       } catch (e) {
-        setMembers(governanceMembers);
+        setMembers(isDemoMode ? governanceMembers : []);
       }
     } else {
-      setMembers(governanceMembers);
+      setMembers(isDemoMode ? governanceMembers : []);
     }
 
     const domainsKey = `govdata_team_domains_${currentTenant.id}`;
@@ -225,10 +229,10 @@ export default function Team() {
       try {
         setDomains(JSON.parse(savedDomains));
       } catch (e) {
-        setDomains(governanceDomains);
+        setDomains(isDemoMode ? governanceDomains : []);
       }
     } else {
-      setDomains(governanceDomains);
+      setDomains(isDemoMode ? governanceDomains : []);
     }
   }, [currentTenant?.id]);
 
