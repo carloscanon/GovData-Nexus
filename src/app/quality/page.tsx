@@ -171,7 +171,7 @@ export default function QualityModule() {
         
         try {
           const { data: fieldData } = await supabase.from('asset_fields').select('field_name').eq('id', rule.field_id).single();
-          const fieldName = fieldData?.field_name;
+          let fieldName = fieldData?.field_name;
           let targetTable = resolvedTableName;
           // Limpiar para evitar "Invalid path specified in request URL"
           if (targetTable) {
