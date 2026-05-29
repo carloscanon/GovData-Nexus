@@ -88,15 +88,23 @@ export default function ExecutionSummaryModal({ isOpen, onClose, onDownload, sta
                       <div className={styles.resultDetails}>
                         <div className={styles.resultName}>{res.name}</div>
                         <div className={styles.resultMetrics}>
-                          <div className={styles.metricBadge}>
-                            Evaluados: <span>{res.total}</span>
-                          </div>
-                          <div className={styles.metricBadge}>
-                            Cumplen: <span>{res.compliant}</span>
-                          </div>
-                          <div className={styles.metricBadge} style={{ color: res.affected > 0 ? '#ef4444' : 'inherit' }}>
-                            Fallan: <span>{res.affected}</span>
-                          </div>
+                          {res.fieldError ? (
+                            <div className={styles.errorMsg} style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '4px', fontStyle: 'italic' }}>
+                              {res.status}
+                            </div>
+                          ) : (
+                            <>
+                              <div className={styles.metricBadge}>
+                                Evaluados: <span>{res.total}</span>
+                              </div>
+                              <div className={styles.metricBadge}>
+                                Cumplen: <span>{res.compliant}</span>
+                              </div>
+                              <div className={styles.metricBadge} style={{ color: res.affected > 0 ? '#ef4444' : 'inherit' }}>
+                                Fallan: <span>{res.affected}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className={`${styles.resultPct} ${getHealthColor(pctNum)}`}>
