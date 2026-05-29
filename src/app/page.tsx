@@ -244,7 +244,7 @@ export default function Dashboard() {
   const [remediatedIncidents, setRemediatedIncidents] = useState<number[]>([]);
 
   // Dynamic database indicators state
-  const [dbKpis, setDbKpis] = useState<{ quality: string; maturity: string; compliance: string; incidents: string; criticalIncidents: number; seguridad: string; catalogo: string } | null>(null);
+  const [dbKpis, setDbKpis] = useState<{ quality: string; maturity: string; compliance: string; incidents: string; criticalIncidents: number; seguridad: string; catalogo: string; estrategia: string; organizacion: string; arquitectura: string } | null>(null);
   const [dbIncidents, setDbIncidents] = useState<any[]>([]);
 
   // Dynamic sparkline and executive data states
@@ -464,7 +464,10 @@ export default function Dashboard() {
           incidents: String(activeDbIncidentsCount),
           criticalIncidents: criticalCount,
           seguridad: `${Math.min(100, Math.round(seguridadVal * multiplier))}%`,
-          catalogo: String(assets.length)
+          catalogo: String(assets.length),
+          estrategia: `${Math.min(100, Math.round(estrategiaVal * multiplier))}%`,
+          organizacion: `${Math.min(100, Math.round(organizacionVal * multiplier))}%`,
+          arquitectura: `${Math.min(100, Math.round(arquitecturaVal * multiplier))}%`
         });
 
         setQualityScore(finalQuality);
@@ -1069,6 +1072,66 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={classicSparklineData.calidad}>
                     <Area type="monotone" dataKey="value" stroke="#a855f7" fill="rgba(168, 85, 247, 0.03)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.classic_premiumCard}>
+              <div className={styles.classic_cardHeaderRow}>
+                <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(14, 165, 233, 0.08)', color: '#0ea5e9' }}>
+                  <Globe size={22} />
+                </div>
+                <div className={`${styles.classic_cardTrend} ${styles.classic_positiveTrend}`}>
+                  <span>Visión</span>
+                </div>
+              </div>
+              <div className={styles.classic_cardValue}>{dbKpis?.estrategia || '60%'}</div>
+              <div className={styles.classic_cardTitle}>Estrategia de Datos</div>
+              <div className={styles.classic_sparklineWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={classicSparklineData.madurez}>
+                    <Area type="monotone" dataKey="value" stroke="#0ea5e9" fill="rgba(14, 165, 233, 0.03)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.classic_premiumCard}>
+              <div className={styles.classic_cardHeaderRow}>
+                <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(236, 72, 153, 0.08)', color: '#ec4899' }}>
+                  <Users size={22} />
+                </div>
+                <div className={`${styles.classic_cardTrend} ${styles.classic_positiveTrend}`}>
+                  <span>Cultura</span>
+                </div>
+              </div>
+              <div className={styles.classic_cardValue}>{dbKpis?.organizacion || '60%'}</div>
+              <div className={styles.classic_cardTitle}>Organización y Roles</div>
+              <div className={styles.classic_sparklineWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={classicSparklineData.calidad}>
+                    <Area type="monotone" dataKey="value" stroke="#ec4899" fill="rgba(236, 72, 153, 0.03)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className={styles.classic_premiumCard}>
+              <div className={styles.classic_cardHeaderRow}>
+                <div className={styles.classic_cardIconBox} style={{ backgroundColor: 'rgba(99, 102, 241, 0.08)', color: '#6366f1' }}>
+                  <Layers size={22} />
+                </div>
+                <div className={`${styles.classic_cardTrend} ${styles.classic_positiveTrend}`}>
+                  <span>Técnica</span>
+                </div>
+              </div>
+              <div className={styles.classic_cardValue}>{dbKpis?.arquitectura || '60%'}</div>
+              <div className={styles.classic_cardTitle}>Arquitectura de Datos</div>
+              <div className={styles.classic_sparklineWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={classicSparklineData.madurez}>
+                    <Area type="monotone" dataKey="value" stroke="#6366f1" fill="rgba(99, 102, 241, 0.03)" strokeWidth={2} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
