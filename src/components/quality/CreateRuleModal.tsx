@@ -54,12 +54,13 @@ interface CreateRuleModalProps {
   ruleToEdit?: any;
   assetId?: string;
   fields?: any[];
+  assets?: any[];
 }
 
-export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit, assetId, fields: propFields }: CreateRuleModalProps) {
+export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit, assetId, fields: propFields, assets: propAssets }: CreateRuleModalProps) {
   const { mode, currentTenant } = usePlatform();
   const [step, setStep] = useState(1);
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>(propAssets || []);
   const [fields, setFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -76,6 +77,8 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
     if (isOpen) {
       if (assetId) {
         setRuleData((prev: any) => ({ ...prev, asset_id: assetId }));
+      } else if (propAssets && propAssets.length > 0) {
+        setAssets(propAssets.map(a => ({ id: a.id, name: a.name })));
       } else {
         fetchAssets();
       }

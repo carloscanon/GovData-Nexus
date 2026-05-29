@@ -1088,6 +1088,7 @@ export default function QualityModule() {
       <CreateRuleModal
         isOpen={isRuleModalOpen}
         ruleToEdit={editingRule}
+        assets={assets}
         onClose={() => {
           setIsRuleModalOpen(false);
           setEditingRule(null);
