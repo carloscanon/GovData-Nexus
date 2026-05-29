@@ -318,7 +318,12 @@ export default function Dashboard() {
           maturity: `${Math.min(100, Math.round(globalScore * multiplier))}%`,
           compliance: `${Math.min(100, Math.round(complianceVal * multiplier))}%`,
           incidents: '0',
-          criticalIncidents: 0
+          criticalIncidents: 0,
+          seguridad: `${seguridadVal}%`,
+          catalogo: '12',
+          estrategia: `${estrategiaVal}%`,
+          organizacion: `${organizacionVal}%`,
+          arquitectura: `${arquitecturaVal}%`
         });
         const semestralMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
         setExecutiveData(semestralMonths.map((m, i) => ({ name: m, calidad: Math.max(50, calidadVal - (5 - i) * 2), madurez: Math.max(30, globalScore - (5 - i) * 3) })));
