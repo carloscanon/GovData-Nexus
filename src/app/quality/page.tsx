@@ -100,7 +100,7 @@ export default function QualityModule() {
         .from('quality_rules')
         .select('*')
         .eq('asset_id', selectedAssetId)
-        .eq('status', 'Activa');
+        .or('status.eq.Activa,status.is.null');
       activeRules = data || [];
 
       if (activeRules.length === 0) {

@@ -195,9 +195,21 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
     }
 
     try {
+      const payloadToSave = { ...fullRuleData };
+      delete payloadToSave.id; // Deja que Supabase autogenere el UUID si es necesario, o usa el generado si la tabla no tiene default
+      
       const query = ruleToEdit 
-        ? supabase.from('quality_rules').update(ruleData).eq('id', ruleToEdit.id).select()
-        : supabase.from('quality_rules').insert([ruleData]).select();
+        ? supabase.from('quality_rules').update({
+            name: ruleData.name,
+            type: ruleData.type,
+            severity: ruleData.severity,
+            field_id: ruleData.field_id,
+            config: ruleData.config
+          }).eq('id', ruleToEdit.id).select()
+        : supabase.from('quality_rules').insert([{
+            ...ruleData,
+            status: 'Activa'
+          }]).select();
       
       const { data, error } = await query;
       if (error) throw error;
