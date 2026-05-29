@@ -547,7 +547,7 @@ export default function Catalog() {
                         </div>
                       </td>
                       <td>
-                        <span className={`${styles.badge} ${styles[asset.sensitivity.toLowerCase().replace(/\s/g, '')] || styles.interno}`}>
+                        <span className={`${styles.badge} ${styles[(asset.sensitivity || '').toLowerCase().replace(/\s/g, '')] || styles.interno}`}>
                           <Shield size={12} />
                           {asset.sensitivity}
                         </span>
