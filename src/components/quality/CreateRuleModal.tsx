@@ -240,7 +240,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
               className={styles.select}
             >
               <option value="">Seleccione un activo...</option>
-              {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {(propAssets && propAssets.length > 0 ? propAssets : assets).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
 
