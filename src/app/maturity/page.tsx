@@ -203,7 +203,7 @@ export default function Maturity() {
         orgDB = Math.max(30, Math.round((owned / assets.length) * 100));
       }
       const organizacion = Math.min(100, Math.round(
-        (orgDB * 0.4) + (answers.q1 * 10) + (answers.q2 * 8)
+        (orgDB * 0.4) + ((answers.q1 || 3) * 10) + ((answers.q2 || 4) * 8)
       ));
 
       // --- Seguridad: PII classified + sensitivity coverage ---
@@ -222,13 +222,13 @@ export default function Maturity() {
 
       // --- Estrategia: approved workflows + questionnaire ---
       const approved = workflows.filter(w => w.status === 'Aprobado').length;
-      const estrategia = Math.min(100, Math.round(60 + (approved * 4) + (answers.q3 * 6)));
+      const estrategia = Math.min(100, Math.round(60 + (approved * 4) + ((answers.q3 || 3) * 6)));
 
       // --- Compliance: incidents resolved + questionnaire ---
       const resolved = incidents.filter(i => i.status === 'Resuelto').length;
       const totalInc = incidents.length || 1;
       const compliance = Math.min(100, Math.round(
-        ((resolved / totalInc) * 60) + (answers.q4 * 8)
+        ((resolved / totalInc) * 60) + ((answers.q4 || 3) * 8)
       ));
 
       setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
