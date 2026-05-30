@@ -322,6 +322,7 @@ export default function Launchpad() {
             type: 'Tabla SQL',
             source: 'Core System',
             data_owner: ownerBase,
+            owner: ownerBase,
             sensitivity: confBase,
             quality_score: qualityBase - (i * 2),
             status: 'Vigente',
