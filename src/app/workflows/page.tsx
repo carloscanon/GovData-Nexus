@@ -61,91 +61,7 @@ interface SlaRule {
   hours: number;
 }
 
-const demoRequests: WorkflowReq[] = [
-  { 
-    id: 'REQ-001', 
-    title: 'Acceso a CLIENTES_MASTER_PROD', 
-    requester: 'Ana G. (Ventas)', 
-    type: 'Solicitud Acceso', 
-    category: 'Seguridad',
-    status: 'Pendiente', 
-    priority: 'Alta', 
-    date: 'Hace 30 min',
-    sla: '4h restantes',
-    slaStatus: 'Warning',
-    description: 'Requiero acceso de lectura para conciliación de cierre mensual.',
-    currentStep: 'Aprobación Owner',
-    timeline: [
-      { step: 'Solicitud Creada', user: 'Ana G.', date: '2024-05-15 08:30', status: 'done' },
-      { step: 'Validación Automática PII', user: 'Nexus AI', date: '2024-05-15 08:31', status: 'done' },
-      { step: 'Aprobación Owner', user: 'Luis M. (Data Owner)', date: '-', status: 'pending' }
-    ]
-  },
-  { 
-    id: 'REQ-002', 
-    title: 'Incidente: Emails Nulos en CRM', 
-    requester: 'Sistema Monitoreo', 
-    type: 'Incidente Calidad', 
-    category: 'Calidad',
-    status: 'En Revisión', 
-    priority: 'Crítica', 
-    date: 'Hace 2h',
-    sla: 'Vencido (1h)',
-    slaStatus: 'Overdue',
-    description: 'Se detectó un 15% de emails nulos en la carga masiva de hoy.',
-    currentStep: 'Asignación Steward',
-    timeline: [
-      { step: 'Incidente Detectado', user: 'DataQuality Bot', date: '2024-05-15 07:00', status: 'done' },
-      { step: 'Alerta Generada', user: 'System', date: '2024-05-15 07:01', status: 'done' },
-      { step: 'Asignación Steward', user: 'Por asignar', date: '-', status: 'pending' }
-    ]
-  },
-  { 
-    id: 'REQ-003', 
-    title: 'Alta Activo: Dashboard Financiero v2', 
-    requester: 'Sofia R. (Finanzas)', 
-    type: 'Alta Activo', 
-    category: 'Catalogo',
-    status: 'Pendiente', 
-    priority: 'Media', 
-    date: 'Ayer',
-    sla: '24h restantes',
-    slaStatus: 'Ok',
-    description: 'Nuevo tablero para el comité directivo.',
-    currentStep: 'Certificación de Datos',
-    timeline: [
-      { step: 'Registro Activo', user: 'Sofia R.', date: '2024-05-14 15:00', status: 'done' },
-      { step: 'Certificación de Datos', user: 'Elena R. (Steward)', date: '-', status: 'pending' }
-    ]
-  },
-  { 
-    id: 'REQ-004', 
-    title: 'Aprobación Política de Ética IA', 
-    requester: 'Carlos D. (CDO)', 
-    type: 'Aprobación Política', 
-    category: 'Politicas',
-    status: 'Escalado', 
-    priority: 'Alta', 
-    date: 'Hace 3 días',
-    sla: '2 días restantes',
-    slaStatus: 'Ok',
-    description: 'Marco normativo para el uso de modelos generativos.',
-    currentStep: 'Revisión Legal',
-    timeline: [
-      { step: 'Borrador Creado', user: 'Carlos D.', date: '2024-05-12', status: 'done' },
-      { step: 'Revisión Técnica', user: 'TI Security', date: '2024-05-13', status: 'done' },
-      { step: 'Revisión Legal', user: 'Jurídica', date: '-', status: 'pending' }
-    ]
-  },
-];
 
-const kpis = [
-  { label: 'Pendientes', value: '12', icon: <Clock size={20} />, color: '#f59e0b', bg: '#fffbeb' },
-  { label: 'SLA Vencidos', value: '3', icon: <AlertTriangle size={20} />, color: '#ef4444', bg: '#fef2f2' },
-  { label: 'Aprobaciones Hoy', value: '18', icon: <CheckCircle size={20} />, color: '#10b981', bg: '#f0fdf4' },
-  { label: 'Riesgos Escalados', value: '2', icon: <ShieldAlert size={20} />, color: '#8b5cf6', bg: '#f5f3ff' },
-  { label: 'Incidentes', value: '7', icon: <Activity size={20} />, color: '#3b82f6', bg: '#eff6ff' },
-];
 
 const auditEvents: any[] = [];
 
@@ -326,7 +242,7 @@ export default function Workflows() {
   const filteredRequests = requests.filter(req => {
     if (activeDomain && req.category !== activeDomain) return false;
     if (activeTab === 'pendientes') return req.status === 'Pendiente' || req.status === 'En Revisión';
-    if (activeTab === 'mis') return req.requester.includes('Ana'); // Simulación
+    if (activeTab === 'mis') return req.requester === 'Usuario Actual'; // Simulación basada en creador real
     return true;
   });
 
@@ -386,9 +302,9 @@ export default function Workflows() {
         const totalRequests = requests.length;
         const pendingRequests = requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión').length;
         const overdueRequests = requests.filter(r => r.slaStatus === 'Overdue').length;
-        const approvedToday = requests.filter(r => r.status === 'Aprobado' || r.status === 'Cerrado').length + 8; // base mock + dynamic
+        const approvedToday = requests.filter(r => r.status === 'Aprobado' || r.status === 'Cerrado').length;
         const escalatedRequests = requests.filter(r => r.status === 'Escalado').length;
-        const incidentsCount = requests.filter(r => r.category === 'Calidad' || r.type.includes('Incidente')).length + 3;
+        const incidentsCount = requests.filter(r => r.category === 'Calidad' || r.type.includes('Incidente')).length;
 
         const slaEfficiency = totalRequests > 0 ? Math.round((requests.filter(r => r.slaStatus !== 'Overdue').length / totalRequests) * 100) : 100;
 
@@ -496,10 +412,10 @@ export default function Workflows() {
            <div className={styles.sidebarSection}>
               <h4 className={styles.sidebarTitle}>Bandejas</h4>
               <button className={`${styles.sideTab} ${activeTab === 'pendientes' && !activeDomain ? styles.activeSideTab : ''}`} onClick={() => { setActiveTab('pendientes'); setActiveDomain(null); }}>
-                 <Clock size={16} /> Pendientes <span className={styles.count}>12</span>
+                 <Clock size={16} /> Pendientes <span className={styles.count}>{requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión').length}</span>
               </button>
               <button className={`${styles.sideTab} ${activeTab === 'mis' ? styles.activeSideTab : ''}`} onClick={() => { setActiveTab('mis'); setActiveDomain(null); }}>
-                 <User size={16} /> Mis Solicitudes <span className={styles.count}>4</span>
+                 <User size={16} /> Mis Solicitudes <span className={styles.count}>{requests.filter(r => r.requester === 'Usuario Actual').length}</span>
               </button>
               <button className={`${styles.sideTab} ${activeTab === 'historial' ? styles.activeSideTab : ''}`} onClick={() => { setActiveTab('historial'); setActiveDomain(null); }}>
                  <History size={16} /> Historial

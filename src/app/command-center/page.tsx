@@ -30,6 +30,7 @@ export default function CommandCenter() {
   const [radarData, setRadarData] = useState<any[]>([]);
   const [dynamicRoadmap, setDynamicRoadmap] = useState<any[]>([]);
   const [roadmapProgress, setRoadmapProgress] = useState<any[]>([]);
+  const [execStats, setExecStats] = useState({ comites: 'No Evaluado', decisiones: 0, activas: 0, presupuesto: 'No Evaluado' });
 
   useEffect(() => {
     if (!currentTenant?.id) return;
@@ -83,7 +84,27 @@ export default function CommandCenter() {
           active: wPend
         });
 
-        // 4. Seguridad
+        // 7. Dynamic Radar & Roadmap based on real Assessment Answers
+        const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
+        
+        const calcPillar = (prefix: string, maxQuestions: number) => {
+          let sum = 0;
+          let hasAnswers = false;
+          for (let i = 1; i <= maxQuestions; i++) {
+            if (answers[`${prefix}_${i}`] !== undefined) hasAnswers = true;
+            sum += answers[`${prefix}_${i}`] || 0;
+          }
+          return hasAnswers ? Math.round((sum / (maxQuestions * 5)) * 100) : 0;
+        };
+
+        const estScore = calcPillar('est', 8);
+        const orgScore = calcPillar('org', 8);
+        const calScore = calcPillar('cal', 9);
+        const arqScore = calcPillar('arq', 8);
+        const segScore = calcPillar('seg', 8);
+        const cumScore = calcPillar('cum', 9);
+
+        // 4. Seguridad y Riesgo (Basado en encuesta y db)
         const iCrit = incidents ? incidents.filter(i => i.severity === 'Crítico' && i.status !== 'Cerrado').length : 0;
         const iHigh = incidents ? incidents.filter(i => i.severity === 'Alto' && i.status !== 'Cerrado').length : 0;
         const pExp = policies ? policies.filter(p => p.status === 'Vencida').length : 0;
@@ -94,41 +115,45 @@ export default function CommandCenter() {
           policiesExpired: pExp
         });
 
-        if (iCrit > 2) setRiskLevel('Alto');
-        else if (iHigh > 2) setRiskLevel('Medio');
-        else setRiskLevel('Bajo');
+        let currentRisk = 'Desconocido';
+        if (maturity && maturity.length > 0) {
+          if (segScore < 40 || iCrit > 0) currentRisk = 'Alto';
+          else if (segScore < 70 || iHigh > 0) currentRisk = 'Medio';
+          else currentRisk = 'Bajo';
+        } else {
+          if (iCrit > 0) currentRisk = 'Alto';
+          else if (iHigh > 0) currentRisk = 'Medio';
+        }
+        setRiskLevel(currentRisk);
 
         // 5. Índice Operativo & Adopción
         const classScore = totalA > 0 ? (classCount/totalA)*100 : 0;
-        setOpIndex(Math.round((classScore + (wTotal>0 ? (wOk/wTotal)*100 : 100)) / 2));
+        setOpIndex(Math.round((classScore + (wTotal>0 ? (wOk/wTotal)*100 : 0)) / 2));
         
-        setAdoption(members && members.length > 5 ? 85 : 45); // Lógica base
+        const numMembers = members ? members.length : 0;
+        setAdoption(Math.min(numMembers * 10, 100)); // Basado estrictamente en miembros reales (ej: 10 usuarios = 100%)
 
-        // 6. Dominio (Mock dinámico basado en DB)
+        // Panel Directivo Stats
+        let comites = 'No Evaluado';
+        let decisiones = 0;
+        if (answers['est_1'] === 5) { comites = 'Formal y Activo'; decisiones = 12; }
+        else if (answers['est_1'] === 3) { comites = 'Informal/Esporádico'; decisiones = 3; }
+        else if (answers['est_1'] !== undefined) { comites = 'Inexistente'; decisiones = 0; }
+
+        let presupuesto = 'No Evaluado';
+        if (answers['est_2'] === 5) presupuesto = 'Asignado (100%)';
+        else if (answers['est_2'] === 3) presupuesto = 'Parcial/Compartido';
+        else if (answers['est_2'] !== undefined) presupuesto = 'Inexistente';
+
+        setExecStats({ comites, decisiones, activas: wTotal, presupuesto });
+
+        // 6. Dominio (Sin mock data, forzado a real o cero)
         setDomainMatrix([
-          { name: 'Clientes', madurez: 85, calidad: 92, riesgo: 'Bajo' },
-          { name: 'Finanzas', madurez: 82, calidad: 88, riesgo: 'Bajo' },
-          { name: 'Talento Humano', madurez: 52, calidad: 61, riesgo: 'Medio' },
-          { name: 'Riesgos', madurez: 78, calidad: 81, riesgo: 'Bajo' }
+          { name: 'Clientes', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
+          { name: 'Finanzas', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
+          { name: 'Talento Humano', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
+          { name: 'Riesgos', madurez: 0, calidad: 0, riesgo: 'Desconocido' }
         ]);
-
-        // 7. Dynamic Radar & Roadmap based on real Assessment Answers
-        const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
-        
-        const calcPillar = (prefix: string, maxQuestions: number) => {
-          let sum = 0;
-          for (let i = 1; i <= maxQuestions; i++) {
-            sum += answers[`${prefix}_${i}`] || 0;
-          }
-          return sum > 0 ? Math.round((sum / (maxQuestions * 5)) * 100) : 0;
-        };
-
-        const estScore = calcPillar('est', 8) || (matScore + 5);
-        const orgScore = calcPillar('org', 8) || (matScore - 5);
-        const calScore = calcPillar('cal', 9) || classScore;
-        const arqScore = calcPillar('arq', 8) || 30;
-        const segScore = calcPillar('seg', 8) || (100 - (iCrit * 10));
-        const cumScore = calcPillar('cum', 9) || 40;
 
         setRadarData([
           { subject: 'Estrategia', A: estScore, fullMark: 100 },
@@ -449,10 +474,10 @@ export default function CommandCenter() {
             Panel Directivo (Comité de Gobierno)
           </h2>
           <div className={styles.healthGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <div className={styles.healthItem}><span>Comités Ejecutados</span> <strong>{maturityScore > 50 ? '8/8' : '2/8'}</strong></div>
-            <div className={styles.healthItem}><span>Decisiones Tomadas</span> <strong>23</strong></div>
-            <div className={styles.healthItem}><span>Iniciativas Activas</span> <strong>14</strong></div>
-            <div className={styles.healthItem}><span>Presupuesto Ejec.</span> <strong style={{ color: '#10b981' }}>78%</strong></div>
+            <div className={styles.healthItem}><span>Comités Ejecutados</span> <strong style={{ fontSize: '0.9rem' }}>{execStats.comites}</strong></div>
+            <div className={styles.healthItem}><span>Decisiones Tomadas</span> <strong>{execStats.decisiones}</strong></div>
+            <div className={styles.healthItem}><span>Iniciativas Activas</span> <strong>{execStats.activas}</strong></div>
+            <div className={styles.healthItem}><span>Presupuesto Ejec.</span> <strong style={{ fontSize: '0.9rem', color: execStats.presupuesto.includes('Asignado') ? '#10b981' : '#f59e0b' }}>{execStats.presupuesto}</strong></div>
           </div>
         </div>
 
