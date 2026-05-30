@@ -146,17 +146,17 @@ export default function PoliciesModule() {
     if (!currentTenant?.id) return;
     setIsMounted(true);
     
-    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
-    if (isDemoMode) {
-      setPolicies(policiesData);
-      return;
-    }
-
     const loadPolicies = async () => {
       try {
-        const { data, error } = await supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id);
+        const { data, error } = await supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false });
         if (error) throw error;
-        if (data) setPolicies(data);
+        
+        if (data && data.length > 0) {
+          setPolicies(data);
+        } else {
+          // If completely empty, show initial mock data so it doesn't look broken
+          setPolicies(policiesData);
+        }
       } catch (e: any) {
         console.error('Error fetching policies:', e);
         if (e.code === '42P01') {

@@ -282,17 +282,6 @@ export default function Workflows() {
 
   useEffect(() => {
     if (!currentTenant?.id) return;
-    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
-
-    const fetchAllData = async () => {
-      setLoading(true);
-      if (isDemoMode) {
-        setRequests(demoRequests);
-        setSlaRules([{ id: 'SLA-01', name: 'Resolución Estándar', priority: 'Cualquiera', domain: 'General', hours: 48 }]);
-        setDomains([{ id: 'DOM-01', name: 'Finanzas' }, { id: 'DOM-02', name: 'Ventas' }]);
-        setTeamMembers([]);
-        setLoading(false);
-        return;
       }
 
       try {

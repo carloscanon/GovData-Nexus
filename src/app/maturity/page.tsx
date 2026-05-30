@@ -100,18 +100,6 @@ export default function Maturity() {
   // Load tenant-specific answers and history from DB when tenant changes
   React.useEffect(() => {
     if (!currentTenant?.id) return;
-    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
-    
-    if (isDemoMode) {
-      setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
-      setEvolutionData([
-        { name: 'Feb', score: 48, benchmark: 55 },
-        { name: 'Mar', score: 52, benchmark: 58 },
-        { name: 'Abr', score: 58, benchmark: 60 },
-        { name: 'May', score: 64, benchmark: 62 },
-      ]);
-      return;
-    }
 
     const loadData = async () => {
       try {

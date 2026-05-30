@@ -211,13 +211,6 @@ const [newMember, setNewMember] = useState({
 
   useEffect(() => {
     if (!currentTenant?.id) return;
-    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
-    
-    if (isDemoMode) {
-      setMembers(governanceMembers);
-      setDomains(governanceDomains);
-      return;
-    }
 
     const fetchData = async () => {
       try {
@@ -226,10 +219,9 @@ const [newMember, setNewMember] = useState({
           supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
         ]);
 
-        if (membersRes.data) {
+        if (membersRes.data && membersRes.data.length > 0) {
           const mappedMembers = membersRes.data.map(m => ({
             ...m,
-            domain: 'General',
             country: 'Colombia',
             stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
             assignments: { assets: [], policies: [], workflows: 0 }
