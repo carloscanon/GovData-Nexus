@@ -100,40 +100,59 @@
   font-weight: 500;
 }
 
-/* Tab Navigation */
+/* Tab Navigation Premium Styling */
 .tabs {
   display: flex;
-  gap: 8px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 14px;
+  gap: 10px;
+  background: rgba(241, 245, 249, 0.65);
+  backdrop-filter: blur(12px);
+  padding: 8px;
+  border-radius: 20px;
   margin-bottom: 32px;
   width: fit-content;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.04), inset 0 2px 4px rgba(255, 255, 255, 0.5);
 }
 
 .tabBtn {
-  padding: 10px 20px;
-  border-radius: 10px;
+  padding: 12px 24px;
+  border-radius: 14px;
   border: none;
   background: transparent;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
 }
 
-.tabBtn:hover {
-  color: #1e293b;
+.tabBtn:hover:not(.activeTab) {
+  color: #334155;
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
 }
 
 .activeTab {
   background: white;
-  color: #4f46e5;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  color: var(--dynamic-primary, #4f46e5);
+  box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.15), 0 0 0 1px rgba(79, 70, 229, 0.05);
+  transform: translateY(-2px);
+}
+
+.activeTab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--dynamic-primary, #4f46e5), transparent);
+  border-radius: 4px 4px 0 0;
 }
 
 /* Table Section */
