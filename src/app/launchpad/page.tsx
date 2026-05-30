@@ -38,8 +38,9 @@ export default function Launchpad() {
   
   // Step 1: Info
   const [companyInfo, setCompanyInfo] = useState({ sector: '', size: '', level: '' });
-  // Step 2: Framework
+  // Step 2: Framework & Depth
   const [selectedFw, setSelectedFw] = useState('');
+  const [diagnosticDepth, setDiagnosticDepth] = useState(25);
   // Step 3: Assessment
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -52,6 +53,7 @@ export default function Launchpad() {
   const [finalScore, setFinalScore] = useState(0);
 
   // Dynamic Questions
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
@@ -66,20 +68,18 @@ export default function Launchpad() {
         
         if (error) throw error;
         if (data) {
-          // Supabase uses 'id' (UUID), but we need 'code' for matching logic. 
-          // Let's use 'code' as the 'id' for the component state to keep it simple.
           const mapped = data.map(q => ({
-            id: q.code, // use string code like 'dama_gov_1'
+            id: q.code,
             pillar: q.pillar,
             title: q.title,
             options: q.options as Option[],
             code: q.code
           }));
-          setQuestions(mapped);
+          setAllQuestions(mapped);
         }
       } catch (e) {
         console.error('Error fetching questions:', e);
-        alert('Por favor ejecuta el script dama_questions_seed.sql en tu Supabase para cargar el banco de preguntas.');
+        alert('Por favor ejecuta el script dama_100_questions_seed.sql en tu Supabase para cargar el banco de preguntas.');
       } finally {
         setIsLoadingQuestions(false);
       }
@@ -87,13 +87,64 @@ export default function Launchpad() {
     fetchQuestions();
   }, []);
 
+  const balanceQuestions = (sourceQs: Question[], targetCount: number) => {
+    if (sourceQs.length === 0) return [];
+    
+    // Si la BD tiene menos preguntas de las solicitadas, devuelve todo lo que haya
+    if (sourceQs.length <= targetCount) return sourceQs.sort(() => 0.5 - Math.random());
+
+    const grouped: Record<string, Question[]> = {};
+    sourceQs.forEach(q => {
+      if (!grouped[q.pillar]) grouped[q.pillar] = [];
+      grouped[q.pillar].push(q);
+    });
+
+    const pillars = Object.keys(grouped);
+    
+    // Mezclar aleatoriamente dentro de cada pilar
+    pillars.forEach(p => {
+      grouped[p] = grouped[p].sort(() => 0.5 - Math.random());
+    });
+
+    let selected: Question[] = [];
+    const basePerPillar = Math.floor(targetCount / pillars.length);
+    let remainder = targetCount % pillars.length;
+
+    pillars.forEach(p => {
+      let takeCount = basePerPillar + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+      
+      // Asegurarse de no pedir más de lo que hay en el pilar
+      if (takeCount > grouped[p].length) takeCount = grouped[p].length;
+
+      const taken = grouped[p].splice(0, takeCount);
+      selected = [...selected, ...taken];
+    });
+
+    // Si por falta de preguntas en algún pilar no llegamos a la cuenta, rellenamos con las sobrantes de otros pilares
+    if (selected.length < targetCount) {
+      let remainingQs: Question[] = [];
+      Object.values(grouped).forEach(arr => remainingQs = [...remainingQs, ...arr]);
+      remainingQs = remainingQs.sort(() => 0.5 - Math.random());
+      
+      const missingCount = targetCount - selected.length;
+      selected = [...selected, ...remainingQs.splice(0, missingCount)];
+    }
+
+    // Mezcla final para que no salgan ordenadas por pilar
+    return selected.sort(() => 0.5 - Math.random());
+  };
+
   const handleNext = async () => {
     if (step === 1) {
       if (!companyInfo.sector) return alert('Por favor, selecciona un sector.');
       setStep(2);
     } else if (step === 2) {
       if (!selectedFw) return alert('Selecciona un framework.');
-      if (questions.length === 0) return alert('No se encontraron preguntas en la base de datos.');
+      if (allQuestions.length === 0) return alert('No se encontraron preguntas en la base de datos.');
+      
+      const selectedQs = balanceQuestions([...allQuestions], diagnosticDepth);
+      setQuestions(selectedQs);
       setStep(3);
     } else if (step === 3) {
       if (Object.keys(answers).length < questions.length) {
@@ -392,6 +443,23 @@ export default function Launchpad() {
                       <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>{fw.desc}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className={styles.inputGroup} style={{ marginTop: '30px' }}>
+                  <span className={styles.label}>Profundidad del Diagnóstico</span>
+                  <select 
+                    className={styles.select} 
+                    value={diagnosticDepth} 
+                    onChange={e => setDiagnosticDepth(Number(e.target.value))}
+                  >
+                    <option value={25}>Evaluación Rápida (25 Preguntas)</option>
+                    <option value={50}>Evaluación Intermedia (50 Preguntas)</option>
+                    <option value={75}>Evaluación Avanzada (75 Preguntas)</option>
+                    <option value={100}>Evaluación Integral DAMA (100 Preguntas)</option>
+                  </select>
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '8px' }}>
+                    Independientemente de la cantidad, el sistema garantizará un balance automático de preguntas entre las 11 áreas de conocimiento del estándar seleccionado.
+                  </p>
                 </div>
               </motion.div>
             )}
