@@ -40,13 +40,13 @@ ADD COLUMN IF NOT EXISTS email VARCHAR(255),
 ADD COLUMN IF NOT EXISTS name VARCHAR(255);
 
 -- =========================================================
--- 2. CREACIÓN DE TABLAS NUEVAS
+-- 2. CREACIÓN O EXTENSIÓN DE TABLAS NUEVAS
 -- =========================================================
 
 -- Tabla: data_connections (Escaneo Automático)
 CREATE TABLE IF NOT EXISTS public.data_connections (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    tenant_id UUID NOT NULL,
+    tenant_id UUID,
     name VARCHAR(255) NOT NULL,
     source_id VARCHAR(100) NOT NULL,
     host VARCHAR(255),
@@ -57,16 +57,22 @@ CREATE TABLE IF NOT EXISTS public.data_connections (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Forzar la existencia de la columna si la tabla ya existía de versiones anteriores MVP
+ALTER TABLE public.data_connections ADD COLUMN IF NOT EXISTS tenant_id UUID;
+
 -- Tabla: notification_channels (Calidad de Datos)
 CREATE TABLE IF NOT EXISTS public.notification_channels (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    tenant_id UUID NOT NULL,
+    tenant_id UUID,
     type VARCHAR(100) NOT NULL,
     name VARCHAR(255) NOT NULL,
     config JSONB,
     status VARCHAR(50) DEFAULT 'Activo',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Forzar la existencia de la columna si la tabla ya existía de versiones anteriores MVP
+ALTER TABLE public.notification_channels ADD COLUMN IF NOT EXISTS tenant_id UUID;
 
 -- =========================================================
 -- 3. POLÍTICAS DE SEGURIDAD (ROW LEVEL SECURITY - AISLAMIENTO)
@@ -80,11 +86,11 @@ ALTER TABLE public.notification_channels ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Aislamiento por Tenant - data_connections" ON public.data_connections;
 CREATE POLICY "Aislamiento por Tenant - data_connections" 
 ON public.data_connections FOR ALL 
-USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+USING (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant', true)::uuid);
 
 -- Políticas para notification_channels
 DROP POLICY IF EXISTS "Aislamiento por Tenant - notification_channels" ON public.notification_channels;
 CREATE POLICY "Aislamiento por Tenant - notification_channels" 
 ON public.notification_channels FOR ALL 
-USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+USING (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant', true)::uuid);
 
