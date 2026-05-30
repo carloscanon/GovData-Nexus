@@ -831,7 +831,7 @@ export default function Workflows() {
                    </div>
                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                       <button className={styles.secondaryBtn} onClick={() => setIsNewRequestModalOpen(false)}>Cancelar</button>
-                      <button className={styles.primaryBtn} onClick={handleCreateRequest}>Crear Solicitud</button>
+                      <button className={styles.primaryBtn} onClick={handleAddRequest}>Crear Solicitud</button>
                    </div>
                 </div>
              </motion.div>
