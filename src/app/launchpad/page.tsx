@@ -12,11 +12,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './launchpad.module.css';
 
 const FRAMEWORKS = [
-  { id: 'dama', name: 'DAMA-DMBOK', icon: <DatabaseIcon />, desc: 'Estándar global de gestión de datos' },
-  { id: 'dcam', name: 'EDM Council DCAM', icon: <Building2 />, desc: 'Framework para el sector financiero' },
-  { id: 'public', name: 'Gobierno Público', icon: <Server />, desc: 'Orientado a entidades estatales' },
-  { id: 'health', name: 'Sector Salud (HIPAA)', icon: <Activity />, desc: 'Protección y gestión en salud' },
-  { id: 'custom', name: 'Personalizado', icon: <BrainCircuit />, desc: 'A la medida de tu organización' }
+  { id: 'dama', name: 'DAMA-DMBOK', dbName: 'DAMA', icon: <DatabaseIcon />, desc: 'Estándar global de gestión de datos' },
+  { id: 'dcam', name: 'EDM Council DCAM', dbName: 'EDM Council (DCAM)', icon: <Building2 />, desc: 'Framework para el sector financiero' },
+  { id: 'public', name: 'Gobierno Abierto', dbName: 'Gobierno Abierto', icon: <Server />, desc: 'Orientado a entidades estatales' },
+  { id: 'health', name: 'Sector Salud (HIPAA)', dbName: 'Sector Salud', icon: <Activity />, desc: 'Protección y gestión en salud' },
+  { id: 'custom', name: 'Personalizado', dbName: 'DAMA', icon: <BrainCircuit />, desc: 'A la medida de tu organización' }
 ];
 
 export interface Option {
@@ -57,34 +57,40 @@ export default function Launchpad() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
-  React.useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('diagnostic_questions')
-          .select('*')
-          .eq('is_active', true)
-          .order('pillar');
-        
-        if (error) throw error;
-        if (data) {
-          const mapped = data.map(q => ({
-            id: q.code,
-            pillar: q.pillar,
-            title: q.title,
-            options: q.options as Option[],
-            code: q.code
-          }));
-          setAllQuestions(mapped);
-        }
-      } catch (e) {
-        console.error('Error fetching questions:', e);
-        alert('Por favor ejecuta el script dama_100_questions_seed.sql en tu Supabase para cargar el banco de preguntas.');
-      } finally {
-        setIsLoadingQuestions(false);
+  const fetchQuestionsForFramework = async (fwId: string) => {
+    setIsLoadingQuestions(true);
+    try {
+      const selectedDbName = FRAMEWORKS.find(f => f.id === fwId)?.dbName || 'DAMA';
+      const { data, error } = await supabase
+        .from('diagnostic_questions')
+        .select('*')
+        .eq('is_active', true)
+        .eq('framework', selectedDbName)
+        .order('pillar');
+      
+      if (error) throw error;
+      if (data) {
+        const mapped = data.map(q => ({
+          id: q.code,
+          pillar: q.pillar,
+          title: q.title,
+          options: q.options as Option[],
+          code: q.code
+        }));
+        setAllQuestions(mapped);
+        return mapped;
       }
-    };
-    fetchQuestions();
+    } catch (e) {
+      console.error('Error fetching questions:', e);
+      alert('Error al cargar preguntas para el framework seleccionado.');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+    return [];
+  };
+
+  React.useEffect(() => {
+    // Ya no cargamos preguntas al inicio, lo haremos al seleccionar el framework
   }, []);
 
   const balanceQuestions = (sourceQs: Question[], targetCount: number) => {
@@ -140,11 +146,15 @@ export default function Launchpad() {
       if (!companyInfo.sector) return alert('Por favor, selecciona un sector.');
       setStep(2);
     } else if (step === 2) {
-      if (!selectedFw) return alert('Selecciona un framework.');
-      if (allQuestions.length === 0) return alert('No se encontraron preguntas en la base de datos.');
-      
-      const selectedQs = balanceQuestions([...allQuestions], diagnosticDepth);
-      setQuestions(selectedQs);
+      if (!selectedFw) return alert('Por favor, selecciona un framework.');
+      const fetchedQs = await fetchQuestionsForFramework(selectedFw);
+      const toAsk = balanceQuestions(fetchedQs, diagnosticDepth);
+      if (toAsk.length === 0) {
+        return alert(`No se encontraron preguntas en la base de datos para el framework seleccionado.`);
+      }
+      setQuestions(toAsk);
+      setCurrentQIndex(0);
+      setAnswers({});
       setStep(3);
     } else if (step === 3) {
       if (Object.keys(answers).length < questions.length) {
