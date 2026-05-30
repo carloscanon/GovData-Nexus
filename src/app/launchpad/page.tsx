@@ -307,12 +307,12 @@ export default function Launchpad() {
 
       // 6. Pre-poblar el Catálogo si indicaron que tienen Catálogo o Datos Maestros
       // Utilizamos los códigos de DAMA para Arquitectura o Metadatos
-      if ((answers['dama_arc_1'] || 0) >= 3 || (answers['dama_meta_1'] || 0) >= 3) {
+      if ((answers['dama_arc_01'] || 0) >= 3 || (answers['dama_meta_01'] || 0) >= 3) {
         setProcessLog('Inicializando activos de datos base según respuestas de arquitectura...');
-        const baseAssetsCount = answers['dama_meta_1'] === 5 ? 8 : 3;
-        const qualityBase = answers['dama_qual_1'] === 5 ? 95 : 60;
-        const confBase = answers['dama_sec_1'] === 5 ? 'Confidencial' : 'No Clasificado';
-        const ownerBase = answers['dama_gov_3'] === 5 ? 'Data Owner' : 'Sin Asignar';
+        const baseAssetsCount = answers['dama_meta_01'] === 5 ? 8 : 3;
+        const qualityBase = answers['dama_qual_01'] === 5 ? 95 : 60;
+        const confBase = answers['dama_sec_01'] === 5 ? 'Confidencial' : 'No Clasificado';
+        const ownerBase = answers['dama_gov_03'] === 5 ? 'Data Owner' : 'Sin Asignar';
 
         for (let i = 1; i <= baseAssetsCount; i++) {
           dataAssets.push({
@@ -331,9 +331,9 @@ export default function Launchpad() {
       }
 
       // 7. Modificar estado de Políticas según Cumplimiento (Gobierno)
-      if (answers['dama_gov_1'] === 5) {
+      if (answers['dama_gov_01'] === 5) {
         await supabase.from('data_policies').update({ status: 'Vigente' }).eq('tenant_id', currentTenant.id);
-      } else if (answers['dama_gov_1'] === 3) {
+      } else if (answers['dama_gov_01'] === 3) {
         await supabase.from('data_policies').update({ status: 'En Revisión' }).eq('tenant_id', currentTenant.id);
       }
 
@@ -349,14 +349,14 @@ export default function Launchpad() {
         if (err6) throw err6;
       }
 
-      setProcessLog('¡GovData Nexus inicializado exitosamente!');
-      await new Promise(r => setTimeout(r, 800));
+      setProcessLog('¡Finalizado con éxito!');
+      await new Promise(r => setTimeout(r, 1000));
       setStep(5); // Show results
 
-    } catch (e) {
-      console.error('Error in bootstrap:', e);
-      alert('Error en la parametrización automática.');
-      setStep(3);
+    } catch (e: any) {
+      console.error(e);
+      setProcessLog('Error fatal en la inicialización');
+      alert(`Error en la parametrización automática: ${e.message || e.details || JSON.stringify(e)}`);
     } finally {
       setIsProcessing(false);
     }
