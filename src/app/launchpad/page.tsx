@@ -19,62 +19,7 @@ const FRAMEWORKS = [
   { id: 'custom', name: 'Personalizado', icon: <BrainCircuit />, desc: 'A la medida de tu organización' }
 ];
 
-const QUESTIONS = [
-  {
-    id: 'estrategia',
-    title: '¿Existe un Comité de Gobierno de Datos formalizado y sesionando?',
-    options: [
-      { text: 'No, no existe.', score: 1 },
-      { text: 'Está en diseño o se reúne informalmente.', score: 3 },
-      { text: 'Sí, está formalizado y toma decisiones activamente.', score: 5 }
-    ]
-  },
-  {
-    id: 'organizacion',
-    title: '¿Tienen identificados y asignados los roles de Data Owner y Data Steward?',
-    options: [
-      { text: 'No tenemos estos roles definados.', score: 1 },
-      { text: 'Tenemos responsables TI, pero no dueños de negocio.', score: 2 },
-      { text: 'Sí, están asignados y capacitados por dominio.', score: 5 }
-    ]
-  },
-  {
-    id: 'calidad',
-    title: '¿Cómo miden la calidad de los datos críticos?',
-    options: [
-      { text: 'No la medimos o solo cuando hay quejas.', score: 1 },
-      { text: 'Reglas manuales en Excel o scripts esporádicos.', score: 3 },
-      { text: 'Monitoreo automatizado con perfiles de calidad.', score: 5 }
-    ]
-  },
-  {
-    id: 'arquitectura',
-    title: '¿Tienen un Catálogo de Datos corporativo implementado?',
-    options: [
-      { text: 'No tenemos catálogo.', score: 1 },
-      { text: 'Un Excel o wiki desactualizado.', score: 2 },
-      { text: 'Plataforma automatizada con metadatos y linaje.', score: 5 }
-    ]
-  },
-  {
-    id: 'seguridad',
-    title: '¿Cómo clasifican y protegen los datos sensibles (PII)?',
-    options: [
-      { text: 'No hay clasificación formal.', score: 1 },
-      { text: 'Políticas escritas pero sin controles técnicos.', score: 3 },
-      { text: 'Clasificación automatizada y controles de acceso (RBAC/ABAC).', score: 5 }
-    ]
-  },
-  {
-    id: 'cumplimiento',
-    title: '¿Tienen políticas de datos publicadas y acatadas por la organización?',
-    options: [
-      { text: 'No existen políticas documentadas.', score: 1 },
-      { text: 'Existen pero están vencidas o nadie las conoce.', score: 2 },
-      { text: 'Están vigentes, comunicadas y se auditan periódicamente.', score: 5 }
-    ]
-  }
-];
+import { QUESTIONS } from '@/lib/assessmentQuestions';
 
 export default function Launchpad() {
   const router = useRouter();
