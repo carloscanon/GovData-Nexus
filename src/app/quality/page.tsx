@@ -41,6 +41,8 @@ import styles from './quality.module.css';
 export default function QualityModule() {
   const { mode, currentTenant } = usePlatform();
   const [activeTab, setActiveTab] = useState('overview');
+  const [showAddRuleModal, setShowAddRuleModal] = useState(false);
+  const [newRule, setNewRule] = useState({ name: '', description: '', type: 'Integridad', severity: 'Media' });
   const [loading, setLoading] = useState(true);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
