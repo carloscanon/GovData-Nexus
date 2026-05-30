@@ -115,13 +115,92 @@ export default function Launchpad() {
         { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
       ]);
 
-      // 5. Workflows Base (Mock Tickets)
-      setProcessLog('Desplegando flujos de trabajo en Mesa de Servicio...');
+      // 5. Workflows Base + Roadmap de 90 Días Automático
+      setProcessLog('Generando y asignando el Plan Estratégico de 90 días...');
       await new Promise(r => setTimeout(r, 1000));
-      await supabase.from('workflow_requests').insert([
-        { tenant_id: currentTenant.id, title: 'Aprobación de Política Inicial', status: 'Pendiente', current_step: 'Validación' },
-        { tenant_id: currentTenant.id, title: 'Asignación de Data Stewards', status: 'En Progreso', current_step: 'Asignación' }
-      ]);
+      
+      // Calculate weakest pillars to build custom roadmap
+      const calcPillar = (prefix: string, maxQuestions: number) => {
+        let sum = 0;
+        for (let i = 1; i <= maxQuestions; i++) {
+          sum += answers[`${prefix}_${i}`] || 0;
+        }
+        return sum > 0 ? Math.round((sum / (maxQuestions * 5)) * 100) : 0;
+      };
+      const pStats = [
+        { id: 'est', name: 'Estrategia de Datos', score: calcPillar('est', 8) },
+        { id: 'org', name: 'Organización', score: calcPillar('org', 8) },
+        { id: 'cal', name: 'Calidad de Datos', score: calcPillar('cal', 9) },
+        { id: 'arq', name: 'Arquitectura', score: calcPillar('arq', 8) },
+        { id: 'seg', name: 'Seguridad', score: calcPillar('seg', 8) },
+        { id: 'cum', name: 'Cumplimiento', score: calcPillar('cum', 9) }
+      ].sort((a, b) => a.score - b.score);
+      
+      const weakest = pStats.slice(0, 3);
+      
+      // Task Library
+      const taskLibrary: Record<string, any[]> = {
+        'est': [
+          { title: 'Conformar Comité Ejecutivo de Datos', desc: 'Definir miembros y agendar primera sesión', role: 'CDO' },
+          { title: 'Aprobar Presupuesto Semestral de Datos', desc: 'Asignar rubro para herramientas de catálogo/calidad', role: 'CEO' },
+          { title: 'Definir 3 OKRs de Valor de Datos', desc: 'Conectar métricas técnicas con negocio', role: 'CDO' },
+          { title: 'Lanzar Campaña Data-Driven', desc: 'Comunicación interna de alfabetización', role: 'CDO' }
+        ],
+        'org': [
+          { title: 'Asignar Data Owners', desc: 'Mapear directores a dominios clave', role: 'CDO' },
+          { title: 'Nombrar Data Stewards Operativos', desc: 'Asignar responsables de la gestión diaria', role: 'Data Owner' },
+          { title: 'Establecer matriz RACI', desc: 'Aclarar responsabilidades técnicas vs negocio', role: 'CDO' },
+          { title: 'Crear red interna de Stewards', desc: 'Organizar reunión mensual de sincronización', role: 'Data Steward' }
+        ],
+        'cal': [
+          { title: 'Identificar CDEs (Datos Críticos)', desc: 'Listar top 20 campos críticos para el negocio', role: 'Data Owner' },
+          { title: 'Definir Reglas de Calidad Base', desc: 'Completitud, formato y exactitud para CDEs', role: 'Data Steward' },
+          { title: 'Implementar Dashboard de Calidad', desc: 'Conectar herramienta de perfilamiento', role: 'Data Custodian' },
+          { title: 'Establecer SLA de remediación', desc: 'Fijar tiempos máximos para corregir errores', role: 'CDO' }
+        ],
+        'arq': [
+          { title: 'Desplegar Catálogo de Datos', desc: 'Configurar herramienta central', role: 'Data Custodian' },
+          { title: 'Conectar primer ERP/CRM al catálogo', desc: 'Extracción de metadatos automatizada', role: 'Data Custodian' },
+          { title: 'Documentar Glosario de Negocio', desc: 'Cargar primeros 50 términos clave', role: 'Data Steward' },
+          { title: 'Mapear Linaje de Datos nivel 1', desc: 'Trazar el ciclo desde origen hasta reporte final', role: 'Data Custodian' }
+        ],
+        'seg': [
+          { title: 'Ejecutar escaneo de datos sensibles (PII)', desc: 'Identificar dónde están las tarjetas/cedulas', role: 'CISO' },
+          { title: 'Auditar accesos a bases productivas', desc: 'Limpiar cuentas huérfanas y permisos amplios', role: 'CISO' },
+          { title: 'Implementar Enmascaramiento', desc: 'Ocultar datos sensibles en ambientes no-productivos', role: 'Data Custodian' },
+          { title: 'Actualizar Política de Accesos (RBAC)', desc: 'Aplicar el principio de menor privilegio', role: 'CISO' }
+        ],
+        'cum': [
+          { title: 'Publicar Política General de Datos', desc: 'Lograr firma del CEO y circular', role: 'CDO' },
+          { title: 'Evaluar Cumplimiento GDPR/Ley Local', desc: 'Asegurar derechos ARCO', role: 'Legal' },
+          { title: 'Implementar trazabilidad de consentimiento', desc: 'Registro de aceptación de clientes', role: 'Data Custodian' },
+          { title: 'Auditoría Interna Inicial', desc: 'Revisión de riesgos de cumplimiento', role: 'Legal' }
+        ]
+      };
+
+      const roadmapTickets: any[] = [];
+      // Generamos 12 tareas (4 para Fase 1, 4 Fase 2, 4 Fase 3)
+      // Tomamos 4 tareas del pilar más bajo (Fase 1), 4 del segundo (Fase 2), 4 del tercero (Fase 3)
+      for (let i = 0; i < 3; i++) {
+        const pillar = weakest[i];
+        const tasks = taskLibrary[pillar.id];
+        const phaseName = `Fase ${i + 1}`;
+        
+        tasks.forEach(t => {
+          roadmapTickets.push({
+            tenant_id: currentTenant.id,
+            title: `[Roadmap ${phaseName}] ${t.title}`,
+            description: t.desc,
+            category: 'Roadmap Iniciativa',
+            priority: i === 0 ? 'Alta' : 'Media',
+            status: 'Pendiente',
+            current_step: phaseName, // Usamos current_step para agrupar por fase
+            assigned_to: t.role
+          });
+        });
+      }
+
+      await supabase.from('workflow_requests').insert(roadmapTickets);
 
       setProcessLog('¡GovData Nexus inicializado exitosamente!');
       await new Promise(r => setTimeout(r, 800));

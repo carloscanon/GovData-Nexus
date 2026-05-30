@@ -5,7 +5,7 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import { 
   Target, Activity, ShieldCheck, Database, Zap, FileText, Users,
-  TrendingUp, Clock, AlertTriangle, CheckCircle2, AlertCircle, BarChart3, Crown
+  TrendingUp, Clock, AlertTriangle, CheckCircle2, AlertCircle, BarChart3, Crown, Download
 } from 'lucide-react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer 
@@ -29,6 +29,7 @@ export default function CommandCenter() {
   const [domainMatrix, setDomainMatrix] = useState<any[]>([]);
   const [radarData, setRadarData] = useState<any[]>([]);
   const [dynamicRoadmap, setDynamicRoadmap] = useState<any[]>([]);
+  const [roadmapProgress, setRoadmapProgress] = useState<any[]>([]);
 
   useEffect(() => {
     if (!currentTenant?.id) return;
@@ -148,6 +149,17 @@ export default function CommandCenter() {
         ].sort((a, b) => a.score - b.score);
 
         setDynamicRoadmap(pillars.slice(0, 3));
+
+        // 8. Roadmap Progress from Workflows
+        const roadmapTickets = workflows ? workflows.filter(w => w.category === 'Roadmap Iniciativa') : [];
+        const progressByPhase = [1, 2, 3].map(p => {
+          const phaseTasks = roadmapTickets.filter(w => w.current_step === `Fase ${p}`);
+          const total = phaseTasks.length;
+          const completed = phaseTasks.filter(w => w.status === 'Completado' || w.status === 'Cerrado' || w.status === 'Aprobado').length;
+          const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+          return { phase: p, total, completed, progress };
+        });
+        setRoadmapProgress(progressByPhase);
 
       } catch (e) {
         console.error('Error loading command center:', e);
@@ -374,23 +386,59 @@ export default function CommandCenter() {
               Roadmap Ejecutivo (90 Días)
             </h2>
             <div className={styles.roadmapList}>
-              {dynamicRoadmap.length > 0 ? dynamicRoadmap.map((item, idx) => (
-                <div key={idx} className={styles.roadmapItem}>
-                  <div className={styles.roadNum}>{idx + 1}</div>
-                  <div className={styles.roadContent}>
-                    <div>
-                      <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>{item.title}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{item.name} - {item.desc}</span>
+              {dynamicRoadmap.length > 0 ? dynamicRoadmap.map((item, idx) => {
+                const pData = roadmapProgress.find(r => r.phase === (idx + 1));
+                const progress = pData ? pData.progress : 0;
+                
+                return (
+                  <div key={idx} className={styles.roadmapItem}>
+                    <div className={styles.roadNum}>{idx + 1}</div>
+                    <div className={styles.roadContent}>
+                      <div>
+                        <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>{item.title}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{item.name} - {item.desc}</span>
+                      </div>
+                      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                          <span>Progreso de Fase</span>
+                          <span style={{ color: progress === 100 ? '#10b981' : '#3b82f6' }}>{progress}%</span>
+                        </div>
+                        <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${progress}%`, background: progress === 100 ? '#10b981' : '#3b82f6', transition: 'width 0.5s ease' }} />
+                        </div>
+                      </div>
                     </div>
-                    <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.9rem' }}>Score: {item.score}%</span>
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>
                   Esperando datos de evaluación base...
                 </div>
               )}
             </div>
+            {dynamicRoadmap.length > 0 && (
+              <button 
+                onClick={() => window.open('/roadmap-report', '_blank')}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: '#1e293b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                <Download size={18} />
+                Descargar Plan Completo (PDF)
+              </button>
+            )}
           </div>
         </div>
 
