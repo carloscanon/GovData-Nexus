@@ -44,14 +44,16 @@ export default function CommandCenter() {
           { data: workflows },
           { data: policies },
           { data: incidents },
-          { data: members }
+          { data: members },
+          { data: diagnosticQuestions }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
           supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('security_incidents').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id)
+          supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('diagnostic_questions').select('code, pillar')
         ]);
 
         // 1. Madurez
@@ -87,30 +89,44 @@ export default function CommandCenter() {
         // 7. Dynamic Radar & Roadmap based on real Assessment Answers
         const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
         
-        const calcPillar = (prefix: string, maxQuestions: number) => {
-          let sum = 0;
-          let hasAnswers = false;
-          let answeredCount = 0;
-          for (let i = 1; i <= maxQuestions; i++) {
-            if (answers[`${prefix}_${i}`] !== undefined) {
-              hasAnswers = true;
-              sum += answers[`${prefix}_${i}`];
-              answeredCount++;
+        // Agrupación dinámica por pilar real de la base de datos
+        const pillarStats: Record<string, { sum: number, count: number }> = {};
+        
+        if (diagnosticQuestions) {
+          diagnosticQuestions.forEach(q => {
+            const val = answers[q.code];
+            if (val !== undefined) {
+              if (!pillarStats[q.pillar]) pillarStats[q.pillar] = { sum: 0, count: 0 };
+              pillarStats[q.pillar].sum += val;
+              pillarStats[q.pillar].count++;
             }
-          }
-          if (!hasAnswers) return 0;
-          // Normalize score: 1->0, 3->0.5, 5->1. Since minimum is 1, we subtract the base.
-          const normalizedSum = sum - answeredCount; 
-          const maxPossible = answeredCount * 4;
-          return Math.round((normalizedSum / maxPossible) * 100);
-        };
+          });
+        }
 
-        const estScore = calcPillar('est', 8);
-        const orgScore = calcPillar('org', 8);
-        const calScore = calcPillar('cal', 9);
-        const arqScore = calcPillar('arq', 8);
-        const segScore = calcPillar('seg', 8);
-        const cumScore = calcPillar('cum', 9);
+        const computedRadarData = Object.keys(pillarStats).map(pillar => {
+           const stat = pillarStats[pillar];
+           const normalizedSum = stat.sum - stat.count; 
+           const maxPossible = stat.count * 4;
+           const score = Math.round((normalizedSum / maxPossible) * 100);
+           return { subject: pillar, A: score, fullMark: 100 };
+        });
+
+        // Valores seguros si no hay data
+        const fallbackRadar = [
+          { subject: 'Estrategia', A: 0, fullMark: 100 },
+          { subject: 'Organización', A: 0, fullMark: 100 },
+          { subject: 'Calidad', A: 0, fullMark: 100 },
+          { subject: 'Arquitectura', A: 0, fullMark: 100 },
+          { subject: 'Seguridad', A: 0, fullMark: 100 },
+          { subject: 'Cumplimiento', A: 0, fullMark: 100 }
+        ];
+
+        setRadarData(computedRadarData.length > 0 ? computedRadarData : fallbackRadar);
+
+        const segObj = computedRadarData.find(r => r.subject.toLowerCase().includes('segur') || r.subject.toLowerCase().includes('secur'));
+        const segScore = segObj ? segObj.A : matScore;
+        const estObj = computedRadarData.find(r => r.subject.toLowerCase().includes('estrat') || r.subject.toLowerCase().includes('strat'));
+        const estScore = estObj ? estObj.A : matScore;
 
         // 4. Seguridad y Riesgo (Basado en encuesta y db)
         const iCrit = incidents ? incidents.filter(i => i.severity === 'Crítico' && i.status !== 'Cerrado').length : 0;
@@ -141,17 +157,17 @@ export default function CommandCenter() {
         const numMembers = members ? members.length : 0;
         setAdoption(Math.min(numMembers * 10, 100)); // Basado estrictamente en miembros reales (ej: 10 usuarios = 100%)
 
-        // Panel Directivo Stats
+        // Ejecución Estratégica
         let comites = 'No Evaluado';
         let decisiones = 0;
-        if (answers['est_1'] === 5) { comites = 'Formal y Activo'; decisiones = 12; }
-        else if (answers['est_1'] === 3) { comites = 'Informal/Esporádico'; decisiones = 3; }
-        else if (answers['est_1'] !== undefined) { comites = 'Inexistente'; decisiones = 0; }
+        if (estScore > 75) { comites = 'Formal y Activo'; decisiones = 12; }
+        else if (estScore > 40) { comites = 'Informal/Esporádico'; decisiones = 3; }
+        else if (estScore > 0) { comites = 'Inexistente'; decisiones = 0; }
 
         let presupuesto = 'No Evaluado';
-        if (answers['est_2'] === 5) presupuesto = 'Asignado (100%)';
-        else if (answers['est_2'] === 3) presupuesto = 'Parcial/Compartido';
-        else if (answers['est_2'] !== undefined) presupuesto = 'Inexistente';
+        if (estScore > 80) presupuesto = 'Asignado (100%)';
+        else if (estScore > 40) presupuesto = 'Parcial/Compartido';
+        else if (estScore > 0) presupuesto = 'Inexistente';
 
         setExecStats({ comites, decisiones, activas: wTotal, presupuesto });
 
@@ -163,25 +179,14 @@ export default function CommandCenter() {
           { name: 'Riesgos', madurez: 0, calidad: 0, riesgo: 'Desconocido' }
         ]);
 
-        setRadarData([
-          { subject: 'Estrategia', A: estScore, fullMark: 100 },
-          { subject: 'Organización', A: orgScore, fullMark: 100 },
-          { subject: 'Calidad', A: calScore, fullMark: 100 },
-          { subject: 'Arquitectura', A: arqScore, fullMark: 100 },
-          { subject: 'Seguridad', A: segScore, fullMark: 100 },
-          { subject: 'Cumplimiento', A: cumScore, fullMark: 100 }
-        ]);
+        const pillarsForRoadmap = (computedRadarData.length > 0 ? computedRadarData : fallbackRadar).map(r => ({
+          name: r.subject,
+          score: r.A,
+          title: `Optimizar ${r.subject}`,
+          desc: `Acciones derivadas del diagnóstico para el pilar de ${r.subject}.`
+        })).sort((a, b) => a.score - b.score);
 
-        const pillars = [
-          { name: 'Estrategia', score: estScore, title: 'Definir Comité y OKRs', desc: 'Formalizar patrocinio ejecutivo y presupuesto.' },
-          { name: 'Organización', score: orgScore, title: 'Asignar Roles (Data Owners)', desc: 'Capacitar a los responsables del negocio y TI.' },
-          { name: 'Calidad de Datos', score: calScore, title: 'Monitoreo de Calidad', desc: 'Automatizar validaciones sobre los datos más críticos.' },
-          { name: 'Arquitectura', score: arqScore, title: 'Desplegar Catálogo de Datos', desc: 'Documentar glosario y mapear linaje técnico.' },
-          { name: 'Seguridad', score: segScore, title: 'Proteger Datos Sensibles (PII)', desc: 'Clasificar la información y limitar accesos.' },
-          { name: 'Cumplimiento', score: cumScore, title: 'Publicar Políticas Normativas', desc: 'Comunicar reglas y gestionar consentimientos.' }
-        ].sort((a, b) => a.score - b.score);
-
-        setDynamicRoadmap(pillars.slice(0, 3));
+        setDynamicRoadmap(pillarsForRoadmap.slice(0, 3));
 
         // 8. Roadmap Progress from Workflows
         const roadmapTickets = workflows ? workflows.filter(w => w.category === 'Roadmap Iniciativa') : [];
