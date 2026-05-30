@@ -91,41 +91,45 @@ export default function Launchpad() {
       await new Promise(r => setTimeout(r, 800));
       
       // Insert Assessment
-      await supabase.from('maturity_assessments').insert([{
+      const { error: err1 } = await supabase.from('maturity_assessments').insert([{
         tenant_id: currentTenant.id,
         dimension: 'GLOBAL',
         score: calcScore,
         answers: answers
       }]);
+      if (err1) throw err1;
 
       // 2. Roles Base
       setProcessLog('Creando roles fundamentales (Owner, Steward, Custodio)...');
       await new Promise(r => setTimeout(r, 1200));
-      await supabase.from('team_members').insert([
+      const { error: err2 } = await supabase.from('team_members').insert([
         { tenant_id: currentTenant.id, name: 'Director de Datos', role: 'CDO', allocation: 100 },
         { tenant_id: currentTenant.id, name: 'Líder Negocio', role: 'Data Owner', allocation: 50 },
         { tenant_id: currentTenant.id, name: 'Experto Operativo', role: 'Data Steward', allocation: 50 },
         { tenant_id: currentTenant.id, name: 'Arquitecto TI', role: 'Data Custodian', allocation: 100 }
       ]);
+      if (err2) throw err2;
 
       // 3. Dominios Base
       setProcessLog('Configurando dominios de datos corporativos...');
       await new Promise(r => setTimeout(r, 1000));
-      await supabase.from('team_domains').insert([
+      const { error: err3 } = await supabase.from('team_domains').insert([
         { tenant_id: currentTenant.id, name: 'Clientes & CRM', priority: 'Alta' },
         { tenant_id: currentTenant.id, name: 'Finanzas', priority: 'Crítica' },
         { tenant_id: currentTenant.id, name: 'Talento Humano', priority: 'Media' },
         { tenant_id: currentTenant.id, name: 'Proveedores', priority: 'Media' }
       ]);
+      if (err3) throw err3;
 
       // 4. Políticas Base
       setProcessLog('Generando políticas normativas predeterminadas...');
       await new Promise(r => setTimeout(r, 1200));
-      await supabase.from('data_policies').insert([
+      const { error: err4 } = await supabase.from('data_policies').insert([
         { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador', owner: 'CDO' },
         { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador', owner: 'Data Steward' },
         { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
       ]);
+      if (err4) throw err4;
 
       // 5. Workflows Base + Roadmap de 90 Días Automático y Pre-carga de Activos
       setProcessLog('Generando Roadmap de 90 días basado en 100% del diagnóstico...');
@@ -237,12 +241,14 @@ export default function Launchpad() {
 
       // Insertar masivamente Workflows y Activos (si aplica)
       if (dataAssets.length > 0) {
-        await supabase.from('data_assets').insert(dataAssets);
+        const { error: err5 } = await supabase.from('data_assets').insert(dataAssets);
+        if (err5) throw err5;
       }
 
       // Procesamos las solicitudes en bloques de 20 para evitar problemas de límite
       for (let i = 0; i < roadmapTickets.length; i += 20) {
-        await supabase.from('workflow_requests').insert(roadmapTickets.slice(i, i + 20));
+        const { error: err6 } = await supabase.from('workflow_requests').insert(roadmapTickets.slice(i, i + 20));
+        if (err6) throw err6;
       }
 
       setProcessLog('¡GovData Nexus inicializado exitosamente!');
