@@ -77,8 +77,18 @@ export default function Launchpad() {
       const calcScore = answeredCount > 0 ? Math.round((normalizedTotal / maxScore) * 100) : 0;
       setFinalScore(calcScore);
 
+      setProcessLog('Limpiando entorno actual (Reset a 0)...');
+      await new Promise(r => setTimeout(r, 800));
+      // Delete old data for clean state
+      await supabase.from('maturity_assessments').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('team_members').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('team_domains').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('data_policies').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('workflow_requests').delete().eq('tenant_id', currentTenant.id);
+
       setProcessLog('Evaluando madurez base...');
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 800));
       
       // Insert Assessment
       await supabase.from('maturity_assessments').insert([{
@@ -117,10 +127,6 @@ export default function Launchpad() {
         { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
       ]);
 
-      // 5. Workflows Base + Roadmap de 90 Días Automático
-      setProcessLog('Generando y asignando el Plan Estratégico de 90 días...');
-      await new Promise(r => setTimeout(r, 1000));
-      
       // 5. Workflows Base + Roadmap de 90 Días Automático y Pre-carga de Activos
       setProcessLog('Generando Roadmap de 90 días basado en 100% del diagnóstico...');
       await new Promise(r => setTimeout(r, 1000));
@@ -176,7 +182,13 @@ export default function Launchpad() {
         }
 
         const now = new Date();
-        const dueDateStr = `Mes ${phase}`;
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        const targetMonth = new Date(now);
+        if (phase === 2) targetMonth.setMonth(now.getMonth() + 1);
+        if (phase === 3) targetMonth.setMonth(now.getMonth() + 2);
+        
+        const slaString = `Finales de ${monthNames[targetMonth.getMonth()]}`;
 
         roadmapTickets.push({
           tenant_id: currentTenant.id,
@@ -187,7 +199,7 @@ export default function Launchpad() {
           status: 'Pendiente',
           current_step: `Fase ${phase}`,
           assigned_to: getRoleForPillar(q.pillar),
-          sla: phase === 1 ? '30 días' : phase === 2 ? '60 días' : '90 días',
+          sla: slaString,
           sla_status: 'Ok',
           requester: 'Evaluación GovData'
         });
