@@ -55,56 +55,44 @@ export default function MetadataPage() {
     if (!currentTenant?.id) return;
     setLoading(true);
     
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(currentTenant.id);
-    if (!isUUID) {
-      // Mock data for DEMO mode
-      setAssets([
-        { id: '1', name: 'CLIENTES_MASTER', source: 'Oracle ERP', data_owner: 'Carlos Director', records_count: '1.2M' },
-        { id: '2', name: 'VENTAS_2024', source: 'Salesforce', data_owner: 'Ana García', records_count: '450K' }
-      ]);
-      setFields([
-        { id: '1', field_name: 'EMAIL', data_type: 'VARCHAR', is_sensitive: true, sensitivity: 'PII', quality_rule: 'Formato Email', asset: { name: 'CLIENTES_MASTER' } },
-        { id: '2', field_name: 'TOTAL_AMOUNT', data_type: 'DECIMAL', is_sensitive: false, sensitivity: 'Confidencial', quality_rule: '> 0', asset: { name: 'VENTAS_2024' } }
-      ]);
-      setGlossary([
-        { id: '1', term: 'Cliente Activo', definition: 'Usuario con compra en últimos 6 meses', domain: 'Comercial', status: 'Publicado' }
-      ]);
-      setLoading(false);
-      return;
-    }
-
     try {
       // Fetch Assets (Scanner)
-      const { data: assetsData } = await supabase
+      const { data: assetsData, error: assetsError } = await supabase
         .from('data_assets')
         .select('*')
         .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: false });
       
+      if (assetsError) throw assetsError;
       setAssets(assetsData || []);
 
       // Fetch Fields for Classification
       if (assetsData && assetsData.length > 0) {
         const assetIds = assetsData.map(a => a.id);
-        const { data: fieldsData } = await supabase
+        const { data: fieldsData, error: fieldsError } = await supabase
           .from('asset_fields')
           .select('*, asset:data_assets(name)')
           .in('asset_id', assetIds);
+        if (fieldsError) throw fieldsError;
         setFields(fieldsData || []);
       } else {
         setFields([]);
       }
 
       // Fetch Glossary
-      const { data: glossaryData } = await supabase
+      const { data: glossaryData, error: glossaryError } = await supabase
         .from('glossary_terms')
         .select('*')
         .eq('tenant_id', currentTenant.id)
         .order('term', { ascending: true });
       
+      if (glossaryError) throw glossaryError;
       setGlossary(glossaryData || []);
-    } catch (err) {
-      console.error('Error fetching metadata:', err);
+    } catch (err: any) {
+      console.error('Error fetching metadata (Tables might not exist in Supabase):', err);
+      if (err.code === '42P01') {
+        alert("Las tablas de metadata no existen en la base de datos Supabase. Ejecuta el script SQL de creación.");
+      }
     } finally {
       setLoading(false);
     }
@@ -132,22 +120,6 @@ export default function MetadataPage() {
     if (!newTerm.term || !newTerm.definition) return;
     if (!currentTenant?.id) return;
     
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(currentTenant.id);
-    
-    if (!isUUID) {
-      const newLocalTerm = {
-        id: Math.random().toString(),
-        term: newTerm.term,
-        definition: newTerm.definition,
-        domain: newTerm.domain || 'General',
-        status: 'Publicado'
-      };
-      setGlossary([...glossary, newLocalTerm]);
-      setShowGlossaryModal(false);
-      setNewTerm({ term: '', definition: '', domain: '' });
-      return;
-    }
-
     try {
       const { data, error } = await supabase.from('glossary_terms').insert([{
         tenant_id: currentTenant.id,
@@ -157,25 +129,32 @@ export default function MetadataPage() {
         status: 'Publicado'
       }]).select();
 
-      if (error) throw error;
-      if (data) {
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
         setGlossary([...glossary, data[0]]);
         setShowGlossaryModal(false);
         setNewTerm({ term: '', definition: '', domain: '' });
       }
+    } catch (err: any) {
+      console.error('Error saving glossary term to database:', err);
+      alert('Error guardando en la base de datos. ' + (err.message || 'Verifica que la tabla glossary_terms exista y tu ID de tenant sea un UUID válido.'));
+    }
+  };
+  // Reset all metadata for current tenant directly in DB
+  const handleResetMetadata = async () => {
+    if (!currentTenant?.id) return;
+    
+    try {
+      await supabase.from('glossary_terms').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('asset_fields').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
+      // Refresh UI
+      fetchMetadata();
     } catch (err) {
-      console.error('Error saving glossary term:', err);
-      // Fallback a local state si la tabla no existe en Supabase
-      const newLocalTerm = {
-        id: Math.random().toString(),
-        term: newTerm.term,
-        definition: newTerm.definition,
-        domain: newTerm.domain || 'General',
-        status: 'Publicado'
-      };
-      setGlossary([...glossary, newLocalTerm]);
-      setShowGlossaryModal(false);
-      setNewTerm({ term: '', definition: '', domain: '' });
+      console.error('Error resetting metadata in database:', err);
     }
   };
 
@@ -194,6 +173,9 @@ export default function MetadataPage() {
           </div>
         </div>
         <div className={styles.headerActions}>
+                    <button className={styles.secondaryBtn} onClick={handleResetMetadata} disabled={loading} style={{ marginLeft: '8px' }}>
+            Resetear Metadatos
+          </button>
           <button className={styles.secondaryBtn} onClick={handleScan} disabled={isScanning || loading}>
             <RefreshCw size={18} className={isScanning ? 'animate-spin' : ''} />
             {isScanning ? 'Sincronizando...' : 'Sincronizar Catálogo'}

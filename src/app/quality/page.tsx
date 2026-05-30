@@ -429,20 +429,35 @@ export default function QualityModule() {
     setTimeout(() => setLoading(false), 1000);
   }, [mode, selectedAssetId, isMounted, currentTenant?.id]);
 
+  const handleAddRule = async () => {
+    if (!newRule.name || !selectedAssetId || !currentTenant?.id) return;
+
+    try {
+      const { data, error } = await supabase.from('quality_rules').insert([{
+        tenant_id: currentTenant.id,
+        asset_id: selectedAssetId,
+        rule_name: newRule.name,
+        description: newRule.description,
+        rule_type: newRule.type,
+        status: 'Activa'
+      }]).select();
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setRules([...rules, data[0]]);
+        setNewRule({ name: '', description: '', type: 'Integridad', severity: 'Media' });
+        setShowAddRuleModal(false);
+      }
+    } catch (err: any) {
+      console.error('Error adding rule to Supabase:', err);
+      alert('Error guardando en la base de datos. Verifica que la tabla quality_rules exista.');
+    }
+  };
+
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('¿Está seguro de que desea eliminar esta regla?')) return;
 
-    // En modo DEMO solo operamos en memoria y localStorage
-    if (mode === 'DEMO') {
-      setRules(prev => {
-        const updated = prev.filter(r => r.id !== ruleId);
-        if (selectedAssetId) {
-          localStorage.setItem(`govdata_rules_${selectedAssetId}`, JSON.stringify(updated));
-        }
-        return updated;
-      });
-      return;
-    }
 
     try {
       const { error } = await supabase.from('quality_rules').delete().eq('id', ruleId);
@@ -602,7 +617,6 @@ export default function QualityModule() {
   };
 
   const fetchRules = async (assetId: string) => {
-    const localKey = `govdata_rules_${assetId}`;
     try {
       const { data, error } = await supabase
         .from('quality_rules')
@@ -610,77 +624,26 @@ export default function QualityModule() {
         .eq('asset_id', assetId);
 
       if (error) throw error;
-      
-      localStorage.setItem(localKey, JSON.stringify(data || []));
       setRules(data || []);
-    } catch (err) {
-      console.warn('Error fetching rules from Supabase, loading from localStorage:', err);
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        setRules(JSON.parse(saved));
-      } else {
-        // Inicializar reglas demo por defecto para que la sección sea interactiva
-        const defaultRules = [
-          { id: `rule-1-${assetId}`, asset_id: assetId, name: 'Email Inválido', type: 'Formato', config: { regex: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$' }, severity: 'Crítica', status: 'Activa' },
-          { id: `rule-2-${assetId}`, asset_id: assetId, name: 'Identificación Nula', type: 'Nulos', config: { field: 'rut' }, severity: 'Alta', status: 'Activa' }
-        ];
-        localStorage.setItem(localKey, JSON.stringify(defaultRules));
-        setRules(defaultRules);
+    } catch (err: any) {
+      console.error('Error fetching rules from Supabase:', err);
+      if (err.code === '42P01') {
+        alert("La tabla quality_rules no existe. Por favor corre el script SQL.");
       }
+      setRules([]);
     }
   };
 
   const fetchAssets = async () => {
-    const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
-
-    // ── MODO DEMO: localStorage por empresa ──
-    if (mode === 'DEMO') {
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Filtrar solo activos de esta empresa
-        const filtered = currentTenant?.id
-          ? parsed.filter((a: any) => !a.tenant_id || a.tenant_id === currentTenant.id)
-          : parsed;
-        setAssets(filtered);
-        // Calcular estadísticas de fuente
-        if (filtered.length > 0) {
-          const stats: any[] = [];
-          filtered.forEach((item: any) => {
-            const idx = stats.findIndex(s => s.name === item.source);
-            if (idx === -1) {
-              stats.push({ name: item.source, score: item.quality_score || 100, assets: 1, alerts: 0 });
-            } else {
-              stats[idx].score = Math.round((stats[idx].score * stats[idx].assets + (item.quality_score || 100)) / (stats[idx].assets + 1));
-              stats[idx].assets += 1;
-            }
-          });
-          setSourceStats(stats.sort((a, b) => b.score - a.score));
-        }
-      } else {
-        const localDemoAssets = [
-          { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', tags: ['Maestro', 'IA Ready'], table_name: 'clientes', quality_score: 94, tenant_id: '1' },
-          { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', tags: ['Financiero'], table_name: 'transacciones', quality_score: 88, tenant_id: '2' },
-          { id: '3', name: 'Leads Marketing', source: 'Salesforce', tags: ['Marketing'], table_name: 'productos', quality_score: 72, tenant_id: '1' },
-          { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', tags: ['Crítico'], table_name: 'reporte', quality_score: 99, tenant_id: '3' },
-        ];
-        const filteredDemo = localDemoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-        setAssets(filteredDemo);
-      }
-      return;
-    }
-
-    // ── MODO ENTERPRISE: Supabase con aislamiento por tenant_id ──
+    if (!currentTenant?.id) return;
     try {
       const { data, error } = await supabase
         .from('data_assets')
         .select('id, name, source, tags, table_name, quality_score')
-        .or(`tenant_id.eq.${currentTenant?.id || ''},tenant_id.is.null`)
+        .eq('tenant_id', currentTenant.id)
         .order('name');
 
       if (error) throw error;
-
-      localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
 
       // Calcular estadísticas por sistema fuente

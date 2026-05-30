@@ -35,6 +35,8 @@ import {
   Scale
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './policies.module.css';
 
 // --- MOCK DATA ---
@@ -137,6 +139,33 @@ export default function PoliciesModule() {
   const [modalTab, setModalTab] = useState('general');
   const [isMounted, setIsMounted] = useState(false);
   const [selectedKPI, setSelectedKPI] = useState<any>(null);
+  const { currentTenant } = usePlatform();
+
+  // Load Policies from DB
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    setIsMounted(true);
+    
+    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
+    if (isDemoMode) {
+      setPolicies(policiesData);
+      return;
+    }
+
+    const loadPolicies = async () => {
+      try {
+        const { data, error } = await supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id);
+        if (error) throw error;
+        if (data) setPolicies(data);
+      } catch (e: any) {
+        console.error('Error fetching policies:', e);
+        if (e.code === '42P01') {
+          alert('Falta la tabla data_policies. Por favor corre el script de base de datos.');
+        }
+      }
+    };
+    loadPolicies();
+  }, [currentTenant?.id]);
 
   // Workflow State
   const [workflows, setWorkflows] = useState([
@@ -188,10 +217,35 @@ export default function PoliciesModule() {
 
   if (!isMounted) return null;
 
-  const handleAddPolicy = () => {
-    const id = `POL-${Math.floor(100 + Math.random() * 900)}`;
-    const policyToAdd = { ...newPolicy, id };
-    setPolicies([policyToAdd, ...policies]);
+  const handleAddPolicy = async () => {
+    if (!currentTenant?.id) return;
+
+    try {
+      const { data, error } = await supabase.from('data_policies').insert([{
+        tenant_id: currentTenant.id,
+        title: newPolicy.title,
+        type: newPolicy.type,
+        status: newPolicy.status,
+        version: newPolicy.version,
+        objective: newPolicy.objective,
+        scope: newPolicy.scope,
+        expiry: newPolicy.expiry,
+        owner: newPolicy.owner,
+        guidelines: newPolicy.guidelines,
+        controls: newPolicy.controls,
+        sancions: newPolicy.sancions
+      }]).select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setPolicies([data[0], ...policies]);
+      }
+    } catch (e: any) {
+      console.error('Error adding policy:', e);
+      alert('Error guardando en la base de datos.');
+    }
+
     setIsCreateModalOpen(false);
     // Reset form
     setNewPolicy({

@@ -170,144 +170,166 @@ export default function Workflows() {
     description: ''
   });
 
-  const auditEvents = [
-    { id: 1, action: 'Solicitud Creada', user: 'Ana G.', date: '2024-05-15 08:30', detail: 'Acceso a CLIENTES_MASTER_PROD' },
-    { id: 2, action: 'Aprobación Técnica', user: 'Nexus AI', date: '2024-05-15 08:31', detail: 'Validación de PII completada sin riesgos' },
-    { id: 3, action: 'Cambio de Estado', user: 'Luis M.', date: '2024-05-15 09:15', detail: 'REQ-002 pasó a En Revisión' },
-    { id: 4, action: 'Escalamiento SLA', user: 'System', date: '2024-05-15 10:00', detail: 'REQ-002 excedió el tiempo de respuesta' },
-  ];
-
-  const handleCreateRequest = () => {
-    const id = `REQ-00${requests.length + 1}`;
+  const handleAddRequest = async () => {
+    if (!newReq.title || !currentTenant?.id) return;
     
-    // SLA Calculation
-    let assignedHours = 48; // default
+    // Auto-asignar SLA
+    let assignedHours = 48;
     const matchingRules = slaRules.filter(r => 
-      (r.priority === 'Cualquiera' || r.priority === newReq.priority) &&
-      (r.domain === 'General' || r.domain === newReq.category)
+      (r.priority === newReq.priority || r.priority === 'Cualquiera') &&
+      (r.domain === newReq.category || r.domain === 'General')
     );
     if (matchingRules.length > 0) {
       assignedHours = Math.min(...matchingRules.map(r => r.hours));
     }
 
-    const reqToAdd: WorkflowReq = {
-      ...newReq,
-      id,
-      requester: 'Usuario Actual',
-      type: 'Solicitud Manual',
-      status: 'Pendiente',
-      date: 'Ahora',
-      sla: `${assignedHours}h`,
-      slaStatus: 'Ok',
-      currentStep: 'Validación Inicial',
-      timeline: [
-        { step: 'Solicitud Creada', user: 'Usuario Actual', date: new Date().toISOString().split('T')[0], status: 'done' }
-      ]
-    } as any;
-    const updated = [reqToAdd, ...requests];
-    setRequests(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
+    const timeline = [
+      { step: 'Solicitud Creada', user: 'Usuario Actual', date: new Date().toISOString().split('T')[0], status: 'done' }
+    ];
+
+    try {
+      const { data, error } = await supabase.from('workflow_requests').insert([{
+        tenant_id: currentTenant.id,
+        title: newReq.title,
+        description: newReq.description,
+        category: newReq.category,
+        priority: newReq.priority,
+        status: 'Pendiente',
+        sla: `${assignedHours}h`,
+        sla_status: 'Ok',
+        current_step: 'Validación Inicial',
+        timeline: timeline
+      }]).select();
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        // Map snake_case to camelCase for UI
+        const mappedReq = {
+          ...data[0],
+          requester: 'Usuario Actual',
+          type: 'Solicitud Manual',
+          date: new Date().toISOString().split('T')[0],
+          slaStatus: data[0].sla_status,
+          currentStep: data[0].current_step
+        };
+        setRequests([mappedReq, ...requests]);
+      }
+    } catch (e) {
+      console.error('Error adding request:', e);
+      alert('Error guardando el ticket en la base de datos.');
     }
+
     setIsNewRequestModalOpen(false);
     setNewReq({ title: '', category: '', priority: 'Media', description: '' });
   };
 
-  const handleSaveChanges = () => {
-    if (!selectedReq) return;
-    const updated = requests.map(r => r.id === selectedReq.id ? selectedReq : r);
-    setRequests(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_workflows_requests_${currentTenant.id}`, JSON.stringify(updated));
+  const handleSaveChanges = async () => {
+    if (!selectedReq || !currentTenant?.id) return;
+    
+    try {
+      const { error } = await supabase.from('workflow_requests').update({
+        status: selectedReq.status,
+        sla_status: selectedReq.slaStatus,
+        current_step: selectedReq.currentStep,
+        timeline: selectedReq.timeline
+      }).eq('id', selectedReq.id);
+
+      if (error) throw error;
+      
+      const updated = requests.map(r => r.id === selectedReq.id ? selectedReq : r);
+      setRequests(updated);
+    } catch (e) {
+      console.error('Error updating request:', e);
     }
+    
     setSelectedReq(null);
   };
 
-  const handleAddSlaRule = () => {
-    if (!newSlaRule.name || !newSlaRule.hours) return;
-    const ruleToAdd: SlaRule = {
-      id: `SLA-0${slaRules.length + 1}`,
-      name: newSlaRule.name,
-      priority: newSlaRule.priority || 'Cualquiera',
-      domain: newSlaRule.domain || 'General',
-      hours: Number(newSlaRule.hours)
-    };
-    const updated = [...slaRules, ruleToAdd];
-    setSlaRules(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_sla_rules_${currentTenant.id}`, JSON.stringify(updated));
+  const handleAddSlaRule = async () => {
+    if (!newSlaRule.name || !newSlaRule.hours || !currentTenant?.id) return;
+    
+    try {
+      const { data, error } = await supabase.from('sla_rules').insert([{
+        tenant_id: currentTenant.id,
+        name: newSlaRule.name,
+        priority: newSlaRule.priority || 'Cualquiera',
+        domain: newSlaRule.domain || 'General',
+        hours: Number(newSlaRule.hours)
+      }]).select();
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setSlaRules([...slaRules, data[0]]);
+      }
+    } catch (e) {
+      console.error('Error adding SLA:', e);
     }
     setNewSlaRule({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48 });
   };
 
-  const handleDeleteSlaRule = (id: string) => {
-    const updated = slaRules.filter(r => r.id !== id);
-    setSlaRules(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_sla_rules_${currentTenant.id}`, JSON.stringify(updated));
+  const handleDeleteSlaRule = async (id: string) => {
+    if (!currentTenant?.id) return;
+    try {
+      const { error } = await supabase.from('sla_rules').delete().eq('id', id);
+      if (error) throw error;
+      setSlaRules(slaRules.filter(r => r.id !== id));
+    } catch (e) {
+      console.error('Error deleting SLA:', e);
     }
   };
 
   useEffect(() => {
-    if (!currentTenant) return;
-    const key = `govdata_workflows_requests_${currentTenant.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        setRequests(JSON.parse(saved));
-      } catch (e) {
+    if (!currentTenant?.id) return;
+    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
+
+    const fetchAllData = async () => {
+      setLoading(true);
+      if (isDemoMode) {
         setRequests(demoRequests);
-      }
-    } else {
-      setRequests(demoRequests);
-    }
-    
-    // Load Dynamic Domains
-    const domainsKey = `govdata_team_domains_${currentTenant.id}`;
-    const savedDomains = localStorage.getItem(domainsKey);
-    if (savedDomains) {
-      try {
-        setDomains(JSON.parse(savedDomains));
-      } catch (e) {
-        setDomains([]);
-      }
-    } else {
-      setDomains([
-        { id: 'DOM-01', name: 'Finanzas' },
-        { id: 'DOM-02', name: 'Ventas' },
-        { id: 'DOM-03', name: 'Recursos Humanos' },
-        { id: 'DOM-04', name: 'Logística' }
-      ]);
-    }
-
-    // Load Team Members
-    const teamKey = `govdata_team_members_${currentTenant.id}`;
-    const savedTeam = localStorage.getItem(teamKey);
-    if (savedTeam) {
-      try {
-        setTeamMembers(JSON.parse(savedTeam));
-      } catch (e) {
+        setSlaRules([{ id: 'SLA-01', name: 'Resolución Estándar', priority: 'Cualquiera', domain: 'General', hours: 48 }]);
+        setDomains([{ id: 'DOM-01', name: 'Finanzas' }, { id: 'DOM-02', name: 'Ventas' }]);
         setTeamMembers([]);
+        setLoading(false);
+        return;
       }
-    }
-    
-    // Load SLA Rules
-    const slaKey = `govdata_sla_rules_${currentTenant.id}`;
-    const savedSla = localStorage.getItem(slaKey);
-    if (savedSla) {
-      try {
-        setSlaRules(JSON.parse(savedSla));
-      } catch (e) {
-        setSlaRules([]);
-      }
-    } else {
-      setSlaRules([
-        { id: 'SLA-01', name: 'Resolución Estándar', priority: 'Cualquiera', domain: 'General', hours: 48 },
-        { id: 'SLA-02', name: 'Atención Crítica', priority: 'Crítica', domain: 'General', hours: 4 }
-      ]);
-    }
 
-    setLoading(false);
+      try {
+        const [reqs, slas, doms, team] = await Promise.all([
+          supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
+          supabase.from('sla_rules').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
+          supabase.from('team_domains').select('id, name').eq('tenant_id', currentTenant.id),
+          supabase.from('team_members').select('id, name').eq('tenant_id', currentTenant.id)
+        ]);
+
+        if (reqs.data) {
+          const mappedReqs = reqs.data.map(r => ({
+            ...r,
+            requester: r.requested_by ? 'Miembro Asignado' : 'Sistema', // Simplify for now
+            type: 'Solicitud Sistema',
+            date: new Date(r.created_at).toISOString().split('T')[0],
+            slaStatus: r.sla_status,
+            currentStep: r.current_step
+          }));
+          setRequests(mappedReqs as any);
+        }
+
+        if (slas.data) setSlaRules(slas.data as any);
+        if (doms.data) setDomains(doms.data);
+        if (team.data) setTeamMembers(team.data as any);
+        
+      } catch (e: any) {
+        console.error('Error fetching workflows:', e);
+        if (e.code === '42P01') {
+          alert('Faltan tablas para Workflows. Por favor ejecuta el script de extensión SQL.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAllData();
   }, [currentTenant?.id]);
 
   const filteredRequests = requests.filter(req => {

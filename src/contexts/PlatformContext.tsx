@@ -267,7 +267,25 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentTenant?.id) return;
     const tid = currentTenant.id;
-    const getVar = (key: string) => localStorage.getItem(`${key}_${tid}`) || localStorage.getItem(key);
+    
+    // Load from DB first, then fallback to local
+    const loadSettings = async () => {
+      let dbConfigs: Record<string, string> = {};
+      try {
+        const { data } = await supabase.from('tenant_config').select('config_key, config_value').eq('tenant_id', tid);
+        if (data) {
+          data.forEach(item => {
+            dbConfigs[item.config_key] = typeof item.config_value === 'string' ? item.config_value : JSON.stringify(item.config_value);
+          });
+        }
+      } catch (e) {
+        console.warn('Could not load tenant config from DB:', e);
+      }
+
+      const getVar = (key: string) => {
+        if (dbConfigs[key] !== undefined) return dbConfigs[key];
+        return localStorage.getItem(`${key}_${tid}`) || localStorage.getItem(key);
+      };
 
     const savedCardBg = getVar('govdata_card_bg');
     if (savedCardBg) setCardBgState(savedCardBg);
@@ -318,6 +336,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } else {
       setDashboardContentState(DEFAULT_DASHBOARD_CONTENT);
     }
+    };
+    
+    loadSettings();
   }, [currentTenant?.id]);
 
   useEffect(() => {
@@ -455,6 +476,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       const updatedTenant = { ...currentTenant, brandColors: newColors };
       setCurrentTenantState(updatedTenant);
       
+      // Save to DB
+      supabase.from('tenant_config').upsert({
+        tenant_id: currentTenant.id,
+        config_key: 'brandColors',
+        config_value: newColors,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id, config_key' }).then(({ error }) => {
+        if (error) console.error('Error saving brandColors to DB:', error);
+      });
+
       // Update tenant in the list
       const updatedTenants = tenants.map(t => 
         t.id === currentTenant.id ? updatedTenant : t
@@ -638,6 +669,19 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(key, value); // Fallback guardado a nivel global
     if (currentTenant?.id) {
       localStorage.setItem(`${key}_${currentTenant.id}`, value);
+      
+      // Save directly to DB config table
+      let parsedValue = value;
+      try { parsedValue = JSON.parse(value); } catch(e) {}
+      
+      supabase.from('tenant_config').upsert({
+        tenant_id: currentTenant.id,
+        config_key: key,
+        config_value: parsedValue,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id, config_key' }).then(({ error }) => {
+        if (error) console.error(`Error saving ${key} to DB:`, error);
+      });
     }
   };
 

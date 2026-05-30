@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTenantStorage } from '@/hooks/useTenantStorage';
+
 import { 
   Users, 
   UserPlus, 
@@ -195,7 +197,9 @@ export default function Team() {
     fetchUsers();
   }, [currentTenant?.id]);
 
-  const [newMember, setNewMember] = useState({
+  const { getItem, setItem } = useTenantStorage();
+
+const [newMember, setNewMember] = useState({
     name: '',
     roleType: 'Data Steward' as any,
     area: '',
@@ -206,93 +210,118 @@ export default function Team() {
   });
 
   useEffect(() => {
-    if (!currentTenant) return;
-    const key = `govdata_team_members_${currentTenant.id}`;
-    const saved = localStorage.getItem(key);
-    
-    // Si estamos en modo demo (id = 'demo' o 1, 2, 3) y no hay datos, inicializar con mock
+    if (!currentTenant?.id) return;
     const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
     
-    if (saved) {
-      try {
-        setMembers(JSON.parse(saved));
-      } catch (e) {
-        setMembers(isDemoMode ? governanceMembers : []);
-      }
-    } else {
-      setMembers(isDemoMode ? governanceMembers : []);
+    if (isDemoMode) {
+      setMembers(governanceMembers);
+      setDomains(governanceDomains);
+      return;
     }
 
-    const domainsKey = `govdata_team_domains_${currentTenant.id}`;
-    const savedDomains = localStorage.getItem(domainsKey);
-    if (savedDomains) {
+    const fetchData = async () => {
       try {
-        setDomains(JSON.parse(savedDomains));
-      } catch (e) {
-        setDomains(isDemoMode ? governanceDomains : []);
+        const [membersRes, domainsRes] = await Promise.all([
+          supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
+        ]);
+
+        if (membersRes.data) {
+          const mappedMembers = membersRes.data.map(m => ({
+            ...m,
+            domain: 'General',
+            country: 'Colombia',
+            stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
+            assignments: { assets: [], policies: [], workflows: 0 }
+          }));
+          setMembers(mappedMembers);
+        }
+
+        if (domainsRes.data) {
+          const mappedDomains = domainsRes.data.map(d => ({
+            ...d,
+            steward: 'Por definir',
+            custodian: 'Por definir',
+            coverage: 50,
+            status: 'Parcial'
+          }));
+          setDomains(mappedDomains);
+        }
+      } catch (e: any) {
+        console.error('Error fetching team data:', e);
+        if (e?.code === '42P01') alert("Faltan las tablas team_members o team_domains en Supabase.");
       }
-    } else {
-      setDomains(isDemoMode ? governanceDomains : []);
-    }
+    };
+
+    fetchData();
   }, [currentTenant?.id]);
 
-  const handleAddMember = () => {
-    const id = members.length + 1;
-    const memberToAdd: GovernanceMember = {
-      ...newMember,
-      id,
-      role: newMember.roleType,
-      status: 'Activo',
-      avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(' ', '')}`,
-      stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
-      assignments: { assets: [], policies: [], workflows: 0 }
-    };
-    const updated = [...members, memberToAdd];
-    setMembers(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_team_members_${currentTenant.id}`, JSON.stringify(updated));
+  const handleAddMember = async () => {
+    if (!currentTenant?.id) return;
+    try {
+      const { data, error } = await supabase.from('team_members').insert([{
+        tenant_id: currentTenant.id,
+        name: newMember.name,
+        email: newMember.email || `${newMember.name.replace(' ', '').toLowerCase()}@empresa.com`,
+        role: newMember.roleType,
+        area: newMember.area || 'General',
+        avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(' ', '')}`
+      }]).select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const m = data[0];
+        const memberToAdd: GovernanceMember = {
+          ...m,
+          domain: newMember.domain,
+          country: newMember.country,
+          stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
+          assignments: { assets: [], policies: [], workflows: 0 }
+        };
+        setMembers([...members, memberToAdd]);
+      }
+      setIsAssignModalOpen(false);
+      setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
+    } catch (e) {
+      console.error(e);
+      alert('Error guardando el miembro. Verifica tu base de datos.');
     }
-    setIsAssignModalOpen(false);
-    setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
   };
 
-  const handleAddDomain = () => {
-    if (!newDomain.name || !newDomain.description) {
+  const handleAddDomain = async () => {
+    if (!newDomain.name || !newDomain.description || !currentTenant?.id) {
       alert("Por favor completa el nombre y descripción del dominio.");
       return;
     }
-    const id = `DOM-${(domains.length + 1).toString().padStart(2, '0')}`;
-    const domainToAdd: GovernanceDomain = {
-      id,
-      name: newDomain.name!,
-      description: newDomain.description!,
-      owner: newDomain.owner || 'Por definir',
-      steward: newDomain.steward || 'Por definir',
-      custodian: newDomain.custodian || 'Por definir',
-      coverage: 0,
-      status: 'Huérfano'
-    };
     
-    let assignedRoles = 0;
-    if (domainToAdd.owner !== 'Por definir') assignedRoles++;
-    if (domainToAdd.steward !== 'Por definir') assignedRoles++;
-    if (domainToAdd.custodian !== 'Por definir') assignedRoles++;
-    
-    if (assignedRoles === 3) {
-      domainToAdd.coverage = 100;
-      domainToAdd.status = 'Cubierto';
-    } else if (assignedRoles > 0) {
-      domainToAdd.coverage = Math.round((assignedRoles / 3) * 100);
-      domainToAdd.status = 'Parcial';
-    }
+    try {
+      const { data, error } = await supabase.from('team_domains').insert([{
+        tenant_id: currentTenant.id,
+        name: newDomain.name,
+        description: newDomain.description
+      }]).select();
 
-    const updated = [...domains, domainToAdd];
-    setDomains(updated);
-    if (currentTenant) {
-      localStorage.setItem(`govdata_team_domains_${currentTenant.id}`, JSON.stringify(updated));
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const d = data[0];
+        const domainToAdd: GovernanceDomain = {
+          ...d,
+          owner: newDomain.owner || 'Por definir',
+          steward: newDomain.steward || 'Por definir',
+          custodian: newDomain.custodian || 'Por definir',
+          coverage: 50,
+          status: 'Parcial'
+        };
+        setDomains([...domains, domainToAdd]);
+      }
+      setIsDomainModalOpen(false);
+      setNewDomain({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
+    } catch (e) {
+      console.error(e);
+      alert('Error guardando el dominio en base de datos.');
     }
-    setIsDomainModalOpen(false);
-    setNewDomain({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
   };
 
   const filteredMembers = members.filter(m => 
@@ -774,6 +803,7 @@ export default function Team() {
                              <option>Data Custodian</option>
                              <option>Auditor</option>
                              <option>CISO</option>
+                             <option>CDO</option>
                           </select>
                        </div>
                        <div>

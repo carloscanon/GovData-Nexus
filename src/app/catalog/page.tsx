@@ -97,55 +97,33 @@ export default function Catalog() {
     fetchAssets();
   }, [mode, currentTenant?.id]);
 
-  // Persistir cambios en localStorage para que no se pierdan al cambiar de menú/tab
-  useEffect(() => {
-    if (!loading && currentTenant?.id) {
-      const localKey = `govdata_assets_${currentTenant.id}`;
-      localStorage.setItem(localKey, JSON.stringify(assets));
-    }
-  }, [assets, loading, currentTenant?.id]);
-
   async function fetchAssets() {
     setLoading(true);
-    const localKey = `govdata_assets_${currentTenant?.id || 'demo'}`;
 
-    // ── MODO DEMO: localStorage por empresa ──
-    if (mode === 'DEMO') {
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const filtered = currentTenant?.id
-          ? parsed.filter((a: DataAsset) => !a.tenant_id || a.tenant_id === currentTenant.id)
-          : parsed;
-        setAssets(filtered);
-      } else {
-        const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-        setAssets(filteredDemo);
-      }
+    // ── MODO DEMO: En memoria ──
+    if (mode === 'DEMO' || !currentTenant?.id) {
+      const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
+      setAssets(filteredDemo);
       setLoading(false);
       return;
     }
 
-    // ── MODO ENTERPRISE: Supabase con aislamiento por tenant_id ──
+    // ── MODO ENTERPRISE: Supabase directo con aislamiento por tenant_id ──
     try {
       const { data, error } = await supabase
         .from('data_assets')
         .select('*')
-        .or(`tenant_id.eq.${currentTenant?.id || ''},tenant_id.is.null`)
+        .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      localStorage.setItem(localKey, JSON.stringify(data || []));
       setAssets(data || []);
-    } catch (error) {
-      console.warn('Error al cargar activos desde Supabase:', error);
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        setAssets(JSON.parse(saved));
-      } else {
-        setAssets([]);
+    } catch (error: any) {
+      console.error('Error al cargar activos desde Supabase:', error);
+      if (error.code === '42P01') {
+        alert("Las tablas de catálogo no existen en la base de datos Supabase. Ejecuta el script SQL de creación (supabase_full_schema.sql).");
       }
+      setAssets([]);
     } finally {
       setLoading(false);
     }

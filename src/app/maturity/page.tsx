@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Award,
 } from 'lucide-react';
+import { useTenantStorage } from '@/hooks/useTenantStorage';
 import { 
   Radar, 
   RadarChart, 
@@ -48,6 +49,7 @@ function getCurrentMonthLabel() {
 
 export default function Maturity() {
   const { currentTenant } = usePlatform();
+  const { getItem, setItem } = useTenantStorage();
   const [selectedDim, setSelectedDim] = React.useState<any>(null);
   const [isAssessmentModalOpen, setIsAssessmentModalOpen] = React.useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
@@ -88,49 +90,73 @@ export default function Maturity() {
   const [primaryColor, setPrimaryColor] = React.useState('#3b82f6');
 
   React.useEffect(() => {
-    const saved = localStorage.getItem('govdata_brand_primary');
-    if (saved) setPrimaryColor(saved);
-    const handler = () => {
-      const c = localStorage.getItem('govdata_brand_primary');
-      if (c) setPrimaryColor(c);
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    (async () => {
+      const saved = await getItem('brand_primary');
+      if (saved) setPrimaryColor(saved);
+    })();
+    // Note: tenant storage updates are not broadcast via the storage event.
   }, []);
 
-  // Load tenant-specific answers and history from localStorage when tenant changes
+  // Load tenant-specific answers and history from DB when tenant changes
   React.useEffect(() => {
     if (!currentTenant?.id) return;
+    const isDemoMode = currentTenant.id === 'demo' || currentTenant.id === '1' || currentTenant.id === '2' || currentTenant.id === '3';
     
-    // 1. Answers
-    try {
-      const savedAnswers = localStorage.getItem(`govdata_maturity_answers_${currentTenant.id}`);
-      if (savedAnswers) {
-        setAnswers(JSON.parse(savedAnswers));
-      } else {
-        setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
-      }
-    } catch {
+    if (isDemoMode) {
       setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+      setEvolutionData([
+        { name: 'Feb', score: 48, benchmark: 55 },
+        { name: 'Mar', score: 52, benchmark: 58 },
+        { name: 'Abr', score: 58, benchmark: 60 },
+        { name: 'May', score: 64, benchmark: 62 },
+      ]);
+      return;
     }
 
-    // 2. Evolution
-    try {
-      const savedEvolution = localStorage.getItem(`govdata_maturity_evolution_${currentTenant.id}`);
-      if (savedEvolution) {
-        setEvolutionData(JSON.parse(savedEvolution));
-      } else {
-        const defaultHistory = [
-          { name: 'Feb', score: 48, benchmark: 55 },
-          { name: 'Mar', score: 52, benchmark: 58 },
-          { name: 'Abr', score: 58, benchmark: 60 },
-          { name: 'May', score: 64, benchmark: 62 },
-        ];
-        setEvolutionData(defaultHistory);
+    const loadData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('maturity_assessments')
+          .select('*')
+          .eq('tenant_id', currentTenant.id)
+          .eq('dimension', 'GLOBAL')
+          .order('assessment_date', { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Latest answers
+          const latest = data[data.length - 1];
+          if (latest.answers) {
+            setAnswers(latest.answers);
+          } else {
+            setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+          }
+
+          // Map history (last 12)
+          const history = data.slice(-12).map(row => {
+            const dateObj = new Date(row.assessment_date);
+            const monthName = dateObj.toLocaleString('es-ES', { month: 'short' });
+            return {
+              name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+              score: Number(row.score),
+              benchmark: 62 // Static benchmark for UI
+            };
+          });
+          setEvolutionData(history);
+        } else {
+          setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+          setEvolutionData([]);
+        }
+      } catch (e: any) {
+        console.error('Error fetching maturity data:', e);
+        if (e.code === '42P01') {
+          alert('Falta la tabla maturity_assessments. Por favor ejecuta los scripts SQL.');
+        }
       }
-    } catch {
-      setEvolutionData([]);
-    }
+    };
+
+    loadData();
   }, [currentTenant?.id]);
 
   // ------- Live DB calculation -------
@@ -218,7 +244,7 @@ export default function Maturity() {
       ));
 
       setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
-      localStorage.setItem(`govdata_maturity_scores_${currentTenant.id}`, JSON.stringify({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance }));
+      await setItem('maturity_scores', { estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
     } catch (e) {
       console.error('Error fetching maturity metrics:', e);
     } finally {
@@ -310,28 +336,38 @@ export default function Maturity() {
   ];
 
   // ------- Assessment submit -------
-  const handleAssessmentSubmit = () => {
+  const handleAssessmentSubmit = async () => {
     if (!currentTenant?.id) return;
-    
-    // Save answers per tenant first
-    localStorage.setItem(`govdata_maturity_answers_${currentTenant.id}`, JSON.stringify(answers));
 
     // Snapshot previous global score before recalculate
     setPrevGlobalScore(globalScore);
     fetchLiveMaturity();
 
-    // Append to evolution history
-    const month = getCurrentMonthLabel();
-    const newPoint = { name: month, score: globalScore, benchmark: 62 };
-    const updatedHistory = [...evolutionData];
-    // Replace if same month exists
-    const existingIdx = updatedHistory.findIndex(e => e.name === month);
-    if (existingIdx >= 0) updatedHistory[existingIdx] = newPoint;
-    else updatedHistory.push(newPoint);
-    // Keep last 12 months
-    const trimmed = updatedHistory.slice(-12);
-    setEvolutionData(trimmed);
-    localStorage.setItem(`govdata_maturity_evolution_${currentTenant.id}`, JSON.stringify(trimmed));
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { error } = await supabase.from('maturity_assessments').insert([{
+        tenant_id: currentTenant.id,
+        dimension: 'GLOBAL',
+        score: globalScore,
+        answers: answers,
+        assessment_date: today
+      }]);
+      if (error) throw error;
+      
+      // Update local evolution graph immediately
+      const month = getCurrentMonthLabel();
+      const newPoint = { name: month, score: globalScore, benchmark: 62 };
+      const updatedHistory = [...evolutionData];
+      const existingIdx = updatedHistory.findIndex(e => e.name === month);
+      if (existingIdx >= 0) updatedHistory[existingIdx] = newPoint;
+      else updatedHistory.push(newPoint);
+      const trimmed = updatedHistory.slice(-12);
+      setEvolutionData(trimmed);
+      
+    } catch (e: any) {
+      console.error('Error saving maturity assessment:', e);
+      alert('Error guardando evaluación en base de datos.');
+    }
 
     setIsAssessmentModalOpen(false);
   };
