@@ -24,13 +24,15 @@ import {
   Crown,
   Sparkles,
   LayoutGrid,
-  Brain
+  Brain,
+  Rocket
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './Sidebar.module.css';
 
 const menuItems = [
+  { icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
   { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
