@@ -32,6 +32,7 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
   { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
