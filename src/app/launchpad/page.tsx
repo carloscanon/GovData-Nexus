@@ -201,10 +201,10 @@ export default function Launchpad() {
       setProcessLog('Creando roles fundamentales (Owner, Steward, Custodio)...');
       await new Promise(r => setTimeout(r, 1200));
       const { error: err2 } = await supabase.from('team_members').insert([
-        { tenant_id: currentTenant.id, name: 'Director de Datos', role: 'CDO', allocation: 100 },
-        { tenant_id: currentTenant.id, name: 'Líder Negocio', role: 'Data Owner', allocation: 50 },
-        { tenant_id: currentTenant.id, name: 'Experto Operativo', role: 'Data Steward', allocation: 50 },
-        { tenant_id: currentTenant.id, name: 'Arquitecto TI', role: 'Data Custodian', allocation: 100 }
+        { tenant_id: currentTenant.id, name: 'Director de Datos', role: 'CDO', allocation: 100, email: 'cdo@govdata.local' },
+        { tenant_id: currentTenant.id, name: 'Líder Negocio', role: 'Data Owner', allocation: 50, email: 'owner@govdata.local' },
+        { tenant_id: currentTenant.id, name: 'Experto Operativo', role: 'Data Steward', allocation: 50, email: 'steward@govdata.local' },
+        { tenant_id: currentTenant.id, name: 'Arquitecto TI', role: 'Data Custodian', allocation: 100, email: 'custodian@govdata.local' }
       ]);
       if (err2) throw err2;
 
