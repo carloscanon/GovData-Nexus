@@ -28,6 +28,7 @@ export default function CommandCenter() {
   const [secStats, setSecStats] = useState({ critical: 0, high: 0, policiesExpired: 0 });
   const [domainMatrix, setDomainMatrix] = useState<any[]>([]);
   const [radarData, setRadarData] = useState<any[]>([]);
+  const [dynamicRoadmap, setDynamicRoadmap] = useState<any[]>([]);
 
   useEffect(() => {
     if (!currentTenant?.id) return;
@@ -110,15 +111,43 @@ export default function CommandCenter() {
           { name: 'Riesgos', madurez: 78, calidad: 81, riesgo: 'Bajo' }
         ]);
 
-        // 7. Radar (Mock basado en madurez)
+        // 7. Dynamic Radar & Roadmap based on real Assessment Answers
+        const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
+        
+        const calcPillar = (prefix: string, maxQuestions: number) => {
+          let sum = 0;
+          for (let i = 1; i <= maxQuestions; i++) {
+            sum += answers[`${prefix}_${i}`] || 0;
+          }
+          return sum > 0 ? Math.round((sum / (maxQuestions * 5)) * 100) : 0;
+        };
+
+        const estScore = calcPillar('est', 8) || (matScore + 5);
+        const orgScore = calcPillar('org', 8) || (matScore - 5);
+        const calScore = calcPillar('cal', 9) || classScore;
+        const arqScore = calcPillar('arq', 8) || 30;
+        const segScore = calcPillar('seg', 8) || (100 - (iCrit * 10));
+        const cumScore = calcPillar('cum', 9) || 40;
+
         setRadarData([
-          { subject: 'Estrategia', A: matScore + 5, fullMark: 100 },
-          { subject: 'Organización', A: matScore - 5, fullMark: 100 },
-          { subject: 'Calidad', A: classScore, fullMark: 100 },
-          { subject: 'Seguridad', A: 100 - (iCrit * 10), fullMark: 100 },
-          { subject: 'Metadatos', A: totalA > 0 ? 80 : 20, fullMark: 100 },
-          { subject: 'Cultura', A: members && members.length > 5 ? 90 : 40, fullMark: 100 }
+          { subject: 'Estrategia', A: estScore, fullMark: 100 },
+          { subject: 'Organización', A: orgScore, fullMark: 100 },
+          { subject: 'Calidad', A: calScore, fullMark: 100 },
+          { subject: 'Arquitectura', A: arqScore, fullMark: 100 },
+          { subject: 'Seguridad', A: segScore, fullMark: 100 },
+          { subject: 'Cumplimiento', A: cumScore, fullMark: 100 }
         ]);
+
+        const pillars = [
+          { name: 'Estrategia', score: estScore, title: 'Definir Comité y OKRs', desc: 'Formalizar patrocinio ejecutivo y presupuesto.' },
+          { name: 'Organización', score: orgScore, title: 'Asignar Roles (Data Owners)', desc: 'Capacitar a los responsables del negocio y TI.' },
+          { name: 'Calidad de Datos', score: calScore, title: 'Monitoreo de Calidad', desc: 'Automatizar validaciones sobre los datos más críticos.' },
+          { name: 'Arquitectura', score: arqScore, title: 'Desplegar Catálogo de Datos', desc: 'Documentar glosario y mapear linaje técnico.' },
+          { name: 'Seguridad', score: segScore, title: 'Proteger Datos Sensibles (PII)', desc: 'Clasificar la información y limitar accesos.' },
+          { name: 'Cumplimiento', score: cumScore, title: 'Publicar Políticas Normativas', desc: 'Comunicar reglas y gestionar consentimientos.' }
+        ].sort((a, b) => a.score - b.score);
+
+        setDynamicRoadmap(pillars.slice(0, 3));
 
       } catch (e) {
         console.error('Error loading command center:', e);
@@ -345,36 +374,22 @@ export default function CommandCenter() {
               Roadmap Ejecutivo (90 Días)
             </h2>
             <div className={styles.roadmapList}>
-              <div className={styles.roadmapItem}>
-                <div className={styles.roadNum}>1</div>
-                <div className={styles.roadContent}>
-                  <div>
-                    <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>Resolver Incidentes Críticos</span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Seguridad de la información</span>
+              {dynamicRoadmap.length > 0 ? dynamicRoadmap.map((item, idx) => (
+                <div key={idx} className={styles.roadmapItem}>
+                  <div className={styles.roadNum}>{idx + 1}</div>
+                  <div className={styles.roadContent}>
+                    <div>
+                      <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>{item.title}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{item.name} - {item.desc}</span>
+                    </div>
+                    <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.9rem' }}>Score: {item.score}%</span>
                   </div>
-                  <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>+5% Riesgo ↓</span>
                 </div>
-              </div>
-              <div className={styles.roadmapItem}>
-                <div className={styles.roadNum}>2</div>
-                <div className={styles.roadContent}>
-                  <div>
-                    <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>Aprobar Políticas Vencidas</span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Cumplimiento Normativo</span>
-                  </div>
-                  <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>+3% Madurez ↑</span>
+              )) : (
+                <div style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>
+                  Esperando datos de evaluación base...
                 </div>
-              </div>
-              <div className={styles.roadmapItem}>
-                <div className={styles.roadNum}>3</div>
-                <div className={styles.roadContent}>
-                  <div>
-                    <span style={{ display: 'block', fontWeight: 800, color: '#1e293b' }}>Asignar Stewards a Activos</span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Catálogo de Datos</span>
-                  </div>
-                  <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>+6% Operativo ↑</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
