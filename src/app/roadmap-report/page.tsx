@@ -23,7 +23,7 @@ export default function RoadmapReport() {
           { data: workflows }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('score').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
-          supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).eq('category', 'Roadmap Iniciativa')
+          supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).like('title', '[Roadmap %')
         ]);
 
         if (maturity && maturity.length > 0) {

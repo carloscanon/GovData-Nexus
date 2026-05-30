@@ -198,10 +198,8 @@ export default function Launchpad() {
           priority: priority,
           status: 'Pendiente',
           current_step: `Fase ${phase}`,
-          assigned_to: getRoleForPillar(q.pillar),
           sla: slaString,
-          sla_status: 'Ok',
-          requester: 'Evaluación GovData'
+          sla_status: 'Ok'
         });
       });
 
