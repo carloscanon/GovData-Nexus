@@ -125,9 +125,9 @@ export default function Launchpad() {
       setProcessLog('Generando políticas normativas predeterminadas...');
       await new Promise(r => setTimeout(r, 1200));
       const { error: err4 } = await supabase.from('data_policies').insert([
-        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador', owner: 'CDO' },
-        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador', owner: 'Data Steward' },
-        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
+        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador' },
+        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador' },
+        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión' }
       ]);
       if (err4) throw err4;
 
