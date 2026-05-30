@@ -71,8 +71,10 @@ export default function Launchpad() {
     try {
       // 1. Calculate Score
       const totalScore = Object.values(answers).reduce((a, b) => a + b, 0);
-      const maxScore = QUESTIONS.length * 5;
-      const calcScore = Math.round((totalScore / maxScore) * 100);
+      const answeredCount = Object.keys(answers).length;
+      const normalizedTotal = totalScore - answeredCount;
+      const maxScore = answeredCount * 4;
+      const calcScore = answeredCount > 0 ? Math.round((normalizedTotal / maxScore) * 100) : 0;
       setFinalScore(calcScore);
 
       setProcessLog('Evaluando madurez base...');

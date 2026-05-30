@@ -90,11 +90,19 @@ export default function CommandCenter() {
         const calcPillar = (prefix: string, maxQuestions: number) => {
           let sum = 0;
           let hasAnswers = false;
+          let answeredCount = 0;
           for (let i = 1; i <= maxQuestions; i++) {
-            if (answers[`${prefix}_${i}`] !== undefined) hasAnswers = true;
-            sum += answers[`${prefix}_${i}`] || 0;
+            if (answers[`${prefix}_${i}`] !== undefined) {
+              hasAnswers = true;
+              sum += answers[`${prefix}_${i}`];
+              answeredCount++;
+            }
           }
-          return hasAnswers ? Math.round((sum / (maxQuestions * 5)) * 100) : 0;
+          if (!hasAnswers) return 0;
+          // Normalize score: 1->0, 3->0.5, 5->1. Since minimum is 1, we subtract the base.
+          const normalizedSum = sum - answeredCount; 
+          const maxPossible = answeredCount * 4;
+          return Math.round((normalizedSum / maxPossible) * 100);
         };
 
         const estScore = calcPillar('est', 8);
