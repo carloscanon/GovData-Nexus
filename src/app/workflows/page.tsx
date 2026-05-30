@@ -282,8 +282,8 @@ export default function Workflows() {
 
   useEffect(() => {
     if (!currentTenant?.id) return;
-      }
 
+    const fetchAllData = async () => {
       try {
         const [reqs, slas, doms, team] = await Promise.all([
           supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
