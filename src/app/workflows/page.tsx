@@ -109,29 +109,33 @@ export default function Workflows() {
       const { data, error } = await supabase.from('workflow_requests').insert([{
         tenant_id: currentTenant.id,
         title: newReq.title,
-        description: newReq.description,
-        category: newReq.category,
-        priority: newReq.priority,
-        status: 'Pendiente',
-        sla: `${assignedHours}h`,
-        sla_status: 'Ok',
-        current_step: 'Validación Inicial',
-        timeline: timeline
+        description: `${newReq.description} | CATEGORY: ${newReq.category} | PRIORITY: ${newReq.priority} | SLA: ${assignedHours}h | SLA_STATUS: Ok | CURRENT_STEP: Pendiente`,
+        status: 'Pendiente'
       }]).select();
 
       if (error) throw error;
       
       if (data && data.length > 0) {
-        // Map snake_case to camelCase for UI
+        const desc = data[0].description || '';
+        const catMatch = desc.match(/CATEGORY: ([^|]+)/);
+        const prioMatch = desc.match(/PRIORITY: ([^|]+)/);
+        const slaMatch = desc.match(/SLA: ([^|]+)/);
+        const slaStatusMatch = desc.match(/SLA_STATUS: ([^|]+)/);
+        const currentStepMatch = desc.match(/CURRENT_STEP: ([^|]+)/);
+
         const mappedReq = {
           ...data[0],
-          requester: 'Usuario Actual',
-          type: 'Solicitud Manual',
+          description: desc.split('| CATEGORY:')[0].trim(),
+          category: catMatch ? catMatch[1].trim() : 'General',
+          priority: prioMatch ? prioMatch[1].trim() : 'Media',
+          sla: slaMatch ? slaMatch[1].trim() : '-',
+          requester: data[0].requested_by ? 'Miembro Asignado' : 'Sistema',
+          type: 'Solicitud Sistema',
           date: new Date().toISOString().split('T')[0],
-          slaStatus: data[0].sla_status,
-          currentStep: data[0].current_step
+          slaStatus: slaStatusMatch ? slaStatusMatch[1].trim() : 'Ok',
+          currentStep: currentStepMatch ? currentStepMatch[1].trim() : 'Pendiente'
         };
-        setRequests([mappedReq, ...requests]);
+        setRequests([mappedReq as any, ...requests]);
       }
     } catch (e) {
       console.error('Error adding request:', e);
@@ -148,9 +152,7 @@ export default function Workflows() {
     try {
       const { error } = await supabase.from('workflow_requests').update({
         status: selectedReq.status,
-        sla_status: selectedReq.slaStatus,
-        current_step: selectedReq.currentStep,
-        timeline: selectedReq.timeline
+        description: `${selectedReq.description} | CATEGORY: ${selectedReq.category} | PRIORITY: ${selectedReq.priority} | SLA: ${selectedReq.sla} | SLA_STATUS: ${selectedReq.slaStatus} | CURRENT_STEP: ${selectedReq.currentStep}`
       }).eq('id', selectedReq.id);
 
       if (error) throw error;
@@ -209,16 +211,28 @@ export default function Workflows() {
           supabase.from('team_domains').select('id, name').eq('tenant_id', currentTenant.id),
           supabase.from('team_members').select('id, name').eq('tenant_id', currentTenant.id)
         ]);
-
         if (reqs.data) {
-          const mappedReqs = reqs.data.map(r => ({
-            ...r,
-            requester: r.requested_by ? 'Miembro Asignado' : 'Sistema', // Simplify for now
-            type: 'Solicitud Sistema',
-            date: new Date(r.created_at).toISOString().split('T')[0],
-            slaStatus: r.sla_status,
-            currentStep: r.current_step
-          }));
+          const mappedReqs = reqs.data.map(r => {
+            const desc = r.description || '';
+            const catMatch = desc.match(/CATEGORY: ([^|]+)/);
+            const prioMatch = desc.match(/PRIORITY: ([^|]+)/);
+            const slaMatch = desc.match(/SLA: ([^|]+)/);
+            const slaStatusMatch = desc.match(/SLA_STATUS: ([^|]+)/);
+            const currentStepMatch = desc.match(/CURRENT_STEP: ([^|]+)/);
+
+            return {
+              ...r,
+              description: desc.split('| CATEGORY:')[0].trim(),
+              category: catMatch ? catMatch[1].trim() : 'General',
+              priority: prioMatch ? prioMatch[1].trim() : 'Media',
+              sla: slaMatch ? slaMatch[1].trim() : '-',
+              requester: r.requested_by ? 'Miembro Asignado' : 'Sistema',
+              type: 'Solicitud Sistema',
+              date: new Date(r.created_at).toISOString().split('T')[0],
+              slaStatus: slaStatusMatch ? slaStatusMatch[1].trim() : 'Ok',
+              currentStep: currentStepMatch ? currentStepMatch[1].trim() : 'Pendiente'
+            };
+          });
           setRequests(mappedReqs as any);
         }
 

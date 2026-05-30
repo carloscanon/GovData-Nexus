@@ -197,13 +197,8 @@ export default function Launchpad() {
         roadmapTickets.push({
           tenant_id: currentTenant.id,
           title: `[Roadmap M${phase}] ${title}`,
-          description: `Acción derivada del diagnóstico inicial. Puntaje actual: ${val}/5 en la pregunta: "${q.title}". Pilar: ${q.pillar}.`,
-          category: getCategoryForPillar(q.pillar),
-          priority: priority,
-          status: 'Pendiente',
-          current_step: `Fase ${phase}`,
-          sla: slaString,
-          sla_status: 'Ok'
+          description: `Acción derivada del diagnóstico inicial. Puntaje actual: ${val}/5 en la pregunta: "${q.title}". Pilar: ${q.pillar}. | CATEGORY: ${getCategoryForPillar(q.pillar)} | PRIORITY: ${priority} | SLA: ${slaString}`,
+          status: 'Pendiente'
         });
       });
 
@@ -255,9 +250,9 @@ export default function Launchpad() {
       await new Promise(r => setTimeout(r, 800));
       setStep(5); // Show results
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error in bootstrap:', e);
-      alert('Error en la parametrización automática.');
+      alert('Error en la parametrización automática: ' + (e.message || JSON.stringify(e)));
       setStep(3);
     } finally {
       setIsProcessing(false);
