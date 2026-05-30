@@ -222,6 +222,7 @@ const [newMember, setNewMember] = useState({
         if (membersRes.data && membersRes.data.length > 0) {
           const mappedMembers = membersRes.data.map(m => ({
             ...m,
+            roleType: m.role || 'Data Steward',
             country: 'Colombia',
             stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
             assignments: { assets: [], policies: [], workflows: 0 }
@@ -232,6 +233,7 @@ const [newMember, setNewMember] = useState({
         if (domainsRes.data) {
           const mappedDomains = domainsRes.data.map(d => ({
             ...d,
+            owner: d.owner || 'Por definir',
             steward: 'Por definir',
             custodian: 'Por definir',
             coverage: 50,
