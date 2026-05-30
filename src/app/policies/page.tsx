@@ -152,7 +152,14 @@ export default function PoliciesModule() {
         if (error) throw error;
         
         if (data && data.length > 0) {
-          setPolicies(data);
+          const mappedPolicies = data.map(p => ({
+            ...p,
+            owner: p.owner || 'Usuario Asignado',
+            type: p.type || 'Gobierno de Datos',
+            version: p.version || '1.0',
+            expiry: p.expiry || '2026'
+          }));
+          setPolicies(mappedPolicies);
         } else {
           // If completely empty, show initial mock data so it doesn't look broken
           setPolicies(policiesData);
@@ -1282,7 +1289,7 @@ export default function PoliciesModule() {
 
               <div className={styles.footer}>
                 <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div className={styles.avatarMini}>{selectedPolicy.owner.split(' ')[0][0]}{selectedPolicy.owner.split(' ')[1][0]}</div>
+                   <div className={styles.avatarMini}>{selectedPolicy.owner?.split(' ')[0]?.[0] || 'U'}</div>
                    <div style={{ fontSize: '0.8rem' }}>
                       <div style={{ color: '#64748b' }}>Propietario Principal</div>
                       <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
