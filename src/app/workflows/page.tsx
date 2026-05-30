@@ -561,8 +561,8 @@ export default function Workflows() {
                             </div>
                          </td>
                          <td>
-                            <span className={`${styles.statusBadge} ${styles[req.status.toLowerCase().replace(' ', '')]}`}>
-                               {req.status}
+                            <span className={`${styles.statusBadge} ${styles[(req.status || 'Pendiente').toLowerCase().replace(' ', '')]}`}>
+                               {req.status || 'Pendiente'}
                             </span>
                          </td>
                          <td>
@@ -602,7 +602,7 @@ export default function Workflows() {
                       <span className={styles.reqId}>{selectedReq.id}</span>
                       <h2>{selectedReq.title}</h2>
                       <div className={styles.modalBadges}>
-                         <span className={`${styles.statusBadge} ${styles[selectedReq.status.toLowerCase().replace(' ', '')]}`}>{selectedReq.status}</span>
+                         <span className={`${styles.statusBadge} ${styles[(selectedReq.status || 'Pendiente').toLowerCase().replace(' ', '')]}`}>{selectedReq.status || 'Pendiente'}</span>
                          <span style={{ color: getPriorityColor(selectedReq.priority), fontWeight: 700 }}>• Prioridad {selectedReq.priority}</span>
                       </div>
                    </div>
@@ -654,12 +654,11 @@ export default function Workflows() {
                            <div className={styles.infoItem}>
                               <label>Asignar Regla SLA</label>
                               <select 
-                                className={styles.modalInput}
-                                style={{ padding: '4px 8px', color: getSlaColor(selectedReq.slaStatus) }}
-                                value={selectedReq.sla.replace('h', '')}
-                                onChange={(e) => setSelectedReq({...selectedReq, sla: `${e.target.value}h`})}
+                                className={styles.formInput} 
+                                value={(selectedReq.sla || '').replace('h', '')}
+                                onChange={(e) => setSelectedReq({...selectedReq, sla: `${e.target.value}h`, slaStatus: 'Ok'})}
                               >
-                                 <option value={selectedReq.sla.replace('h', '')}>Actual ({selectedReq.sla})</option>
+                                 <option value={(selectedReq.sla || '').replace('h', '')}>Actual ({selectedReq.sla || 'N/A'})</option>
                                  {slaRules.map(rule => (
                                    <option key={rule.id} value={rule.hours}>{rule.name} ({rule.hours}h)</option>
                                  ))}
