@@ -147,6 +147,8 @@ const kpis = [
   { label: 'Incidentes', value: '7', icon: <Activity size={20} />, color: '#3b82f6', bg: '#eff6ff' },
 ];
 
+const auditEvents: any[] = [];
+
 export default function Workflows() {
   const { mode, currentTenant } = usePlatform();
   const [requests, setRequests] = useState<WorkflowReq[]>([]);

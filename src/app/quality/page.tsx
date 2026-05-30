@@ -669,12 +669,7 @@ export default function QualityModule() {
       }
     } catch (err) {
       console.warn('Error al cargar activos de Supabase para Calidad:', err);
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        setAssets(JSON.parse(saved));
-      } else {
-        setAssets([]);
-      }
+      setAssets([]);
     }
   };
 
