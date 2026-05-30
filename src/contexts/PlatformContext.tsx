@@ -366,7 +366,20 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           
           setTenants(parsed);
           const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
-          const active = parsed.find(t => t.id === savedCurrentTenantId) || parsed[0];
+          let active = parsed.find(t => t.id === savedCurrentTenantId);
+          if (!active && savedCurrentTenantId) {
+            active = {
+              id: savedCurrentTenantId,
+              name: localStorage.getItem('govdata_user_name') || 'Empresa ' + savedCurrentTenantId.substring(0,4),
+              domain: '',
+              plan: 'Enterprise',
+              modules: ['catalog', 'quality', 'workflows'],
+              monthlyCost: '0',
+              status: 'active'
+            };
+          } else if (!active) {
+            active = parsed[0];
+          }
           setCurrentTenantState(active);
         } else {
           // Fallback to initial if DB is empty
@@ -379,22 +392,39 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     };
 
     const loadLocalTenants = () => {
+      let activeTenants = defaultTenants;
       const savedTenants = localStorage.getItem('govdata_tenants');
       if (savedTenants) {
         try {
           const parsed = JSON.parse(savedTenants) as Tenant[];
-          const withDashboard = parsed.map(t => ({
+          activeTenants = parsed.map(t => ({
             ...t,
             dashboardType: (t.dashboardType || localStorage.getItem('govdata_dashboard_type_' + t.id) || 'executive') as 'executive' | 'technical' | 'collaborative'
           }));
-          setTenants(withDashboard);
-          const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
-          const active = withDashboard.find(t => t.id === savedCurrentTenantId) || withDashboard[0];
-          setCurrentTenantState(active);
         } catch (e) {
           console.error('Error parsing local tenants', e);
         }
       }
+      setTenants(activeTenants);
+      
+      const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
+      let active = activeTenants.find(t => t.id === savedCurrentTenantId);
+      
+      if (!active && savedCurrentTenantId) {
+        active = {
+          id: savedCurrentTenantId,
+          name: localStorage.getItem('govdata_user_name') || 'Empresa ' + savedCurrentTenantId.substring(0,4),
+          domain: '',
+          plan: 'Enterprise',
+          modules: ['catalog', 'quality', 'workflows'],
+          monthlyCost: '0',
+          status: 'active'
+        };
+      } else if (!active) {
+        active = activeTenants[0];
+      }
+      
+      setCurrentTenantState(active);
     };
 
     fetchTenants();
