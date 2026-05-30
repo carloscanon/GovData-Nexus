@@ -125,9 +125,9 @@ export default function Launchpad() {
       setProcessLog('Generando políticas normativas predeterminadas...');
       await new Promise(r => setTimeout(r, 1200));
       const { error: err4 } = await supabase.from('data_policies').insert([
-        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador' },
-        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador' },
-        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión' }
+        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador', owner: 'CDO' },
+        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador', owner: 'Data Steward' },
+        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
       ]);
       if (err4) throw err4;
 
@@ -197,8 +197,13 @@ export default function Launchpad() {
         roadmapTickets.push({
           tenant_id: currentTenant.id,
           title: `[Roadmap M${phase}] ${title}`,
-          description: `Acción derivada del diagnóstico inicial. Puntaje actual: ${val}/5 en la pregunta: "${q.title}". Pilar: ${q.pillar}. | CATEGORY: ${getCategoryForPillar(q.pillar)} | PRIORITY: ${priority} | SLA: ${slaString}`,
-          status: 'Pendiente'
+          description: `Acción derivada del diagnóstico inicial. Puntaje actual: ${val}/5 en la pregunta: "${q.title}". Pilar: ${q.pillar}.`,
+          category: getCategoryForPillar(q.pillar),
+          priority: priority,
+          status: 'Pendiente',
+          current_step: `Fase ${phase}`,
+          sla: slaString,
+          sla_status: 'Ok'
         });
       });
 
@@ -213,11 +218,15 @@ export default function Launchpad() {
         for (let i = 1; i <= baseAssetsCount; i++) {
           dataAssets.push({
             tenant_id: currentTenant.id,
-            name: `Activo Crítico Pre-identificado ${i} (${confBase})`,
+            code_id: `AST-INITIAL-${i}`,
+            name: `Activo Crítico Pre-identificado ${i}`,
+            type: 'Tabla SQL',
             source: 'Core System',
             data_owner: ownerBase,
-            records_count: `${qualityBase * 1000}`,
-            status: 'Sincronizado'
+            sensitivity: confBase,
+            quality_score: qualityBase - (i * 2), // varían un poco
+            status: 'Vigente',
+            risk_level: confBase === 'Confidencial' ? 'Medio' : 'Alto'
           });
         }
       }
@@ -246,9 +255,9 @@ export default function Launchpad() {
       await new Promise(r => setTimeout(r, 800));
       setStep(5); // Show results
 
-    } catch (e: any) {
+    } catch (e) {
       console.error('Error in bootstrap:', e);
-      alert('Error en la parametrización automática: ' + (e.message || JSON.stringify(e)));
+      alert('Error en la parametrización automática.');
       setStep(3);
     } finally {
       setIsProcessing(false);
