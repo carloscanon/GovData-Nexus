@@ -169,24 +169,14 @@ export default function Team() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
   const [isOrgChartModalOpen, setIsOrgChartModalOpen] = useState(false);
-  const [members, setMembers] = useState<GovernanceMember[]>(governanceMembers);
-  const [domains, setDomains] = useState<GovernanceDomain[]>(governanceDomains);
+  const [members, setMembers] = useState<GovernanceMember[]>([]);
+  const [domains, setDomains] = useState<GovernanceDomain[]>([]);
   const [newDomain, setNewDomain] = useState<Partial<GovernanceDomain>>({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
   useEffect(() => {
     if (!currentTenant?.id) return;
     const fetchUsers = async () => {
-      const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(currentTenant.id);
-      if (!isUUID) {
-        setTenantUsers([
-          { id: 'u1', name: 'Juan Lopez', email: 'juan@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Juan' },
-          { id: 'u2', name: 'Maria Garcia', email: 'maria@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Maria' },
-          { id: 'u3', name: 'Carlos Canon', email: 'carlos@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Carlos' },
-          { id: 'u4', name: 'Andres Sanchez', email: 'andres@demo.com', avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Andres' }
-        ]);
-        return;
-      }
       try {
         const { data } = await supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', currentTenant.id).order('name');
         if (data) setTenantUsers(data);
@@ -219,7 +209,7 @@ const [newMember, setNewMember] = useState({
           supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
         ]);
 
-        if (membersRes.data && membersRes.data.length > 0) {
+        if (membersRes.data) {
           const mappedMembers = membersRes.data.map(m => ({
             ...m,
             roleType: m.role || 'Data Steward',
