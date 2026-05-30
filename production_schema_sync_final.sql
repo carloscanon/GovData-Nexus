@@ -19,16 +19,15 @@ ADD COLUMN IF NOT EXISTS criticality VARCHAR(50),
 ADD COLUMN IF NOT EXISTS owner VARCHAR(255),
 ADD COLUMN IF NOT EXISTS tags JSONB;
 
--- Tabla: asset_fields (Columnas de catálogo)
--- (La estructura base tenant_id, asset_id, field_name, data_type, description es correcta)
-
 -- Tabla: quality_rules
 ALTER TABLE public.quality_rules 
+ADD COLUMN IF NOT EXISTS tenant_id UUID,
 ADD COLUMN IF NOT EXISTS config JSONB,
 ADD COLUMN IF NOT EXISTS severity VARCHAR(50);
 
 -- Tabla: quality_incidents
 ALTER TABLE public.quality_incidents
+ADD COLUMN IF NOT EXISTS tenant_id UUID,
 ADD COLUMN IF NOT EXISTS total_records INTEGER,
 ADD COLUMN IF NOT EXISTS affected_records INTEGER,
 ADD COLUMN IF NOT EXISTS compliant_records INTEGER,
@@ -56,8 +55,6 @@ CREATE TABLE IF NOT EXISTS public.data_connections (
     last_used TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Forzar la existencia de la columna si la tabla ya existía de versiones anteriores MVP
 ALTER TABLE public.data_connections ADD COLUMN IF NOT EXISTS tenant_id UUID;
 
 -- Tabla: notification_channels (Calidad de Datos)
@@ -70,8 +67,6 @@ CREATE TABLE IF NOT EXISTS public.notification_channels (
     status VARCHAR(50) DEFAULT 'Activo',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Forzar la existencia de la columna si la tabla ya existía de versiones anteriores MVP
 ALTER TABLE public.notification_channels ADD COLUMN IF NOT EXISTS tenant_id UUID;
 
 -- =========================================================
@@ -82,15 +77,24 @@ ALTER TABLE public.notification_channels ADD COLUMN IF NOT EXISTS tenant_id UUID
 ALTER TABLE public.data_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_channels ENABLE ROW LEVEL SECURITY;
 
--- Políticas para data_connections
-DROP POLICY IF EXISTS "Aislamiento por Tenant - data_connections" ON public.data_connections;
-CREATE POLICY "Aislamiento por Tenant - data_connections" 
-ON public.data_connections FOR ALL 
-USING (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant', true)::uuid);
+-- Utilizamos un bloque DO para ejecutar las políticas de forma dinámica.
+-- Esto evita el error "column tenant_id does not exist" durante la fase 
+-- de parseo inicial de PostgreSQL cuando las tablas acaban de ser alteradas.
+DO $$ 
+BEGIN
+    -- Políticas para data_connections
+    DROP POLICY IF EXISTS "Aislamiento por Tenant - data_connections" ON public.data_connections;
+    EXECUTE '
+    CREATE POLICY "Aislamiento por Tenant - data_connections" 
+    ON public.data_connections FOR ALL 
+    USING (tenant_id IS NULL OR tenant_id = current_setting(''app.current_tenant'', true)::uuid);
+    ';
 
--- Políticas para notification_channels
-DROP POLICY IF EXISTS "Aislamiento por Tenant - notification_channels" ON public.notification_channels;
-CREATE POLICY "Aislamiento por Tenant - notification_channels" 
-ON public.notification_channels FOR ALL 
-USING (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant', true)::uuid);
-
+    -- Políticas para notification_channels
+    DROP POLICY IF EXISTS "Aislamiento por Tenant - notification_channels" ON public.notification_channels;
+    EXECUTE '
+    CREATE POLICY "Aislamiento por Tenant - notification_channels" 
+    ON public.notification_channels FOR ALL 
+    USING (tenant_id IS NULL OR tenant_id = current_setting(''app.current_tenant'', true)::uuid);
+    ';
+END $$;
