@@ -213,15 +213,11 @@ export default function Launchpad() {
         for (let i = 1; i <= baseAssetsCount; i++) {
           dataAssets.push({
             tenant_id: currentTenant.id,
-            code_id: `AST-INITIAL-${i}`,
-            name: `Activo Crítico Pre-identificado ${i}`,
-            type: 'Tabla SQL',
+            name: `Activo Crítico Pre-identificado ${i} (${confBase})`,
             source: 'Core System',
-            owner: ownerBase,
-            sensitivity: confBase,
-            quality_score: qualityBase - (i * 2), // varían un poco
-            status: 'Vigente',
-            risk_level: confBase === 'Confidencial' ? 'Medio' : 'Alto'
+            data_owner: ownerBase,
+            records_count: `${qualityBase * 1000}`,
+            status: 'Sincronizado'
           });
         }
       }
