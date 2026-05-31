@@ -1491,7 +1491,7 @@ export default function PoliciesModule() {
           <div className={styles.modalOverlay} onClick={() => setIsWfModalOpen(false)}>
              <motion.div 
                className={styles.modalContent}
-               style={{ maxWidth: '500px' }}
+               style={{ maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
                initial={{ opacity: 0, scale: 0.9 }}
                animate={{ opacity: 1, scale: 1 }}
                onClick={e => e.stopPropagation()}
@@ -1500,63 +1500,69 @@ export default function PoliciesModule() {
                    <h2>Configurar Flujo: {editingWf.name}</h2>
                    <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><X size={20} /></button>
                 </div>
-                <div className={styles.modalBody} style={{ padding: '24px' }}>
-                   <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Flujo</label>
-                      <input 
-                        type="text" 
-                        value={editingWf.name}
-                        onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                      />
+                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
+                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                     <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Flujo</label>
+                        <input 
+                          type="text" 
+                          value={editingWf.name}
+                          onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
+                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
+                        />
+                     </div>
+                     <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Color Identificador</label>
+                        <input 
+                          type="color" 
+                          value={editingWf.color}
+                          onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
+                          style={{ width: '100%', height: '48px', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                        />
+                     </div>
                    </div>
-                   <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Color Identificador</label>
-                      <input 
-                        type="color" 
-                        value={editingWf.color}
-                        onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
-                        style={{ width: '100%', height: '40px', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                      />
-                   </div>
-                   <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Pasos del Ciclo de Vida</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                         {editingWf.steps.map((step: string, idx: number) => (
-                           <div key={idx} style={{ display: 'flex', gap: '10px' }}>
-                              <input 
-                                type="text" 
-                                value={step}
-                                onChange={e => {
-                                  const newSteps = [...editingWf.steps];
-                                  newSteps[idx] = e.target.value;
-                                  setEditingWf({ ...editingWf, steps: newSteps });
-                                }}
-                                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
-                              />
-                              <button 
-                                onClick={() => {
-                                  const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
-                                  setEditingWf({ ...editingWf, steps: newSteps });
-                                }}
-                                style={{ color: '#ef4444', background: 'none', border: 'none' }}
-                              >
-                                 <Trash2 size={16} />
-                              </button>
+                   <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700 }}>Pasos del Ciclo de Vida</label>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      {editingWf.steps.map((step: string, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
+                             {idx + 1}
                            </div>
-                         ))}
-                         <button 
-                           className={styles.secondaryBtn}
-                           onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
-                           style={{ marginTop: '8px' }}
-                         >
-                            <Plus size={14} /> Añadir Paso
-                         </button>
-                      </div>
+                           <input 
+                             type="text" 
+                             value={step}
+                             onChange={e => {
+                               const newSteps = [...editingWf.steps];
+                               newSteps[idx] = e.target.value;
+                               setEditingWf({ ...editingWf, steps: newSteps });
+                             }}
+                             style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                             placeholder="Ej. Revisión Legal"
+                           />
+                           <button 
+                             onClick={() => {
+                               const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
+                               setEditingWf({ ...editingWf, steps: newSteps });
+                             }}
+                             style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                           >
+                              <Trash2 size={18} />
+                           </button>
+                        </div>
+                      ))}
+                      <button 
+                        className={styles.secondaryBtn}
+                        onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
+                        style={{ marginTop: '12px', alignSelf: 'flex-start', background: 'white' }}
+                      >
+                         <Plus size={16} style={{ marginRight: '6px' }} /> Añadir Paso
+                      </button>
                    </div>
-                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
                       <button className={styles.secondaryBtn} onClick={() => setIsWfModalOpen(false)}>Cancelar</button>
-                      <button className={styles.primaryBtn} onClick={saveWorkflow}>Guardar Cambios</button>
+                      <button className={styles.primaryBtn} onClick={saveWorkflow} style={{ background: editingWf.color }}>
+                         {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
+                      </button>
                    </div>
                 </div>
              </motion.div>
