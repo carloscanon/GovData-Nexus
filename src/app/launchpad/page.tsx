@@ -188,17 +188,21 @@ export default function Launchpad() {
       setProcessLog('Limpiando entorno actual (Reset a 0)...');
       await new Promise(r => setTimeout(r, 800));
       // Delete old data for clean state
-      await supabase.from('maturity_assessments').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('team_members').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('team_domains').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('policy_evidences').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('policy_controls').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('policy_procedures').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('policy_standards').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('policy_workflows').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('data_policies').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
-      await supabase.from('workflow_requests').delete().eq('tenant_id', currentTenant.id);
+      try {
+        await supabase.from('maturity_assessments').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('team_domains').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('team_members').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('policy_evidences').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('policy_controls').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('policy_procedures').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('policy_standards').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('data_policies').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('policy_workflows').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
+        await supabase.from('workflow_requests').delete().eq('tenant_id', currentTenant.id);
+      } catch (delErr) {
+        console.error("Warning: Error during delete (might be normal if tables are empty):", delErr);
+      }
 
       setProcessLog('Evaluando madurez base...');
       await new Promise(r => setTimeout(r, 800));
