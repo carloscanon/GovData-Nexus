@@ -505,16 +505,22 @@ const [newMember, setNewMember] = useState({
                   <div className={styles.cardStatus} style={{ background: member.status === 'Activo' ? '#10b981' : '#f59e0b' }} />
                   <div className={styles.memberHeader}>
                     <div className={styles.avatarArea}>
-                      <div 
-                        className={styles.avatar}
-                        style={{
-                          backgroundImage: member.avatar ? `url(${member.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name.replace(' ', '')})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          color: 'transparent'
-                        }}
-                      >
-                        {member.name.split(' ').map(n => n[0]).join('')}
+                      <div className={styles.avatar} style={{ padding: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                        <img
+                          src={member.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(member.name)}`}
+                          alt={member.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            if (target.parentElement) {
+                              target.parentElement.style.color = 'white';
+                              target.parentElement.style.fontSize = '1rem';
+                              target.parentElement.style.fontWeight = '800';
+                              target.parentElement.innerHTML = member.name.split(' ').map((n: string) => n[0]).join('');
+                            }
+                          }}
+                        />
                       </div>
                       <div className={styles.scoreBadge} title="Steward Score">{member.stats.stewardScore}%</div>
                     </div>
@@ -667,16 +673,25 @@ const [newMember, setNewMember] = useState({
               <div className={styles.profileHeader}>
                 <button className={styles.closeBtn} onClick={() => setSelectedMember(null)}><XCircle size={24} /></button>
                 <div className={styles.profileBasicInfo}>
-                   <div 
-                     className={styles.largeAvatar}
-                     style={{
-                       backgroundImage: selectedMember.avatar ? `url(${selectedMember.avatar})` : `url(https://api.dicebear.com/9.x/avataaars/svg?seed=${selectedMember.name.replace(' ', '')})`,
-                       backgroundSize: 'cover',
-                       backgroundPosition: 'center',
-                       color: 'transparent'
-                     }}
-                   >
-                     {selectedMember.name.split(' ').map(n => n[0]).join('')}
+                   <div className={styles.largeAvatar} style={{ padding: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                     <img
+                       src={selectedMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(selectedMember.name)}`}
+                       alt={selectedMember.name}
+                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                       onError={(e) => {
+                         const target = e.target as HTMLImageElement;
+                         target.style.display = 'none';
+                         if (target.parentElement) {
+                           target.parentElement.style.color = 'white';
+                           target.parentElement.style.display = 'flex';
+                           target.parentElement.style.alignItems = 'center';
+                           target.parentElement.style.justifyContent = 'center';
+                           target.parentElement.style.fontSize = '1.8rem';
+                           target.parentElement.style.fontWeight = '800';
+                           target.parentElement.innerHTML = selectedMember.name.split(' ').map((n: string) => n[0]).join('');
+                         }
+                       }}
+                     />
                    </div>
                    <div>
                       <h2>{selectedMember.name}</h2>
