@@ -394,8 +394,8 @@ export default function PoliciesModule() {
     setIsEditing(false);
   };
 
-  const handleFileUpload = (policyId: string) => {
-    const fileName = `Documento_Soporte_${Math.floor(Math.random()*1000)}.pdf`;
+  const handleFileUpload = (policyId: string, customFileName?: string) => {
+    const fileName = customFileName || `Documento_Soporte_${Math.floor(Math.random()*1000)}.pdf`;
     const currentFiles = uploadedFiles[policyId] || [];
     setUploadedFiles({
       ...uploadedFiles,
@@ -1021,16 +1021,26 @@ export default function PoliciesModule() {
                              {(selectedPolicy.currentStep || 0) < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
                                <div>
                                  {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' ? (
-                                   <button 
-                                     className={styles.primaryBtn} 
-                                     onClick={() => {
-                                       handleFileUpload(selectedPolicy.id);
-                                       advanceWorkflow(selectedPolicy.id);
-                                     }}
-                                     style={{ padding: '10px 20px', background: '#10b981' }}
-                                   >
-                                      <FileText size={16} style={{ marginRight: '8px' }} /> Subir Documento
-                                   </button>
+                                   <>
+                                     <input 
+                                       type="file" 
+                                       id={`workflow-file-upload-${selectedPolicy.id}`} 
+                                       style={{ display: 'none' }} 
+                                       onChange={(e) => {
+                                         if (e.target.files && e.target.files.length > 0) {
+                                           handleFileUpload(selectedPolicy.id, e.target.files[0].name);
+                                           advanceWorkflow(selectedPolicy.id);
+                                         }
+                                       }} 
+                                     />
+                                     <button 
+                                       className={styles.primaryBtn} 
+                                       onClick={() => document.getElementById(`workflow-file-upload-${selectedPolicy.id}`)?.click()}
+                                       style={{ padding: '10px 20px', background: '#10b981' }}
+                                     >
+                                        <FileText size={16} style={{ marginRight: '8px' }} /> Subir Documento
+                                     </button>
+                                   </>
                                  ) : selectedPolicy.status === 'Revisión y Actualización' ? (
                                    <button 
                                      className={styles.primaryBtn} 
@@ -1313,7 +1323,17 @@ export default function PoliciesModule() {
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                          <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Evidencias y Documentos</h3>
-                         <button className={styles.primaryBtn} style={{ padding: '8px 16px', fontSize: '0.8rem' }} onClick={() => handleFileUpload(selectedPolicy.id)}>
+                         <input 
+                           type="file" 
+                           id={`evidence-file-upload-${selectedPolicy.id}`} 
+                           style={{ display: 'none' }} 
+                           onChange={(e) => {
+                             if (e.target.files && e.target.files.length > 0) {
+                               handleFileUpload(selectedPolicy.id, e.target.files[0].name);
+                             }
+                           }} 
+                         />
+                         <button className={styles.primaryBtn} style={{ padding: '8px 16px', fontSize: '0.8rem' }} onClick={() => document.getElementById(`evidence-file-upload-${selectedPolicy.id}`)?.click()}>
                             <Plus size={14} style={{ marginRight: '6px' }} /> Subir Documento
                          </button>
                       </div>
