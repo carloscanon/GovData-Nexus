@@ -205,9 +205,47 @@ export default function PoliciesModule() {
     setIsWfModalOpen(true);
   };
 
-  const saveWorkflow = () => {
-    setWorkflows(workflows.map(w => w.id === editingWf.id ? editingWf : w));
-    setIsWfModalOpen(false);
+  const saveWorkflow = async () => {
+    try {
+      let result;
+      if (editingWf.id && !String(editingWf.id).startsWith('new_')) {
+        // Update
+        result = await supabase
+          .from('policy_workflows')
+          .update({
+            name: editingWf.name,
+            color: editingWf.color,
+            steps: editingWf.steps,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingWf.id)
+          .select();
+      } else {
+        // Insert
+        result = await supabase
+          .from('policy_workflows')
+          .insert({
+            tenant_id: currentTenant?.id,
+            name: editingWf.name,
+            color: editingWf.color,
+            steps: editingWf.steps
+          })
+          .select();
+      }
+
+      if (result.error) throw result.error;
+      
+      const savedWf = result.data[0];
+      if (editingWf.id && !String(editingWf.id).startsWith('new_')) {
+        setWorkflows(workflows.map(w => w.id === savedWf.id ? savedWf : w));
+      } else {
+        setWorkflows([...workflows, savedWf]);
+      }
+      setIsWfModalOpen(false);
+    } catch (err) {
+      console.error('Error saving workflow:', err);
+      alert('Error al guardar el flujo de aprobación');
+    }
   };
 
   // Form State for Create/Edit
@@ -670,7 +708,7 @@ export default function PoliciesModule() {
           <div className={styles.mainContent} style={{ padding: '32px' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h2 className={styles.sectionTitle} style={{ margin: 0, border: 'none' }}>Configuración de Flujos de Aprobación</h2>
-                <button className={styles.primaryBtn} onClick={() => alert('Próximamente: Editor de flujos visual')}>
+                <button className={styles.primaryBtn} onClick={() => openWfEditor({ id: `new_${Date.now()}`, name: 'Nuevo Flujo de Aprobación', color: '#8b5cf6', steps: ['Borrador', 'Revisión Legal', 'Aprobación Final', 'Publicado'] })}>
                    <Plus size={16} style={{ marginRight: '8px' }} /> Nuevo Flujo
                 </button>
              </div>
