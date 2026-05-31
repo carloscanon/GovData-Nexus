@@ -242,14 +242,18 @@ const [newMember, setNewMember] = useState({
 
   const handleAddMember = async () => {
     if (!currentTenant?.id) return;
+    if (!newMember.name) {
+      alert("Por favor selecciona un usuario primero.");
+      return;
+    }
     try {
       const { data, error } = await supabase.from('team_members').insert([{
         tenant_id: currentTenant.id,
         name: newMember.name,
-        email: newMember.email || `${newMember.name.replace(' ', '').toLowerCase()}@empresa.com`,
+        email: newMember.email || `${newMember.name.replace(/\s+/g, '').toLowerCase()}@empresa.com`,
         role: newMember.roleType,
         area: newMember.area || 'General',
-        avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(' ', '')}`
+        avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(/\s+/g, '')}`
       }]).select();
 
       if (error) throw error;
@@ -267,8 +271,8 @@ const [newMember, setNewMember] = useState({
       }
       setIsAssignModalOpen(false);
       setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('Detalles del error:', e.message || JSON.stringify(e));
       alert('Error guardando el miembro. Verifica tu base de datos.');
     }
   };
