@@ -210,13 +210,20 @@ const [newMember, setNewMember] = useState({
         ]);
 
         if (membersRes.data) {
-          const mappedMembers = membersRes.data.map(m => ({
-            ...m,
-            roleType: m.role || 'Data Steward',
-            country: 'Colombia',
-            stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
-            assignments: { assets: [], policies: [], workflows: 0 }
-          }));
+          const mappedMembers = membersRes.data.map(m => {
+            const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
+            const fixedAvatar = (m.avatar && !m.avatar.includes('/initials/'))
+              ? m.avatar
+              : `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+            return {
+              ...m,
+              avatar: fixedAvatar,
+              roleType: m.role || 'Data Steward',
+              country: 'Colombia',
+              stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
+              assignments: { assets: [], policies: [], workflows: 0 }
+            };
+          });
           setMembers(mappedMembers);
         }
 
