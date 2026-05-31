@@ -227,26 +227,69 @@ export default function Launchpad() {
       ]);
       if (err3) throw err3;
 
-      // 4. Políticas Base y Ecosistema Normativo
-      setProcessLog('Generando políticas normativas predeterminadas...');
+      // 4. Políticas Base y Ecosistema Normativo dinámico por Framework
+      setProcessLog(`Generando ecosistema normativo basado en el framework ${selectedFw.toUpperCase()}...`);
       await new Promise(r => setTimeout(r, 1200));
       
-      const { data: insertedPolicies, error: err4 } = await supabase.from('data_policies').insert([
-        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', type: 'Gobierno de Datos', status: 'Vigente', owner: 'CDO', version: '1.0' },
-        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', version: '0.9' },
-        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', type: 'Seguridad / Privacidad', status: 'En Revisión', owner: 'CISO', version: '1.2' }
+      const { data: insertedWf, error: errWf } = await supabase.from('policy_workflows').insert([
+        { tenant_id: currentTenant.id, name: 'Flujo Documental Normativo', steps: ['Borrador', 'Subir Documento', 'Revisión y Actualización', 'Aprobado y Vigente'], color: '#10b981' },
+        { tenant_id: currentTenant.id, name: 'Estándar', steps: ['Borrador', 'Revisión Técnica', 'Publicado'], color: '#6366f1' },
+        { tenant_id: currentTenant.id, name: 'Crítico / Legal', steps: ['Borrador', 'Revisión Legal', 'Aprobación CDO', 'Publicado'], color: '#ef4444' }
       ]).select();
+      if (errWf) throw errWf;
+
+      const mainWfId = insertedWf?.[0]?.id;
+
+      let policyDefs: any[] = [];
+      if (selectedFw === 'dama') {
+        policyDefs = [
+          { title: 'Política de Arquitectura DAMA', type: 'Arquitectura', status: 'Borrador', owner: 'CDO' },
+          { title: 'Normativa de Metadatos', type: 'Metadatos', status: 'Borrador', owner: 'Data Steward' },
+          { title: 'Estándar de Calidad DAMA', type: 'Calidad', status: 'Borrador', owner: 'Data Custodian' }
+        ];
+      } else if (selectedFw === 'dcam') {
+        policyDefs = [
+          { title: 'DCAM Data Management Policy', type: 'Gobierno', status: 'Borrador', owner: 'CDO' },
+          { title: 'Data Ethics & Privacy', type: 'Seguridad', status: 'Borrador', owner: 'CISO' },
+          { title: 'Data Analytics Standards', type: 'Analítica', status: 'Borrador', owner: 'Data Steward' }
+        ];
+      } else if (selectedFw === 'health') {
+        policyDefs = [
+          { title: 'Cumplimiento HIPAA / PHI', type: 'Legal', status: 'Borrador', owner: 'Legal' },
+          { title: 'Política de Retención de Historias Clínicas', type: 'Retención', status: 'Borrador', owner: 'Data Owner' },
+          { title: 'Cifrado de Datos Médicos', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+        ];
+      } else if (selectedFw === 'public') {
+        policyDefs = [
+          { title: 'Política de Datos Abiertos', type: 'Transparencia', status: 'Borrador', owner: 'CDO' },
+          { title: 'Transparencia Activa de Datos', type: 'Transparencia', status: 'Borrador', owner: 'Data Steward' },
+          { title: 'Anonimización de PII Público', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+        ];
+      } else {
+        policyDefs = [
+          { title: 'Política General de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO' },
+          { title: 'Política de Calidad de Datos', type: 'Calidad', status: 'Borrador', owner: 'Data Steward' },
+          { title: 'Normativa de Seguridad de la Información', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+        ];
+      }
+
+      const policiesToInsert = policyDefs.map(p => ({
+        tenant_id: currentTenant.id,
+        title: p.title,
+        type: p.type,
+        status: p.status,
+        owner: p.owner,
+        version: '1.0',
+        workflow_id: mainWfId,
+        current_step: 0,
+        framework_origin: selectedFw.toUpperCase()
+      }));
+
+      const { data: insertedPolicies, error: err4 } = await supabase.from('data_policies').insert(policiesToInsert).select();
       if (err4) throw err4;
 
-      setProcessLog('Configurando flujos de revisión y estándares técnicos...');
+      setProcessLog('Configurando controles y estándares técnicos...');
       await new Promise(r => setTimeout(r, 800));
-
-      const { error: errWf } = await supabase.from('policy_workflows').insert([
-        { tenant_id: currentTenant.id, name: 'Estándar', steps: ['Borrador', 'Revisión Técnica', 'Publicado'], color: '#6366f1' },
-        { tenant_id: currentTenant.id, name: 'Crítico / Legal', steps: ['Borrador', 'Revisión Legal', 'Aprobación CDO', 'Publicado'], color: '#ef4444' },
-        { tenant_id: currentTenant.id, name: 'Rápido', steps: ['Borrador', 'Publicado'], color: '#10b981' }
-      ]);
-      if (errWf) throw errWf;
 
       const { error: errStd } = await supabase.from('policy_standards').insert([
         { tenant_id: currentTenant.id, code: 'STD-001', name: 'Nomenclatura de Tablas', category: 'Arquitectura', coverage: '420 tablas', status: 'Activo' },

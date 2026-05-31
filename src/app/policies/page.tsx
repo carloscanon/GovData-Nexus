@@ -177,7 +177,10 @@ export default function PoliciesModule() {
             owner: p.owner || 'Usuario Asignado',
             type: p.type || 'Gobierno de Datos',
             version: p.version || '1.0',
-            expiry: p.expiry || '2026'
+            expiry: p.expiry || '2026',
+            workflowId: p.workflow_id || 'WF-001',
+            currentStep: p.current_step || 0,
+            documentUrl: p.document_url || null
           })));
         }
         if (wfData) setWorkflows(wfData);
@@ -286,7 +289,7 @@ export default function PoliciesModule() {
     setIsEditing(true);
   };
 
-  const advanceWorkflow = (policyId: string) => {
+  const advanceWorkflow = async (policyId: string) => {
     const pIndex = policies.findIndex(p => p.id === policyId);
     if (pIndex === -1) return;
 
@@ -300,9 +303,19 @@ export default function PoliciesModule() {
     const nextStatus = wf.steps[nextStepIdx];
     const updatedPolicy = { ...policy, currentStep: nextStepIdx, status: nextStatus };
 
-    setPolicies(policies.map(p => p.id === policyId ? updatedPolicy : p));
-    if (selectedPolicy?.id === policyId) {
-      setSelectedPolicy(updatedPolicy);
+    try {
+      const { error } = await supabase.from('data_policies')
+        .update({ current_step: nextStepIdx, status: nextStatus })
+        .eq('id', policyId);
+      if (error) throw error;
+
+      setPolicies(policies.map(p => p.id === policyId ? updatedPolicy : p));
+      if (selectedPolicy?.id === policyId) {
+        setSelectedPolicy(updatedPolicy);
+      }
+    } catch (e) {
+      console.error('Error advancing workflow:', e);
+      alert('Error al avanzar el flujo en la base de datos.');
     }
   };
 
@@ -998,7 +1011,7 @@ export default function PoliciesModule() {
                           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '12px' }}>
                              <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
-                                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
                                    {selectedPolicy.currentStep === (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 
                                      ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
                                      : `Siguiente paso: ${workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps[(selectedPolicy.currentStep || 0) + 1]}`
@@ -1006,13 +1019,41 @@ export default function PoliciesModule() {
                                 </div>
                              </div>
                              {(selectedPolicy.currentStep || 0) < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
-                               <button 
-                                 className={styles.primaryBtn} 
-                                 onClick={() => advanceWorkflow(selectedPolicy.id)}
-                                 style={{ padding: '10px 20px' }}
-                               >
-                                  Avanzar Paso
-                               </button>
+                               <div>
+                                 {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' ? (
+                                   <button 
+                                     className={styles.primaryBtn} 
+                                     onClick={() => {
+                                       handleFileUpload(selectedPolicy.id);
+                                       advanceWorkflow(selectedPolicy.id);
+                                     }}
+                                     style={{ padding: '10px 20px', background: '#10b981' }}
+                                   >
+                                      <FileText size={16} style={{ marginRight: '8px' }} /> Subir Documento
+                                   </button>
+                                 ) : selectedPolicy.status === 'Revisión y Actualización' ? (
+                                   <button 
+                                     className={styles.primaryBtn} 
+                                     onClick={() => advanceWorkflow(selectedPolicy.id)}
+                                     style={{ padding: '10px 20px', background: '#f59e0b' }}
+                                   >
+                                      <CheckCircle size={16} style={{ marginRight: '8px' }} /> Aprobar Documento
+                                   </button>
+                                 ) : (
+                                   <button 
+                                     className={styles.primaryBtn} 
+                                     onClick={() => advanceWorkflow(selectedPolicy.id)}
+                                     style={{ padding: '10px 20px' }}
+                                   >
+                                      Avanzar Paso
+                                   </button>
+                                 )}
+                               </div>
+                             )}
+                             {(selectedPolicy.currentStep || 0) === (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, padding: '10px 20px', background: '#d1fae5', borderRadius: '8px' }}>
+                                 <ShieldCheck size={20} /> Cumpliendo Normativa
+                               </div>
                              )}
                           </div>
                        </div>
