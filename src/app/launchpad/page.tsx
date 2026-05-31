@@ -65,7 +65,7 @@ export default function Launchpad() {
         .from('diagnostic_questions')
         .select('*')
         .eq('is_active', true)
-        .eq('framework', selectedDbName)
+        .in('framework', ['DAMA', selectedDbName])
         .order('pillar');
       
       if (error) throw error;
