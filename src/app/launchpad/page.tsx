@@ -16,7 +16,7 @@ const FRAMEWORKS = [
   { id: 'dcam', name: 'EDM Council DCAM', dbName: 'EDM Council (DCAM)', icon: <Building2 />, desc: 'Framework para el sector financiero' },
   { id: 'public', name: 'Gobierno Abierto', dbName: 'Gobierno Abierto', icon: <Server />, desc: 'Orientado a entidades estatales' },
   { id: 'health', name: 'Sector Salud (HIPAA)', dbName: 'Sector Salud', icon: <Activity />, desc: 'Protección y gestión en salud' },
-  { id: 'custom', name: 'Personalizado', dbName: 'DAMA', icon: <BrainCircuit />, desc: 'A la medida de tu organización' }
+  { id: 'gdpr', name: 'GDPR / Ley de Datos', dbName: 'GDPR', icon: <ShieldCheck />, desc: 'Reglamento de Privacidad' }
 ];
 
 export interface Option {
@@ -281,6 +281,15 @@ export default function Launchpad() {
           { title: 'Política de Privacidad y Anonimización Pública', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger los datos personales de los ciudadanos.', scope: 'Técnicas de enmascaramiento y anonimización obligatorias antes de publicar datasets públicos.' },
           { title: 'Política de Calidad y Estandarización Estadística', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Asegurar la fiabilidad de las estadísticas oficiales.', scope: 'Metodologías de recolección, validación de integridad y aplicación de vocabularios controlados del estado.' },
           { title: 'Política de Interoperabilidad Interinstitucional', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Evitar que el ciudadano sea el mensajero del estado.', scope: 'Conexión de bases de datos entre entidades a través de servicios web y APIs seguras (X-Road).' }
+        ];
+      } else if (selectedFw === 'gdpr') {
+        policyDefs = [
+          { title: 'Política de Privacidad desde el Diseño (Privacy by Design)', type: 'Privacidad', status: 'Borrador', owner: 'DPO', objective: 'Asegurar que la protección de datos esté integrada en todos los nuevos proyectos y sistemas desde su concepción.', scope: 'Todo desarrollo de software, adquisición de plataformas y nuevos procesos de negocio que traten datos personales.' },
+          { title: 'Política de Consentimiento y Derechos de los Titulares', type: 'Legal', status: 'Borrador', owner: 'Legal', objective: 'Garantizar el ejercicio de derechos (Acceso, Rectificación, Cancelación, Oposición, Portabilidad).', scope: 'Procesos de atención al cliente, portales web, CRM y plataformas de captación de leads.' },
+          { title: 'Política de Evaluación de Impacto de Protección de Datos (DPIA)', type: 'Riesgo', status: 'Borrador', owner: 'DPO', objective: 'Identificar y mitigar riesgos en tratamientos de datos de alto riesgo.', scope: 'Implementación de nuevas tecnologías (ej. IA, biometría), perfilado a gran escala y monitoreo sistemático.' },
+          { title: 'Política de Gestión de Brechas de Seguridad (Data Breach)', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Establecer el protocolo de respuesta ante incidentes de fuga de datos en menos de 72 horas.', scope: 'Equipos de respuesta a incidentes (CSIRT/CERT), TI, Legal y Comunicaciones Corporativas.' },
+          { title: 'Política de Transferencias Internacionales de Datos', type: 'Legal', status: 'Borrador', owner: 'Legal', objective: 'Regular el flujo de datos transfronterizo asegurando niveles de protección adecuados.', scope: 'Contratación de proveedores Cloud externos, filiales internacionales y procesadores de datos de terceros.' },
+          { title: 'Política de Minimización y Retención de Datos', type: 'Retención', status: 'Borrador', owner: 'Data Owner', objective: 'Asegurar que solo se recolecten los datos estrictamente necesarios y se borren cuando dejen de serlo.', scope: 'Sistemas transaccionales, bases de datos históricas, backups y repositorios documentales.' }
         ];
       } else {
         policyDefs = [
