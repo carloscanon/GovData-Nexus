@@ -247,9 +247,11 @@ const [newMember, setNewMember] = useState({
       return;
     }
     try {
-      const avatarUrl = newMember.avatar
-        ? newMember.avatar.substring(0, 200)
-        : `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(newMember.name.substring(0, 20))}`;
+      const seed = encodeURIComponent(newMember.name.replace(/\s+/g, '').substring(0, 30));
+      const fallbackAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+      const rawAvatar = newMember.avatar || fallbackAvatar;
+      // Only truncate if longer than 250 chars (varchar(255) safe limit)
+      const avatarUrl = rawAvatar.length > 250 ? fallbackAvatar : rawAvatar;
 
       const { data, error } = await supabase.from('team_members').insert([{
         tenant_id: currentTenant.id,
