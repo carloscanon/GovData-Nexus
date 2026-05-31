@@ -247,9 +247,14 @@ export default function Launchpad() {
       let policyDefs: any[] = [];
       if (selectedFw === 'dama') {
         policyDefs = [
-          { title: 'Política de Arquitectura DAMA', type: 'Arquitectura', status: 'Borrador', owner: 'CDO' },
-          { title: 'Normativa de Metadatos', type: 'Metadatos', status: 'Borrador', owner: 'Data Steward' },
-          { title: 'Estándar de Calidad DAMA', type: 'Calidad', status: 'Borrador', owner: 'Data Custodian' }
+          { title: 'Política Marco de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Piedra angular que da soporte legal y corporativo a toda la estrategia.', scope: 'Modelo operativo, creación de Comités, asignación de roles (Owners, Stewards, Custodios) y matrices de escalamiento.' },
+          { title: 'Política de Gestión del Cambio y Comunicación', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Asegurar la adopción de prácticas de gobierno.', scope: 'Evangelización de la cultura del dato, capacitación continua y obligatoriedad en nuevos proyectos.' },
+          { title: 'Política de Calidad de Datos (Data Quality Policy)', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Establecer que la calidad de los datos debe medirse proactivamente.', scope: 'Dimensiones críticas, SLAs aceptables y protocolos de remediación de incidentes.' },
+          { title: 'Política de Seguridad y Privacidad', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Garantizar el uso ético y seguro de la información.', scope: 'Clasificación de información, controles RBAC y cumplimiento de normativas locales (ej. Ley 1581).' },
+          { title: 'Política de Gestión de Metadatos', type: 'Metadatos', status: 'Borrador', owner: 'Data Steward', objective: 'Proveer un entendimiento unificado del ecosistema.', scope: 'Glosario de Negocio, Diccionarios de Datos y trazabilidad del linaje del dato.' },
+          { title: 'Política de Datos Maestros y de Referencia', type: 'Arquitectura', status: 'Borrador', owner: 'CDO', objective: 'Asegurar la consistencia de entidades críticas en toda la empresa.', scope: 'Reglas para gestionar Golden Records y resolución de conflictos entre sistemas fuente.' },
+          { title: 'Política de Arquitectura y Modelado de Datos', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Asegurar que los sistemas se integren y fluyan eficientemente.', scope: 'Estándares de diseño lógico y físico para desarrollos o adquisición de software.' },
+          { title: 'Política del Ciclo de Vida y Almacenamiento', type: 'Arquitectura', status: 'Borrador', owner: 'Data Custodian', objective: 'Controlar el costo y riesgo de almacenamiento de datos.', scope: 'Reglas de retención histórica, archivado y métodos de eliminación segura.' }
         ];
       } else if (selectedFw === 'dcam') {
         policyDefs = [
@@ -286,7 +291,9 @@ export default function Launchpad() {
         version: '1.0',
         workflow_id: mainWfId,
         current_step: 0,
-        framework_origin: selectedFw.toUpperCase()
+        framework_origin: selectedFw.toUpperCase(),
+        objective: p.objective || 'Establecer los lineamientos y reglas de negocio para este dominio de datos corporativo.',
+        scope: p.scope || 'Aplica a todas las áreas, sistemas y colaboradores involucrados en el ciclo de vida del dato.'
       }));
 
       const { data: insertedPolicies, error: err4 } = await supabase.from('data_policies').insert(policiesToInsert).select();
