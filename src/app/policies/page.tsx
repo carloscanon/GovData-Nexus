@@ -1489,43 +1489,53 @@ export default function PoliciesModule() {
       <AnimatePresence>
         {isWfModalOpen && editingWf && (
           <div className={styles.modalOverlay} onClick={() => setIsWfModalOpen(false)}>
-             <motion.div 
-               className={styles.modalContent}
-               style={{ maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+              <motion.div 
+                className={styles.modalContent}
+                style={{ 
+                  maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+                  background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                  backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                  WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                  fontFamily: 'var(--modal-font, inherit)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '32px', 
+                  color: 'var(--modal-text-color, white)', 
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                }}
                initial={{ opacity: 0, scale: 0.9 }}
                animate={{ opacity: 1, scale: 1 }}
                onClick={e => e.stopPropagation()}
              >
-                <div className={styles.modalHeader}>
-                   <h2>Configurar Flujo: {editingWf.name}</h2>
-                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><X size={20} /></button>
+                <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                   <h2 style={{ color: 'white', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{String(editingWf.id).startsWith('new_') ? 'Crear Nuevo Flujo' : `Configurar Flujo: ${editingWf.name}`}</h2>
+                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}><X size={18} /></button>
                 </div>
-                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
+                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
                      <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Flujo</label>
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre del Flujo</label>
                         <input 
                           type="text" 
                           value={editingWf.name}
                           onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
-                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
+                          style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
                         />
                      </div>
                      <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Color Identificador</label>
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Color Identificador</label>
                         <input 
                           type="color" 
                           value={editingWf.color}
                           onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
-                          style={{ width: '100%', height: '48px', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                          style={{ width: '100%', height: '50px', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer' }}
                         />
                      </div>
                    </div>
-                   <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700 }}>Pasos del Ciclo de Vida</label>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                   <label style={{ display: 'block', marginBottom: '12px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Pasos del Ciclo de Vida</label>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
                       {editingWf.steps.map((step: string, idx: number) => (
                         <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
+                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, boxShadow: `0 0 15px ${editingWf.color}40` }}>
                              {idx + 1}
                            </div>
                            <input 
@@ -1536,7 +1546,7 @@ export default function PoliciesModule() {
                                newSteps[idx] = e.target.value;
                                setEditingWf({ ...editingWf, steps: newSteps });
                              }}
-                             style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                             style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '0.95rem', outline: 'none' }}
                              placeholder="Ej. Revisión Legal"
                            />
                            <button 
@@ -1544,26 +1554,29 @@ export default function PoliciesModule() {
                                const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
                                setEditingWf({ ...editingWf, steps: newSteps });
                              }}
-                             style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                             style={{ color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                             onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+                             onMouseOut={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
                            >
                               <Trash2 size={18} />
                            </button>
                         </div>
                       ))}
                       <button 
-                        className={styles.secondaryBtn}
                         onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
-                        style={{ marginTop: '12px', alignSelf: 'flex-start', background: 'white' }}
+                        style={{ marginTop: '16px', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', fontWeight: 600, transition: 'all 0.2s' }}
+                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                        onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                       >
-                         <Plus size={16} style={{ marginRight: '6px' }} /> Añadir Paso
+                         <Plus size={16} style={{ marginRight: '8px' }} /> Añadir Paso
                       </button>
                    </div>
-                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
-                      <button className={styles.secondaryBtn} onClick={() => setIsWfModalOpen(false)}>Cancelar</button>
-                      <button className={styles.primaryBtn} onClick={saveWorkflow} style={{ background: editingWf.color }}>
-                         {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
-                      </button>
-                   </div>
+                </div>
+                <div style={{ padding: '24px 32px', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
+                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'transparent', color: '#94a3b8', border: 'none', fontWeight: 600, padding: '10px 20px', cursor: 'pointer' }}>Cancelar</button>
+                   <button onClick={saveWorkflow} style={{ background: editingWf.color, color: 'white', border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: `0 4px 15px ${editingWf.color}60` }}>
+                      {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
+                   </button>
                 </div>
              </motion.div>
           </div>

@@ -271,10 +271,10 @@ const [newMember, setNewMember] = useState({
       }
       setIsAssignModalOpen(false);
       setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
-    } catch (e: any) {
-      console.error('Detalles del error:', e.message || JSON.stringify(e));
-      alert('Error guardando el miembro. Verifica tu base de datos.');
-    }
+      } catch (e: any) {
+        console.error('Detalles del error:', e.message || JSON.stringify(e));
+        alert(`Error guardando el miembro: ${e.message || 'Verifica tu base de datos.'}`);
+      }
   };
 
   const handleAddDomain = async () => {
@@ -747,20 +747,31 @@ const [newMember, setNewMember] = useState({
          {isAssignModalOpen && (
            <div className={styles.modalOverlay} onClick={() => setIsAssignModalOpen(false)}>
               <motion.div 
-                className={styles.assignModal}
-                style={{ maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '16px', overflow: 'hidden' }}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                onClick={e => e.stopPropagation()}
-              >
-                 <div className={styles.modalHeader} style={{ background: 'var(--primary)', color: 'white', padding: '24px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'white' }}>Asignar Nuevo Responsable de Gobierno</h2>
-                    <button onClick={() => setIsAssignModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
-                 </div>
-                 <div style={{ padding: '32px' }}>
+                 className={styles.assignModal}
+                 style={{ 
+                   maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', 
+                   background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                   backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                   WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                   fontFamily: 'var(--modal-font, inherit)',
+                   border: '1px solid rgba(255,255,255,0.1)',
+                   borderRadius: '32px', 
+                   color: 'var(--modal-text-color, white)', 
+                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                   overflow: 'hidden' 
+                 }}
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 exit={{ opacity: 0, scale: 0.9 }}
+                 onClick={e => e.stopPropagation()}
+               >
+                  <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--modal-text-color, white)' }}>Asignar Nuevo Responsable de Gobierno</h2>
+                     <button onClick={() => setIsAssignModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+                  </div>
+                  <div style={{ padding: '32px', overflowY: 'auto' }}>
                     <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Seleccionar Usuario</label>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Seleccionar Usuario</label>
                        <select 
                          className={styles.modalInput} 
                          value={newMember.name}
@@ -781,9 +792,9 @@ const [newMember, setNewMember] = useState({
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                        <div>
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Rol de Gobierno</label>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Rol de Gobierno</label>
                           <select 
-                            className={styles.modalInput}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newMember.roleType}
                             onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
                           >
@@ -796,10 +807,10 @@ const [newMember, setNewMember] = useState({
                           </select>
                        </div>
                        <div>
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Área / Departamento</label>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Área / Departamento</label>
                           <input 
                             type="text" 
-                            className={styles.modalInput}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newMember.area}
                             onChange={e => setNewMember({...newMember, area: e.target.value})}
                             placeholder="Ej: Operaciones"
@@ -807,7 +818,7 @@ const [newMember, setNewMember] = useState({
                        </div>
                     </div>
                     <div style={{ marginBottom: '24px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Correo Electrónico</label>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Correo Electrónico</label>
                        <input 
                          type="email" 
                          className={styles.modalInput}
@@ -831,19 +842,31 @@ const [newMember, setNewMember] = useState({
          {isDomainModalOpen && (
            <div className={styles.modalOverlay} onClick={() => setIsDomainModalOpen(false)}>
               <motion.div 
-                className={styles.assignModal}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                onClick={e => e.stopPropagation()}
-              >
-                 <div className={styles.modalHeader} style={{ background: '#3b82f6', color: 'white', padding: '24px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'white' }}>Crear Nuevo Dominio de Datos</h2>
-                    <button onClick={() => setIsDomainModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}><XCircle size={20} /></button>
-                 </div>
-                 <div style={{ padding: '32px' }}>
+                 className={styles.assignModal}
+                 style={{ 
+                   maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', 
+                   background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                   backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                   WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                   fontFamily: 'var(--modal-font, inherit)',
+                   border: '1px solid rgba(255,255,255,0.1)',
+                   borderRadius: '32px', 
+                   color: 'var(--modal-text-color, white)', 
+                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                   overflow: 'hidden' 
+                 }}
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 exit={{ opacity: 0, scale: 0.9 }}
+                 onClick={e => e.stopPropagation()}
+               >
+                  <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--modal-text-color, white)' }}>Crear Nuevo Dominio de Datos</h2>
+                     <button onClick={() => setIsDomainModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+                  </div>
+                  <div style={{ padding: '32px', overflowY: 'auto' }}>
                     <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Nombre del Dominio</label>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre del Dominio</label>
                        <input 
                          type="text" 
                          className={styles.modalInput} 
@@ -853,7 +876,7 @@ const [newMember, setNewMember] = useState({
                        />
                     </div>
                     <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Descripción</label>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Descripción</label>
                        <input 
                          type="text" 
                          className={styles.modalInput} 
@@ -864,9 +887,9 @@ const [newMember, setNewMember] = useState({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                        <div>
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Owner</label>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Owner</label>
                           <select 
-                            className={styles.modalInput}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newDomain.owner}
                             onChange={e => setNewDomain({...newDomain, owner: e.target.value})}
                           >
@@ -877,9 +900,9 @@ const [newMember, setNewMember] = useState({
                           </select>
                        </div>
                        <div>
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Steward</label>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Steward</label>
                           <select 
-                            className={styles.modalInput}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newDomain.steward}
                             onChange={e => setNewDomain({...newDomain, steward: e.target.value})}
                           >
@@ -890,9 +913,9 @@ const [newMember, setNewMember] = useState({
                           </select>
                        </div>
                        <div>
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700 }}>Data Custodian</label>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Custodian</label>
                           <select 
-                            className={styles.modalInput}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newDomain.custodian}
                             onChange={e => setNewDomain({...newDomain, custodian: e.target.value})}
                           >

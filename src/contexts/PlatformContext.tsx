@@ -105,6 +105,15 @@ interface PlatformContextType {
   setDashboardTextScale: (scale: string) => void;
   dashboardContent: DashboardContent;
   setDashboardContent: (content: DashboardContent) => void;
+  // Modals
+  modalBg: string;
+  setModalBg: (bg: string) => void;
+  modalFont: string;
+  setModalFont: (font: string) => void;
+  modalTextColor: string;
+  setModalTextColor: (color: string) => void;
+  modalBlur: string;
+  setModalBlur: (blur: string) => void;
   // Tenants
   tenants: Tenant[];
   currentTenant: Tenant;
@@ -247,6 +256,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [dashboardTextScale, setDashboardTextScaleState] = useState<string>('1');
   const [dashboardContent, setDashboardContentState] = useState<DashboardContent>(DEFAULT_DASHBOARD_CONTENT);
 
+  const [modalBg, setModalBgState] = useState<string>('rgba(15, 23, 42, 0.85)');
+  const [modalFont, setModalFontState] = useState<string>('inherit');
+  const [modalTextColor, setModalTextColorState] = useState<string>('white');
+  const [modalBlur, setModalBlurState] = useState<string>('24px');
+
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
   const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
@@ -336,6 +350,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } else {
       setDashboardContentState(DEFAULT_DASHBOARD_CONTENT);
     }
+
+    const savedModalBg = getVar('govdata_modal_bg');
+    if (savedModalBg) setModalBgState(savedModalBg);
+
+    const savedModalFont = getVar('govdata_modal_font');
+    if (savedModalFont) setModalFontState(savedModalFont);
+
+    const savedModalTextColor = getVar('govdata_modal_text_color');
+    if (savedModalTextColor) setModalTextColorState(savedModalTextColor);
+
+    const savedModalBlur = getVar('govdata_modal_blur');
+    if (savedModalBlur) setModalBlurState(savedModalBlur);
     };
     
     loadSettings();
@@ -487,6 +513,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty('--card-border-radius', cardBorderRadius);
     document.documentElement.style.setProperty('--card-border-width', cardBorderWidth);
   }, [cardBg, cardBorderColor, cardBorderRadius, cardBorderWidth]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--modal-bg', modalBg);
+    document.documentElement.style.setProperty('--modal-font', modalFont);
+    document.documentElement.style.setProperty('--modal-text-color', modalTextColor);
+    document.documentElement.style.setProperty('--modal-blur', modalBlur);
+  }, [modalBg, modalFont, modalTextColor, modalBlur]);
 
   // =================== Handlers ===================
 
@@ -775,6 +808,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     saveTenantSetting('govdata_dashboard_content', JSON.stringify(content));
   };
 
+  const handleSetModalBg = (bg: string) => {
+    setModalBgState(bg);
+    saveTenantSetting('govdata_modal_bg', bg);
+  };
+
+  const handleSetModalFont = (font: string) => {
+    setModalFontState(font);
+    saveTenantSetting('govdata_modal_font', font);
+  };
+
+  const handleSetModalTextColor = (color: string) => {
+    setModalTextColorState(color);
+    saveTenantSetting('govdata_modal_text_color', color);
+  };
+
+  const handleSetModalBlur = (blur: string) => {
+    setModalBlurState(blur);
+    saveTenantSetting('govdata_modal_blur', blur);
+  };
+
   return (
     <PlatformContext.Provider value={{
       saTheme,
@@ -807,6 +860,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setDashboardTextScale: handleSetDashboardTextScale,
       dashboardContent,
       setDashboardContent: handleSetDashboardContent,
+      modalBg,
+      setModalBg: handleSetModalBg,
+      modalFont,
+      setModalFont: handleSetModalFont,
+      modalTextColor,
+      setModalTextColor: handleSetModalTextColor,
+      modalBlur,
+      setModalBlur: handleSetModalBlur,
       tenants,
       currentTenant,
       setCurrentTenant,

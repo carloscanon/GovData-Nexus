@@ -70,7 +70,15 @@ export default function Settings() {
     dashboardTextScale,
     setDashboardTextScale,
     dashboardContent,
-    setDashboardContent
+    setDashboardContent,
+    modalBg,
+    setModalBg,
+    modalFont,
+    setModalFont,
+    modalTextColor,
+    setModalTextColor,
+    modalBlur,
+    setModalBlur
   } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
@@ -532,6 +540,82 @@ export default function Settings() {
                       <option value="24px">24px (Redondeado Premium)</option>
                       <option value="32px">32px (Extra Redondeado)</option>
                     </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <h3>Estilo de Ventanas Emergentes (Modals)</h3>
+                <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                  Ajusta la apariencia de las ventanas de diálogo (ej. edición de flujos, asignación de roles).
+                </p>
+
+                <div className={styles.colorGrid} style={{ marginBottom: '20px' }}>
+                  <div className={styles.colorField}>
+                    <label>Fondo de Ventana (Color/Opacidad)</label>
+                    <div className={styles.colorPickerWrapper}>
+                      <input 
+                        type="color" 
+                        value={modalBg.startsWith('#') ? modalBg : (modalBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/) ? '#' + modalBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)!.slice(1,4).map(x=>parseInt(x).toString(16).padStart(2,'0')).join('') : '#0f172a')} 
+                        onChange={e => setModalBg(e.target.value)}
+                      />
+                      <input 
+                        type="text" 
+                        value={modalBg}
+                        onChange={e => setModalBg(e.target.value)}
+                        className={styles.input}
+                        placeholder="Ej. rgba(15, 23, 42, 0.85)"
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Nivel de Difuminado (Blur - Glassmorphism)</label>
+                    <select 
+                      value={modalBlur} 
+                      onChange={e => setModalBlur(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '8px' }}
+                    >
+                      <option value="0px">Sin desenfoque (Sólido)</option>
+                      <option value="10px">10px (Suave)</option>
+                      <option value="20px">20px (Intermedio)</option>
+                      <option value="32px">32px (Fuerte / Premium)</option>
+                      <option value="64px">64px (Extremo)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.colorGrid}>
+                  <div className={styles.colorField}>
+                    <label>Tipografía de la Ventana</label>
+                    <select 
+                      value={modalFont} 
+                      onChange={e => setModalFont(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '8px' }}
+                    >
+                      <option value="inherit">Heredar del Sistema</option>
+                      <option value="'Inter', sans-serif">Inter</option>
+                      <option value="'Roboto', sans-serif">Roboto</option>
+                      <option value="'Poppins', sans-serif">Poppins</option>
+                      <option value="'Outfit', sans-serif">Outfit</option>
+                    </select>
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Color de Texto</label>
+                    <div className={styles.colorPickerWrapper}>
+                      <input 
+                        type="color" 
+                        value={modalTextColor.startsWith('#') ? modalTextColor : '#ffffff'} 
+                        onChange={e => setModalTextColor(e.target.value)}
+                      />
+                      <input 
+                        type="text" 
+                        value={modalTextColor}
+                        onChange={e => setModalTextColor(e.target.value)}
+                        className={styles.input}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
