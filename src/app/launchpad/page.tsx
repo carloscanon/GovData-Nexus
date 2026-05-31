@@ -245,6 +245,9 @@ export default function Launchpad() {
       const mainWfId = insertedWf?.[0]?.id;
 
       let policyDefs: any[] = [];
+      let stdDefs: any[] = [];
+      let procDefs: any[] = [];
+      let ctrlDefs: any[] = [];
       if (selectedFw === 'dama') {
         policyDefs = [
           { title: 'Política Marco de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Piedra angular que da soporte legal y corporativo a toda la estrategia.', scope: 'Modelo operativo, creación de Comités, asignación de roles (Owners, Stewards, Custodios) y matrices de escalamiento.' },
@@ -256,6 +259,28 @@ export default function Launchpad() {
           { title: 'Política de Arquitectura y Modelado de Datos', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Asegurar que los sistemas se integren y fluyan eficientemente.', scope: 'Estándares de diseño lógico y físico para desarrollos o adquisición de software.' },
           { title: 'Política del Ciclo de Vida y Almacenamiento', type: 'Arquitectura', status: 'Borrador', owner: 'Data Custodian', objective: 'Controlar el costo y riesgo de almacenamiento de datos.', scope: 'Reglas de retención histórica, archivado y métodos de eliminación segura.' }
         ];
+        stdDefs = [
+          { code: 'STD-DAMA-01', name: 'Asignación de Roles de Gobierno (Matriz RACI)', category: 'Gobierno', coverage: 'Nivel Corporativo/Institucional', status: 'Crítico' },
+          { code: 'STD-DAMA-02', name: 'Especificación de Metadatos (Glosario, Diccionario, Linaje)', category: 'Metadatos', coverage: 'Sistemas Core y Bodegas Analíticas', status: 'Activo' },
+          { code: 'STD-DAMA-03', name: 'Gestión de Registros Dorados (Golden Records) y MDM', category: 'Arquitectura', coverage: 'Entidades Base e Interoperabilidad', status: 'Activo' },
+          { code: 'STD-DAMA-04', name: 'Métricas de Umbral y Dimensiones de Calidad', category: 'Calidad', coverage: 'APIs y Conjuntos de Datos Críticos', status: 'Crítico' },
+          { code: 'STD-DAMA-05', name: 'Clasificación de Confidencialidad y Enmascaramiento', category: 'Seguridad', coverage: 'Datos Sensibles', status: 'Crítico' },
+          { code: 'STD-DAMA-06', name: 'Formatos de Intercambio Permitidos (REST, JSON, GeoJSON)', category: 'Interoperabilidad', coverage: 'Integraciones Externas', status: 'Activo' }
+        ];
+        procDefs = [
+          { code: 'PR-DAMA-01', title: 'Creación y Aprobación de Estándares (Stewardship Workflow)', content: 'Procedimiento de flujo de trabajo para la creación, revisión por pares, y oficialización en el catálogo de cualquier nuevo estándar técnico o de negocio.' },
+          { code: 'PR-DAMA-02', title: 'Definición y Conciliación de Términos de Negocio', content: 'Protocolo para definir unificadamente elementos semánticos (ej. "Persona Natural", "Predio"), eliminando ambigüedades entre áreas ministeriales o corporativas.' },
+          { code: 'PR-DAMA-03', title: 'Resolución de Conflictos de Datos Maestros (MDM)', content: 'Pasos para identificar, fusionar y resolver discrepancias entre distintas fuentes transaccionales para establecer y mantener un único Golden Record.' },
+          { code: 'PR-DAMA-04', title: 'Evaluación y Perfilamiento de Calidad de Datos', content: 'Metodología para auditar la completitud, exactitud y consistencia de los datos bajo las reglas definidas algorítmicamente.' },
+          { code: 'PR-DAMA-05', title: 'Anonimización de Datos Interinstitucionales', content: 'Aplicación de técnicas de enmascaramiento y pseudo-anonimización antes de compartir datos sensibles por medio de servicios web y APIs abiertas.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-DAMA-01', description: 'Revisión mensual de asignación de roles y custodios (RACI)', frequency: 'Mensual', status: 'OK', policy_index: 0 },
+          { code: 'CTRL-DAMA-02', description: 'Validación de completitud en Diccionarios de Datos', frequency: 'Trimestral', status: 'Falla', policy_index: 4 },
+          { code: 'CTRL-DAMA-03', description: 'Auditoría de integridad de Golden Records (MDM)', frequency: 'Mensual', status: 'OK', policy_index: 5 },
+          { code: 'CTRL-DAMA-04', description: 'Monitoreo de umbrales de calidad en tiempo real', frequency: 'Tiempo Real', status: 'OK', policy_index: 2 },
+          { code: 'CTRL-DAMA-05', description: 'Validación de etiquetas de privacidad y acceso a PII', frequency: 'Diaria', status: 'OK', policy_index: 3 }
+        ];
       } else if (selectedFw === 'dcam') {
         policyDefs = [
           { title: 'Política de Estrategia y Valor de los Datos', type: 'Estrategia', status: 'Borrador', owner: 'CDO', objective: 'Alinear la gestión de datos con los objetivos de negocio y demostrar su valor.', scope: 'Definición de casos de uso analíticos, priorización de datos críticos (CDEs) y métricas de ROI.' },
@@ -264,6 +289,15 @@ export default function Launchpad() {
           { title: 'Política de Significado y Contexto de Datos', type: 'Metadatos', status: 'Borrador', owner: 'Data Steward', objective: 'Proveer una semántica común para toda la organización.', scope: 'Desarrollo del Glosario de Negocio, Taxonomías y vinculación de términos comerciales a activos técnicos.' },
           { title: 'Política de Arquitectura Analítica', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Optimizar el flujo de datos para análisis avanzado.', scope: 'Lineamientos para Data Lakes, Data Warehouses, pipelines de ingesta y herramientas de BI.' },
           { title: 'Política de Seguridad Estratégica (Control)', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger los activos de información críticos de la empresa financiera.', scope: 'Segregación de funciones, encriptación en tránsito y reposo, y auditorías de accesos.' }
+        ];
+        stdDefs = [
+          { code: 'STD-DCAM-01', name: 'Identificación de CDEs (Critical Data Elements)', category: 'Calidad', coverage: 'Global', status: 'Activo' }
+        ];
+        procDefs = [
+          { code: 'PR-DCAM-01', title: 'Evaluación de Impacto de Negocio para CDEs', content: 'Metodología para calcular ROI y riesgo de elementos críticos.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-DCAM-01', description: 'Conciliación contable automatizada', frequency: 'Diaria', status: 'OK', policy_index: 2 }
         ];
       } else if (selectedFw === 'health') {
         policyDefs = [
@@ -274,6 +308,17 @@ export default function Launchpad() {
           { title: 'Política de Auditoría de Accesos Clínicos', type: 'Auditoría', status: 'Borrador', owner: 'Auditor', objective: 'Prevenir accesos no autorizados a historias clínicas.', scope: 'Monitoreo continuo de logs de acceso, alertas de visualización indebida y perfilamiento de usuarios.' },
           { title: 'Política de Interoperabilidad en Salud (HL7/FHIR)', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Facilitar el intercambio seguro de datos entre prestadores.', scope: 'Adopción de estándares internacionales (HL7, FHIR, DICOM) para integración de sistemas de salud.' }
         ];
+        stdDefs = [
+          { code: 'STD-HIPAA-01', name: 'Estándar de Interoperabilidad FHIR/HL7', category: 'Interoperabilidad', coverage: 'Integraciones Externas', status: 'Activo' },
+          { code: 'STD-HIPAA-02', name: 'Cifrado de Historias Clínicas (AES-256)', category: 'Seguridad', coverage: 'Bases de Datos EHR', status: 'Crítico' }
+        ];
+        procDefs = [
+          { code: 'PR-HIPAA-01', title: 'Custodia de Consentimientos Informados', content: 'Proceso de almacenamiento y trazabilidad de firmas de pacientes.' },
+          { code: 'PR-HIPAA-02', title: 'Notificación de Accesos No Autorizados a PHI', content: 'Protocolo de reporte de incidentes a autoridades de salud.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-HIPAA-01', description: 'Monitoreo de logs de acceso a EHR', frequency: 'Diaria', status: 'OK', policy_index: 4 }
+        ];
       } else if (selectedFw === 'public') {
         policyDefs = [
           { title: 'Política Nacional de Transparencia Activa', type: 'Transparencia', status: 'Borrador', owner: 'CDO', objective: 'Garantizar el derecho de acceso a la información pública.', scope: 'Publicación proactiva de contratos, presupuestos y datos de gestión en portales oficiales.' },
@@ -281,6 +326,15 @@ export default function Launchpad() {
           { title: 'Política de Privacidad y Anonimización Pública', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger los datos personales de los ciudadanos.', scope: 'Técnicas de enmascaramiento y anonimización obligatorias antes de publicar datasets públicos.' },
           { title: 'Política de Calidad y Estandarización Estadística', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Asegurar la fiabilidad de las estadísticas oficiales.', scope: 'Metodologías de recolección, validación de integridad y aplicación de vocabularios controlados del estado.' },
           { title: 'Política de Interoperabilidad Interinstitucional', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Evitar que el ciudadano sea el mensajero del estado.', scope: 'Conexión de bases de datos entre entidades a través de servicios web y APIs seguras (X-Road).' }
+        ];
+        stdDefs = [
+          { code: 'STD-GOV-01', name: 'Estructura JSON para Datos Abiertos', category: 'Transparencia', coverage: 'Portales Ciudadanos', status: 'Activo' }
+        ];
+        procDefs = [
+          { code: 'PR-GOV-01', title: 'Anonimización Pre-Publicación', content: 'Proceso de enmascaramiento antes de exponer datasets en portal abierto.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-GOV-01', description: 'Revisión trimestral de vigencia de datasets', frequency: 'Trimestral', status: 'OK', policy_index: 1 }
         ];
       } else if (selectedFw === 'gdpr') {
         policyDefs = [
@@ -291,6 +345,27 @@ export default function Launchpad() {
           { title: 'Política de Transferencias Internacionales de Datos', type: 'Legal', status: 'Borrador', owner: 'Legal', objective: 'Regular el flujo de datos transfronterizo asegurando niveles de protección adecuados.', scope: 'Contratación de proveedores Cloud externos, filiales internacionales y procesadores de datos de terceros.' },
           { title: 'Política de Minimización y Retención de Datos', type: 'Retención', status: 'Borrador', owner: 'Data Owner', objective: 'Asegurar que solo se recolecten los datos estrictamente necesarios y se borren cuando dejen de serlo.', scope: 'Sistemas transaccionales, bases de datos históricas, backups y repositorios documentales.' }
         ];
+        stdDefs = [
+          { code: 'STD-GDPR-01', name: 'Documentación de Base Legal de Tratamiento (RAT)', category: 'Legal', coverage: 'Procesos de Negocio', status: 'Activo' },
+          { code: 'STD-GDPR-02', name: 'Etiquetado de Categorías Especiales de Datos (Art. 9)', category: 'Metadatos', coverage: 'Diccionario de Datos', status: 'Crítico' },
+          { code: 'STD-GDPR-03', name: 'Definición de Plazos de Conservación y Purga (Art. 5.1.e)', category: 'Retención', coverage: 'Sistemas Core', status: 'Activo' },
+          { code: 'STD-GDPR-04', name: 'Cifrado y Seudonimización por Defecto (Art. 25/32)', category: 'Seguridad', coverage: 'Datos Personales', status: 'Crítico' },
+          { code: 'STD-GDPR-05', name: 'Trazabilidad y Linaje para Ejercicio de Derechos ARCO+', category: 'Arquitectura', coverage: 'Sistemas Interoperables', status: 'Activo' }
+        ];
+        procDefs = [
+          { code: 'PR-GDPR-01', title: 'Mantenimiento del Registro de Actividades de Tratamiento (RAT)', content: 'Actualización periódica de las bases legales y finalidad declarada de los datasets.' },
+          { code: 'PR-GDPR-02', title: 'Control de Acceso Restringido a Datos Sensibles', content: 'Gestión de roles para prevenir exposición masiva de datos biométricos, de salud o afiliación.' },
+          { code: 'PR-GDPR-03', title: 'Destrucción Segura y Purga Automática', content: 'Protocolo técnico para la eliminación o anonimización irreversible al vencer los plazos.' },
+          { code: 'PR-GDPR-04', title: 'Minimización de Datos en Nuevos Proyectos', content: 'Evaluación para garantizar captura estrictamente necesaria en la fase de diseño.' },
+          { code: 'PR-GDPR-05', title: 'Atención a Solicitudes de Derechos ARCO+', content: 'Workflow operativo para responder requerimientos ciudadanos en menos de 30 días.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-GDPR-01', description: 'Auditoría Semestral de Bases Legales en el RAT', frequency: 'Semestral', status: 'OK', policy_index: 0 },
+          { code: 'CTRL-GDPR-02', description: 'Bloqueo Automatizado de APIs con Categoría Especial', frequency: 'Tiempo Real', status: 'OK', policy_index: 2 },
+          { code: 'CTRL-GDPR-03', description: 'Monitoreo de Purga Mensual de Datos Vencidos', frequency: 'Mensual', status: 'OK', policy_index: 5 },
+          { code: 'CTRL-GDPR-04', description: 'Verificación de EIPD (Evaluación de Impacto)', frequency: 'Trimestral', status: 'OK', policy_index: 2 },
+          { code: 'CTRL-GDPR-05', description: 'Medición de Tiempos de Respuesta ARCO+', frequency: 'Mensual', status: 'Falla', policy_index: 1 }
+        ];
       } else {
         policyDefs = [
           { title: 'Política General de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Definir el modelo fundacional de gestión de datos de la empresa.', scope: 'Roles, comités, dominios de datos y reglas generales de propiedad y custodia.' },
@@ -298,6 +373,16 @@ export default function Launchpad() {
           { title: 'Política de Calidad y Gobernanza Analítica', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Garantizar datos confiables para la toma de decisiones empresariales.', scope: 'Identificación de CDEs, reglas de calidad, certificación de reportes y dashboards oficiales.' },
           { title: 'Normativa de Ciclo de Vida y Retención', type: 'Retención', status: 'Borrador', owner: 'Data Owner', objective: 'Gestionar el almacenamiento de forma eficiente y legal.', scope: 'Tiempos de retención por tipo de dato, archivado en frío y borrado seguro de información obsoleta.' },
           { title: 'Política de Integración y Arquitectura', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Guiar el flujo e integración de datos entre sistemas.', scope: 'Lineamientos de APIs, flujos batch vs tiempo real, y estructuración de lagos o bodegas de datos.' }
+        ];
+        stdDefs = [
+          { code: 'STD-001', name: 'Nomenclatura de Tablas', category: 'Arquitectura', coverage: 'Bases de datos core', status: 'Activo' },
+          { code: 'STD-002', name: 'Formato de Fechas ISO-8601', category: 'Interoperabilidad', coverage: 'Global', status: 'Activo' }
+        ];
+        procDefs = [
+          { code: 'PR-01', title: 'Backup y Recuperación ante Desastres', content: 'Procedimiento operativo para restaurar copias de seguridad incrementales.' }
+        ];
+        ctrlDefs = [
+          { code: 'CTRL-01', description: 'Validación de tipos de datos en ingesta', frequency: 'Tiempo Real', status: 'OK', policy_index: 0 }
         ];
       }
 
@@ -321,24 +406,24 @@ export default function Launchpad() {
       setProcessLog('Configurando controles y estándares técnicos...');
       await new Promise(r => setTimeout(r, 800));
 
-      const { error: errStd } = await supabase.from('policy_standards').insert([
-        { tenant_id: currentTenant.id, code: 'STD-001', name: 'Nomenclatura de Tablas', category: 'Arquitectura', coverage: '420 tablas', status: 'Activo' },
-        { tenant_id: currentTenant.id, code: 'STD-002', name: 'Cifrado AES-256 PII', category: 'Seguridad', coverage: '28 activos', status: 'Crítico' },
-        { tenant_id: currentTenant.id, code: 'STD-003', name: 'Formato de Fechas ISO-8601', category: 'Interoperabilidad', coverage: 'Global', status: 'Activo' }
-      ]);
+      const stdsToInsert = stdDefs.map(s => ({ ...s, tenant_id: currentTenant.id }));
+      const procsToInsert = procDefs.map(p => ({ ...p, tenant_id: currentTenant.id }));
+      const ctrlsToInsert = ctrlDefs.map(c => ({
+        tenant_id: currentTenant.id,
+        code: c.code,
+        description: c.description,
+        frequency: c.frequency,
+        status: c.status,
+        policy_id: insertedPolicies?.[c.policy_index]?.id
+      }));
+
+      const { error: errStd } = await supabase.from('policy_standards').insert(stdsToInsert);
       if (errStd) throw errStd;
 
-      const { error: errProc } = await supabase.from('policy_procedures').insert([
-        { tenant_id: currentTenant.id, code: 'PR-01', title: 'Clasificación de Datos Sensibles', content: 'Guía paso a paso para identificar y etiquetar PII en bases de datos relacionales.' },
-        { tenant_id: currentTenant.id, code: 'PR-02', title: 'Backup y Recuperación ante Desastres', content: 'Procedimiento operativo para restaurar copias de seguridad incrementales.' }
-      ]);
+      const { error: errProc } = await supabase.from('policy_procedures').insert(procsToInsert);
       if (errProc) throw errProc;
 
-      const { error: errCtrl } = await supabase.from('policy_controls').insert([
-        { tenant_id: currentTenant.id, code: 'CTRL-01', description: 'Validación de tipos de datos en ingesta', frequency: 'Tiempo Real', status: 'OK', policy_id: insertedPolicies?.[1]?.id },
-        { tenant_id: currentTenant.id, code: 'CTRL-02', description: 'Revisión trimestral de accesos PII', frequency: 'Trimestral', status: 'OK', policy_id: insertedPolicies?.[2]?.id },
-        { tenant_id: currentTenant.id, code: 'CTRL-03', description: 'Escaneo de vulnerabilidades DB', frequency: 'Semanal', status: 'Falla', policy_id: insertedPolicies?.[2]?.id }
-      ]);
+      const { error: errCtrl } = await supabase.from('policy_controls').insert(ctrlsToInsert);
       if (errCtrl) throw errCtrl;
 
       // 5. Workflows Base + Roadmap de 90 Días Automático y Pre-carga de Activos
@@ -411,8 +496,44 @@ export default function Launchpad() {
           category: getCategoryForPillar(q.pillar),
           priority: priority,
           status: 'Pendiente',
-          current_step: `Fase ${phase}`,
+          current_step: `Pendiente de asignación`,
           sla: slaString,
+          sla_status: 'Ok'
+        });
+      });
+
+      // Insert implementation tickets for generated Standards and Procedures
+      const now = new Date();
+      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const m1Date = new Date(now);
+      m1Date.setMonth(now.getMonth() + 1);
+      const m2Date = new Date(now);
+      m2Date.setMonth(now.getMonth() + 2);
+
+      stdDefs.forEach(s => {
+        roadmapTickets.push({
+          tenant_id: currentTenant.id,
+          title: `[Roadmap M1] Implementación de Estándar: ${s.name}`,
+          description: `Ticket de seguimiento para la socialización y adopción técnica del estándar ${s.code}.`,
+          category: 'Catalogo',
+          priority: 'Alta',
+          status: 'Pendiente',
+          current_step: 'Pendiente de asignación',
+          sla: `Finales de ${monthNames[m1Date.getMonth()]}`,
+          sla_status: 'Ok'
+        });
+      });
+
+      procDefs.forEach(p => {
+        roadmapTickets.push({
+          tenant_id: currentTenant.id,
+          title: `[Roadmap M2] Puesta en marcha de Procedimiento: ${p.title}`,
+          description: `Asegurar la capacitación y cumplimiento operativo del procedimiento ${p.code}.`,
+          category: 'Gobierno',
+          priority: 'Alta',
+          status: 'Pendiente',
+          current_step: 'Pendiente de asignación',
+          sla: `Finales de ${monthNames[m2Date.getMonth()]}`,
           sla_status: 'Ok'
         });
       });

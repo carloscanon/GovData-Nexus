@@ -32,7 +32,8 @@ import {
   GitBranch,
   Trash2,
   Award,
-  Scale
+  Scale,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -135,12 +136,28 @@ export default function PoliciesModule() {
   const [activeTab, setActiveTab] = useState('politicas');
   const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isStdModalOpen, setIsStdModalOpen] = useState(false);
+  const [isProcModalOpen, setIsProcModalOpen] = useState(false);
+  const [isStdDetailModalOpen, setIsStdDetailModalOpen] = useState(false);
+  const [isProcDetailModalOpen, setIsProcDetailModalOpen] = useState(false);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [policyToApprove, setPolicyToApprove] = useState<string | null>(null);
+  const [approveAssignee, setApproveAssignee] = useState<string>('');
+
+  const [newStandard, setNewStandard] = useState<any>({ name: '', code: '', category: 'Arquitectura', coverage: 'Global', status: 'Activo', owner: 'AR (Arquitectura)', document_url: null });
+  const [newProcedure, setNewProcedure] = useState<any>({ title: '', code: '', version: '1.0', content: '', document_url: null });
+  const [newEvidence, setNewEvidence] = useState<any>({ filename: '', description: '', file_url: null });
+  const [selectedStandard, setSelectedStandard] = useState<any>(null);
+  const [selectedProcedure, setSelectedProcedure] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
   // Application State
   const [policies, setPolicies] = useState<any[]>([]);
   const [modalTab, setModalTab] = useState('general');
   const [isMounted, setIsMounted] = useState(false);
   const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const { currentTenant } = usePlatform();
+  const isAdmin = true; // Simulación de Rol (Administrador de Plataforma)
 
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [standards, setStandards] = useState<any[]>([]);
@@ -178,7 +195,7 @@ export default function PoliciesModule() {
             type: p.type || 'Gobierno de Datos',
             version: p.version || '1.0',
             expiry: p.expiry || '2026',
-            workflowId: p.workflow_id || 'WF-001',
+            workflowId: p.workflow_id || '',
             currentStep: p.current_step || 0,
             documentUrl: p.document_url || null
           })));
@@ -253,8 +270,9 @@ export default function PoliciesModule() {
     id: '',
     title: '',
     type: 'Gobierno de Datos',
+    framework_origin: 'Cumplimiento Normativo',
     status: 'Borrador',
-    workflowId: 'WF-001',
+    workflowId: '',
     currentStep: 0,
     expiry: '2026',
     owner: 'Carlos Director (CDO)',
@@ -271,6 +289,15 @@ export default function PoliciesModule() {
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, any[]>>({});
 
+  const getPolicyWorkflow = (workflowId: string | null) => {
+    if (workflowId && workflowId !== 'WF-001') {
+      const found = workflows.find(w => w.id === workflowId);
+      if (found) return found;
+    }
+    if (workflows.length > 0) return workflows[0];
+    return { id: 'default', name: 'Flujo Estándar', color: '#6366f1', steps: ['Borrador', 'Revisión y Actualización', 'Publicado'] };
+  };
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -281,16 +308,24 @@ export default function PoliciesModule() {
     if (!currentTenant?.id) return;
 
     try {
+      const selectedWf = getPolicyWorkflow(newPolicy.workflowId);
+      const initialStepName = selectedWf && selectedWf.steps.length > 0 
+        ? (typeof selectedWf.steps[0] === 'string' ? selectedWf.steps[0] : selectedWf.steps[0].name) 
+        : newPolicy.status;
+
       const { data, error } = await supabase.from('data_policies').insert([{
         tenant_id: currentTenant.id,
         title: newPolicy.title,
         type: newPolicy.type,
-        status: newPolicy.status,
+        status: initialStepName,
+        current_step: 0,
+        workflow_id: selectedWf?.id || null,
         version: newPolicy.version,
         objective: newPolicy.objective,
         scope: newPolicy.scope,
         expiry: newPolicy.expiry,
         owner: newPolicy.owner,
+        framework_origin: newPolicy.framework_origin,
         guidelines: newPolicy.guidelines,
         controls: newPolicy.controls,
         sancions: newPolicy.sancions
@@ -299,7 +334,12 @@ export default function PoliciesModule() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setPolicies([data[0], ...policies]);
+        const newDoc = {
+          ...data[0],
+          workflowId: data[0].workflow_id || selectedWf?.id,
+          currentStep: data[0].current_step || 0
+        };
+        setPolicies([newDoc, ...policies]);
       }
     } catch (e: any) {
       console.error('Error adding policy:', e);
@@ -309,10 +349,187 @@ export default function PoliciesModule() {
     setIsCreateModalOpen(false);
     // Reset form
     setNewPolicy({
-      id: '', title: '', type: 'Gobierno de Datos', status: 'Borrador', workflowId: 'WF-001', currentStep: 0, expiry: '2026',
+      id: '', title: '', type: 'Gobierno de Datos', framework_origin: 'Cumplimiento Normativo', status: 'Borrador', workflowId: '', currentStep: 0, expiry: '2026',
       owner: 'Carlos Director (CDO)', version: '1.0', objective: '', scope: '', 
       guidelines: [''], controls: [''], sancions: ''
     });
+  };
+
+  const handleDeletePolicy = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta política? Esta acción no se puede deshacer.')) return;
+    try {
+      const { error } = await supabase.from('data_policies').delete().eq('id', id);
+      if (error) throw error;
+      setPolicies(policies.filter(p => p.id !== id));
+      if (selectedPolicy?.id === id) setSelectedPolicy(null);
+    } catch (err: any) {
+      alert(`Error eliminando la política: ${err.message}`);
+    }
+  };
+
+  const handleNativeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentTenant?.id) return;
+    
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentTenant.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage.from('documents').upload(fileName, file);
+      if (error) throw error;
+      
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(fileName);
+      callback(urlData.publicUrl);
+    } catch (err: any) {
+      alert(`Error subiendo documento: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAddStandard = async () => {
+    if (!currentTenant?.id) return;
+    try {
+      const { data, error } = await supabase.from('policy_standards').insert([{
+        tenant_id: currentTenant.id,
+        name: newStandard.name,
+        code: newStandard.code,
+        category: newStandard.category,
+        coverage: newStandard.coverage,
+        status: newStandard.status,
+        owner: newStandard.owner,
+        document_url: newStandard.document_url
+      }]).select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setStandards([data[0], ...standards]);
+        setIsStdModalOpen(false);
+        setNewStandard({ name: '', code: '', category: 'Arquitectura', coverage: 'Global', status: 'Activo', owner: 'AR (Arquitectura)', document_url: null });
+      }
+    } catch (e: any) {
+      alert(`Error guardando estándar: ${e.message}`);
+    }
+  };
+
+  const handleAddProcedure = async () => {
+    if (!currentTenant?.id) return;
+    try {
+      const { data, error } = await supabase.from('policy_procedures').insert([{
+        tenant_id: currentTenant.id,
+        title: newProcedure.title,
+        code: newProcedure.code,
+        version: newProcedure.version,
+        content: newProcedure.content,
+        last_revision_date: new Date().toISOString().split('T')[0],
+        document_url: newProcedure.document_url
+      }]).select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setProcedures([data[0], ...procedures]);
+        setIsProcModalOpen(false);
+        setNewProcedure({ title: '', code: '', version: '1.0', content: '', document_url: null });
+      }
+    } catch (e: any) {
+      alert(`Error guardando procedimiento: ${e.message}`);
+    }
+  };
+
+  const handleUpdateStandard = async () => {
+    if (!currentTenant?.id || !selectedStandard?.id) return;
+    try {
+      const { data, error } = await supabase.from('policy_standards')
+        .update({
+          name: selectedStandard.name,
+          code: selectedStandard.code,
+          category: selectedStandard.category,
+          coverage: selectedStandard.coverage,
+          status: selectedStandard.status,
+          owner: selectedStandard.owner,
+          document_url: selectedStandard.document_url
+        })
+        .eq('id', selectedStandard.id)
+        .select();
+
+      if (error) throw error;
+      setStandards(standards.map(s => s.id === selectedStandard.id ? data[0] : s));
+      setIsStdDetailModalOpen(false);
+    } catch (e: any) {
+      alert(`Error actualizando estándar: ${e.message}`);
+    }
+  };
+
+  const handleDeleteStandard = async (id: string) => {
+    if (!currentTenant?.id) return;
+    if (!confirm('¿Estás seguro de eliminar este estándar?')) return;
+    try {
+      const { error } = await supabase.from('policy_standards').delete().eq('id', id);
+      if (error) throw error;
+      setStandards(standards.filter(s => s.id !== id));
+      setIsStdDetailModalOpen(false);
+    } catch (e: any) {
+      alert(`Error eliminando estándar: ${e.message}`);
+    }
+  };
+
+  const handleUpdateProcedure = async () => {
+    if (!currentTenant?.id || !selectedProcedure?.id) return;
+    try {
+      const { data, error } = await supabase.from('policy_procedures')
+        .update({
+          title: selectedProcedure.title,
+          code: selectedProcedure.code,
+          version: selectedProcedure.version,
+          content: selectedProcedure.content,
+          document_url: selectedProcedure.document_url
+        })
+        .eq('id', selectedProcedure.id)
+        .select();
+
+      if (error) throw error;
+      setProcedures(procedures.map(p => p.id === selectedProcedure.id ? data[0] : p));
+      setIsProcDetailModalOpen(false);
+    } catch (e: any) {
+      alert(`Error actualizando procedimiento: ${e.message}`);
+    }
+  };
+
+  const handleDeleteProcedure = async (id: string) => {
+    if (!currentTenant?.id) return;
+    if (!confirm('¿Estás seguro de eliminar este procedimiento?')) return;
+    try {
+      const { error } = await supabase.from('policy_procedures').delete().eq('id', id);
+      if (error) throw error;
+      setProcedures(procedures.filter(p => p.id !== id));
+      setIsProcDetailModalOpen(false);
+    } catch (e: any) {
+      alert(`Error eliminando procedimiento: ${e.message}`);
+    }
+  };
+
+  const handleAddEvidence = async () => {
+    if (!currentTenant?.id || !newEvidence.file_url) {
+        alert("Sube el archivo primero");
+        return;
+    }
+    try {
+      const { data, error } = await supabase.from('policy_evidences').insert([{
+        tenant_id: currentTenant.id,
+        filename: newEvidence.filename || 'Evidencia sin título',
+        description: newEvidence.description,
+        file_url: newEvidence.file_url,
+      }]).select();
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setEvidences([data[0], ...evidences]);
+        setIsEvidenceModalOpen(false);
+        setNewEvidence({ filename: '', description: '', file_url: null });
+      }
+    } catch (e: any) {
+      alert(`Error guardando evidencia: ${e.message}`);
+    }
   };
 
   const handleUpdateStatus = (id: string, newStatus: string) => {
@@ -327,22 +544,33 @@ export default function PoliciesModule() {
     setIsEditing(true);
   };
 
-  const advanceWorkflow = async (policyId: string) => {
+  const advanceWorkflow = (policyId: string) => {
+    setPolicyToApprove(policyId);
+    setApproveAssignee('');
+    setIsApproveModalOpen(true);
+  };
+
+  const executeAdvanceWorkflow = async () => {
+    if (!policyToApprove) return;
+    const policyId = policyToApprove;
+
     const pIndex = policies.findIndex(p => p.id === policyId);
     if (pIndex === -1) return;
 
     const policy = policies[pIndex];
-    const wf = workflows.find(w => w.id === (policy.workflowId || 'WF-001'));
+    const wf = getPolicyWorkflow(policy.workflowId);
     if (!wf) return;
 
     const nextStepIdx = (policy.currentStep || 0) + 1;
     if (nextStepIdx >= wf.steps.length) return; // Ya en el final
 
-    const nextStatus = wf.steps[nextStepIdx];
+    const nextStepObj = wf.steps[nextStepIdx];
+    const nextStatus = typeof nextStepObj === 'string' ? nextStepObj : nextStepObj.name;
     const updatedPolicy = { ...policy, currentStep: nextStepIdx, status: nextStatus };
 
     try {
       const { error } = await supabase.from('data_policies')
+
         .update({ current_step: nextStepIdx, status: nextStatus })
         .eq('id', policyId);
       if (error) throw error;
@@ -351,6 +579,8 @@ export default function PoliciesModule() {
       if (selectedPolicy?.id === policyId) {
         setSelectedPolicy(updatedPolicy);
       }
+      setIsApproveModalOpen(false);
+      setPolicyToApprove(null);
     } catch (e) {
       console.error('Error advancing workflow:', e);
       alert('Error al avanzar el flujo en la base de datos.');
@@ -426,6 +656,62 @@ export default function PoliciesModule() {
     }, 1200);
   };
 
+  const simulateStandardAiGeneration = (field: 'new' | 'edit') => {
+    setIsAiGenerating(true);
+    const contextCategory = field === 'new' ? newStandard.category : selectedStandard.category;
+    
+    setTimeout(() => {
+      let generatedData = {
+        name: `Estándar de ${contextCategory}`,
+        code: `STD-${contextCategory.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 1000)}`,
+        coverage: 'Alcance Global Corporativo'
+      };
+
+      if (contextCategory === 'Arquitectura') {
+        generatedData.name = 'Lineamientos de Arquitectura de Microservicios y API REST';
+      } else if (contextCategory === 'Seguridad') {
+        generatedData.name = 'Protocolo de Cifrado de Datos en Reposo y en Tránsito (AES-256)';
+      } else if (contextCategory === 'Interoperabilidad') {
+        generatedData.name = 'Estándar de Intercambio de Datos JSON y Validaciones de Esquema';
+      } else if (contextCategory === 'Accesos') {
+        generatedData.name = 'Manejo de Identidades y Control de Acceso Basado en Roles (RBAC)';
+      }
+
+      if (field === 'new') {
+        setNewStandard({ ...newStandard, ...generatedData });
+      } else {
+        setSelectedStandard({ ...selectedStandard, ...generatedData });
+      }
+      setIsAiGenerating(false);
+    }, 1000);
+  };
+
+  const simulateProcedureAiGeneration = (field: 'new' | 'edit') => {
+    setIsAiGenerating(true);
+    const contextTitle = field === 'new' ? newProcedure.title : selectedProcedure.title;
+    const titleLower = contextTitle.toLowerCase();
+    
+    setTimeout(() => {
+      let generatedData = {
+        code: `PRC-${Math.floor(Math.random() * 1000)}`,
+        content: `1. Objetivo:\nEstablecer los pasos para ${contextTitle || 'la tarea solicitada'}.\n\n2. Alcance:\nAplica a todo el personal involucrado.\n\n3. Pasos a seguir:\n- Identificar el requerimiento.\n- Ejecutar el proceso de validación.\n- Documentar los resultados.`
+      };
+
+      if (titleLower.includes('anonimización') || titleLower.includes('enmascaramiento')) {
+        generatedData.content = `1. Identificación de PII: Ejecutar script de escaneo sobre la tabla destino.\n2. Aplicación de Reglas: Utilizar enmascaramiento parcial para emails (e***@dominio.com) y sustitución para nombres.\n3. Validación: El equipo de QA debe verificar que la base de datos resultante no permita re-identificación.\n4. Despliegue: Mover datos anonimizados a entornos de desarrollo.`;
+      } else if (titleLower.includes('backup') || titleLower.includes('respaldo')) {
+        generatedData.content = `1. Frecuencia: Los backups incrementales se realizarán diariamente a las 02:00 AM.\n2. Almacenamiento: Se enviarán a un bucket S3 con inmutabilidad habilitada por 30 días.\n3. Restauración de Prueba: El primer domingo de cada mes se ejecutará un simulacro de recuperación.\n4. Notificación: Cualquier fallo en el job de respaldo debe alertar inmediatamente a DevOps.`;
+      }
+
+      if (field === 'new') {
+        setNewProcedure({ ...newProcedure, ...generatedData });
+      } else {
+        setSelectedProcedure({ ...selectedProcedure, ...generatedData });
+      }
+      setIsAiGenerating(false);
+    }, 1000);
+  };
+
   const saveEdits = () => {
     setPolicies(policies.map(p => p.id === editForm.id ? editForm : p));
     setSelectedPolicy(editForm);
@@ -477,11 +763,26 @@ export default function PoliciesModule() {
       {/* ── Consolidated Global Score Banner calculations ── */}
       {(() => {
         const totalPoliciesCount = policies.length;
-        const activePoliciesCount = policies.filter((p: any) => p.status === 'Vigente').length;
+        const activePoliciesCount = policies.filter((p: any) => p.status === 'Vigente' || p.status === 'Publicado').length;
         const expiredPoliciesCount = policies.filter((p: any) => p.status === 'Vencida').length;
         const reviewPoliciesCount = policies.filter((p: any) => p.status === 'En Revisión').length;
 
-        const ngiScore = totalPoliciesCount > 0 ? Math.round((activePoliciesCount / totalPoliciesCount) * 100) : 100;
+        // Cálculo de NGI homologado con Command Center (Gestión Documental Normativa)
+        const totalDocs = policies.length + standards.length + procedures.length;
+        let totalProgressPoints = 0;
+        
+        const getProgressPoints = (status: string, currentStep: number) => {
+           const s = (status || '').toLowerCase();
+           if (s.includes('publicado') || s.includes('vigente') || s.includes('aprobado') || s.includes('estable')) return 100;
+           if (s.includes('revisión') || currentStep > 0) return 50;
+           return 25; // Borrador inicial
+        };
+
+        policies.forEach((p: any) => totalProgressPoints += getProgressPoints(p.status, p.currentStep || 0));
+        standards.forEach((s: any) => totalProgressPoints += getProgressPoints(s.status, 0));
+        procedures.forEach((pr: any) => totalProgressPoints += getProgressPoints(pr.status, 0));
+
+        const ngiScore = totalDocs > 0 ? Math.round(totalProgressPoints / totalDocs) : 0;
 
         let levelText = 'VULNERABLE';
         let levelColor = '#ef4444';
@@ -532,7 +833,7 @@ export default function PoliciesModule() {
                 </div>
                 <h2 className={styles.globalTitle}>Índice de Gobernanza Normativa (NGI)</h2>
                 <p className={styles.globalSub}>
-                  Porcentaje de políticas corporativas vigentes y cumplimiento normativo activo.
+                  Avance consolidado de políticas, estándares y procedimientos (Homologado con Command Center).
                 </p>
               </div>
             </div>
@@ -600,7 +901,7 @@ export default function PoliciesModule() {
           <>
             <div className={styles.tableHeader}>
               <span>Política</span>
-              <span>Tipo</span>
+              <span>Categoría / Motivo</span>
               <span>Estado</span>
               <span>Progreso de Flujo</span>
               <span>Vigencia</span>
@@ -632,7 +933,12 @@ export default function PoliciesModule() {
                   <span className={styles.policyTitle}>{pol.title}</span>
                   <span className={styles.policySubtitle}><BookOpen size={12} /> {pol.version}</span>
                 </div>
-                <div><span className={styles.typeBadge}>{pol.type}</span></div>
+                <div>
+                  <span className={styles.typeBadge}>{pol.type}</span>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                    {pol.framework_origin || 'Cumplimiento Normativo'}
+                  </div>
+                </div>
                 <div>
                   <span className={`${styles.statusBadge} ${pol.status === 'Vigente' ? styles.vigente : pol.status === 'En Revisión' ? styles.revision : pol.status === 'Vencida' ? styles.vencida : ''}`} style={{ background: pol.status === 'Borrador' ? '#f1f5f9' : undefined, color: pol.status === 'Borrador' ? '#64748b' : undefined }}>
                     {pol.status === 'Vigente' ? <CheckCircle size={14} /> : pol.status === 'En Revisión' ? <History size={14} /> : pol.status === 'Borrador' ? <Clock size={14} /> : <AlertCircle size={14} />}
@@ -641,14 +947,14 @@ export default function PoliciesModule() {
                 </div>
                 <div style={{ paddingRight: '20px' }}>
                    <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '4px' }}>
-                      {workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.name}
+                      {getPolicyWorkflow(pol.workflowId)?.name}
                    </div>
                    <div className={styles.progressBar}>
                       <div 
                         className={styles.progressFill} 
                         style={{ 
-                          width: `${((pol.currentStep || 0) + 1) / (workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.steps.length || 3) * 100}%`,
-                          backgroundColor: workflows.find(w => w.id === (pol.workflowId || 'WF-001'))?.color
+                          width: `${((pol.currentStep || 0) + 1) / (getPolicyWorkflow(pol.workflowId)?.steps.length || 3) * 100}%`,
+                          backgroundColor: getPolicyWorkflow(pol.workflowId)?.color
                         }}
                       ></div>
                    </div>
@@ -658,7 +964,19 @@ export default function PoliciesModule() {
                   <div className={styles.avatarMini}>{pol.owner.split(' ')[0]?.charAt(0) || 'U'}</div>
                   <span style={{ fontSize: '0.85rem' }}>{pol.owner.split(' - ')[0]}</span>
                 </div>
-                <button className={styles.actionBtn} onClick={() => setSelectedPolicy(pol)}>Gestionar</button>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button className={styles.actionBtn} onClick={() => setSelectedPolicy(pol)}>Gestionar</button>
+                  {isAdmin && (
+                    <button 
+                      className={styles.actionBtn} 
+                      onClick={(e) => { e.stopPropagation(); handleDeletePolicy(pol.id); }}
+                      style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', padding: '6px 10px' }}
+                      title="Eliminar Política (Solo Admins)"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </motion.div>
             ))}
           </>
@@ -666,6 +984,12 @@ export default function PoliciesModule() {
 
         {activeTab === 'estandares' && (
           <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+               <h2 className={styles.sectionTitle} style={{ margin: 0, border: 'none' }}>Catálogo de Estándares</h2>
+               <button className={styles.primaryBtn} onClick={() => setIsStdModalOpen(true)}>
+                  <Plus size={16} style={{ marginRight: '8px' }} /> Nuevo Estándar
+               </button>
+            </div>
             <div className={styles.tableHeader}>
               <span>Estándar Técnico</span>
               <span>Categoría</span>
@@ -698,7 +1022,7 @@ export default function PoliciesModule() {
                   <div className={styles.avatarMini}>AR</div>
                   <span style={{ fontSize: '0.85rem' }}>Arquitectura</span>
                 </div>
-                <button className={styles.actionBtn}>Detalle</button>
+                <button className={styles.actionBtn} onClick={() => { setSelectedStandard(std); setIsStdDetailModalOpen(true); }}>Detalle</button>
               </motion.div>
             ))}
           </>
@@ -759,9 +1083,14 @@ export default function PoliciesModule() {
             <Layers size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
             <h3>Guías de Procedimiento Operativo</h3>
             <p>Repositorio de pasos técnicos para la ejecución de tareas de gobierno.</p>
+            <div style={{ marginTop: '16px' }}>
+               <button className={styles.primaryBtn} onClick={() => setIsProcModalOpen(true)}>
+                  <Plus size={16} style={{ marginRight: '8px' }} /> Nuevo Procedimiento
+               </button>
+            </div>
             <div className={styles.evidenceGrid} style={{ marginTop: '32px', textAlign: 'left' }}>
                {procedures.map((proc: any, idx) => (
-                 <div key={idx} className={styles.evidenceCard}>
+                 <div key={idx} className={styles.evidenceCard} onClick={() => { setSelectedProcedure(proc); setIsProcDetailModalOpen(true); }} style={{ cursor: 'pointer' }}>
                     <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
                     <div>
                        <div style={{ fontWeight: 700 }}>{proc.code}: {proc.title}</div>
@@ -802,20 +1131,28 @@ export default function PoliciesModule() {
         )}
 
         {activeTab === 'evidencias' && (
-          <div className={styles.evidenceGrid} style={{ padding: '32px' }}>
-            {evidences.map((ev: any, idx) => (
-              <div key={idx} className={styles.evidenceCard}>
-                <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '10px' }}><FileText color="#ef4444" /></div>
-                <div>
-                   <div style={{ fontWeight: 700 }}>{ev.filename}</div>
-                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{ev.description || 'Certificado por Auditoría Externa'}</div>
+          <div className={styles.mainContent} style={{ padding: '32px' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 className={styles.sectionTitle} style={{ margin: 0, border: 'none' }}>Repositorio de Evidencias</h2>
+                <button className={styles.primaryBtn} onClick={() => setIsEvidenceModalOpen(true)}>
+                   <Plus size={16} style={{ marginRight: '8px' }} /> Subir Evidencia
+                </button>
+             </div>
+             <div className={styles.evidenceGrid}>
+              {evidences.map((ev: any, idx) => (
+                <div key={idx} className={styles.evidenceCard} onClick={() => ev.file_url ? window.open(ev.file_url, '_blank') : null} style={{ cursor: ev.file_url ? 'pointer' : 'default' }}>
+                  <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '10px' }}><FileText color="#ef4444" /></div>
+                  <div>
+                     <div style={{ fontWeight: 700 }}>{ev.filename}</div>
+                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{ev.description || 'Certificado por Auditoría Externa'}</div>
+                  </div>
+                  <Download size={18} style={{ marginLeft: 'auto', color: '#64748b' }} />
                 </div>
-                <Download size={18} style={{ marginLeft: 'auto', color: '#64748b' }} />
-              </div>
-            ))}
-            {evidences.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay evidencias registradas en auditoría.</div>
-            )}
+              ))}
+              {evidences.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay evidencias registradas en auditoría.</div>
+              )}
+             </div>
           </div>
         )}
       </div>
@@ -876,6 +1213,22 @@ export default function PoliciesModule() {
                           <option>Tecnología / IA</option>
                        </select>
                     </div>
+                 </div>
+
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Motivo de Cumplimiento</label>
+                       <select 
+                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                         value={newPolicy.framework_origin}
+                         onChange={e => setNewPolicy({...newPolicy, framework_origin: e.target.value})}
+                       >
+                          <option>Cumplimiento Normativo</option>
+                          <option>Cumplimiento Legal</option>
+                          <option>Buenas Prácticas</option>
+                          <option>Regulatorio (Superintendencia)</option>
+                       </select>
+                    </div>
                     <div>
                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Flujo de Aprobación</label>
                        <select 
@@ -888,6 +1241,9 @@ export default function PoliciesModule() {
                           ))}
                        </select>
                     </div>
+                 </div>
+
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     <div>
                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
                        <select 
@@ -1025,10 +1381,10 @@ export default function PoliciesModule() {
                        <div style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
                           <div style={{ marginBottom: '32px' }}>
                              <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
-                                Flujo aplicado: <strong>{workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.name}</strong>
+                                Flujo aplicado: <strong>{getPolicyWorkflow(selectedPolicy.workflowId)?.name}</strong>
                              </div>
                              <div className={styles.horizontalStepper}>
-                                {workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.map((step: string, sIdx: number) => {
+                                {getPolicyWorkflow(selectedPolicy.workflowId)?.steps.map((step: string, sIdx: number) => {
                                    const isPast = sIdx < (selectedPolicy.currentStep || 0);
                                    const isCurrent = sIdx === (selectedPolicy.currentStep || 0);
                                    return (
@@ -1037,7 +1393,7 @@ export default function PoliciesModule() {
                                            {isPast ? <CheckCircle size={14} /> : sIdx + 1}
                                         </div>
                                         <div className={styles.hStepLabel}>{step}</div>
-                                        {sIdx < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 0) - 1 && (
+                                        {sIdx < (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 0) - 1 && (
                                           <div className={styles.hStepLine}></div>
                                         )}
                                      </div>
@@ -1050,15 +1406,15 @@ export default function PoliciesModule() {
                              <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
                                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
-                                   {selectedPolicy.currentStep === (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 
+                                   {selectedPolicy.currentStep === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 
                                      ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
-                                     : `Siguiente paso: ${workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps[(selectedPolicy.currentStep || 0) + 1]}`
+                                     : `Siguiente paso: ${getPolicyWorkflow(selectedPolicy.workflowId)?.steps[(selectedPolicy.currentStep || 0) + 1]}`
                                    }
                                 </div>
                              </div>
-                             {(selectedPolicy.currentStep || 0) < (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
+                             {(selectedPolicy.currentStep || 0) < (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 && (
                                <div>
-                                 {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' ? (
+                                 {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' || (selectedPolicy.currentStep === 0 && !selectedPolicy.documentUrl) ? (
                                    <>
                                      <input 
                                        type="file" 
@@ -1076,29 +1432,21 @@ export default function PoliciesModule() {
                                        onClick={() => document.getElementById(`workflow-file-upload-${selectedPolicy.id}`)?.click()}
                                        style={{ padding: '10px 20px', background: '#10b981' }}
                                      >
-                                        <FileText size={16} style={{ marginRight: '8px' }} /> Subir Documento
+                                        <FileText size={16} style={{ marginRight: '8px' }} /> Adjuntar Doc y Avanzar
                                      </button>
                                    </>
-                                 ) : selectedPolicy.status === 'Revisión y Actualización' ? (
+                                 ) : (
                                    <button 
                                      className={styles.primaryBtn} 
                                      onClick={() => advanceWorkflow(selectedPolicy.id)}
                                      style={{ padding: '10px 20px', background: '#f59e0b' }}
                                    >
-                                      <CheckCircle size={16} style={{ marginRight: '8px' }} /> Aprobar Documento
-                                   </button>
-                                 ) : (
-                                   <button 
-                                     className={styles.primaryBtn} 
-                                     onClick={() => advanceWorkflow(selectedPolicy.id)}
-                                     style={{ padding: '10px 20px' }}
-                                   >
-                                      Avanzar Paso
+                                      <CheckCircle size={16} style={{ marginRight: '8px' }} /> Asignar Aprobador y Avanzar
                                    </button>
                                  )}
                                </div>
                              )}
-                             {(selectedPolicy.currentStep || 0) === (workflows.find(w => w.id === (selectedPolicy.workflowId || 'WF-001'))?.steps.length || 1) - 1 && (
+                             {(selectedPolicy.currentStep || 0) === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 && (
                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, padding: '10px 20px', background: '#d1fae5', borderRadius: '8px' }}>
                                  <ShieldCheck size={20} /> Cumpliendo Normativa
                                </div>
@@ -1417,11 +1765,20 @@ export default function PoliciesModule() {
       {/* --- Template Formal para Exportación PDF --- */}
       {selectedPolicy && (
         <div id="formal-policy-document" className={styles.printableDocument}>
+          <div 
+            className={styles.printWatermark} 
+            style={{ 
+              color: selectedPolicy.status === 'Vigente' || selectedPolicy.status === 'Publicado' || selectedPolicy.status?.includes('Aproba') ? 'rgba(16, 185, 129, 0.1)' : 
+                     selectedPolicy.status === 'Borrador' ? 'rgba(100, 116, 139, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            {selectedPolicy.status}
+          </div>
           <div className={styles.printHeader}>
              <div style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>GovData<span style={{ color: '#6366f1' }}>Nexus</span></div>
              <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{selectedPolicy.title}</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id} | Versión: {selectedPolicy.version}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id?.substring(0,8).toUpperCase()} | Versión: {selectedPolicy.version}</div>
              </div>
           </div>
 
@@ -1435,35 +1792,39 @@ export default function PoliciesModule() {
 
              <section>
                 <h2 className={styles.printSectionTitle}>1. Objetivo</h2>
-                <p>{selectedPolicy.objective}</p>
+                <div className={styles.printSectionContent}>{selectedPolicy.objective || 'No especificado.'}</div>
              </section>
 
              <section>
                 <h2 className={styles.printSectionTitle}>2. Alcance</h2>
-                <p>{selectedPolicy.scope}</p>
+                <div className={styles.printSectionContent}>{selectedPolicy.scope || 'No especificado.'}</div>
              </section>
 
              <section>
                 <h2 className={styles.printSectionTitle}>3. Lineamientos</h2>
-                <ul>
-                   {selectedPolicy.guidelines?.map((g: string, i: number) => (
-                     <li key={i}>{g}</li>
-                   ))}
-                </ul>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.guidelines?.filter(Boolean).length > 0 ? selectedPolicy.guidelines.map((g: string, i: number) => (
+                       <li key={i}>{g}</li>
+                     )) : <li>No hay lineamientos especificados.</li>}
+                  </ul>
+                </div>
              </section>
 
              <section>
                 <h2 className={styles.printSectionTitle}>4. Controles Asociados</h2>
-                <ul>
-                   {selectedPolicy.controls?.map((c: string, i: number) => (
-                     <li key={i}>{c}</li>
-                   ))}
-                </ul>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.controls?.filter(Boolean).length > 0 ? selectedPolicy.controls.map((c: string, i: number) => (
+                       <li key={i}>{c}</li>
+                     )) : <li>No hay controles especificados.</li>}
+                  </ul>
+                </div>
              </section>
 
              <section>
                 <h2 className={styles.printSectionTitle}>5. Sanciones</h2>
-                <p>{selectedPolicy.sancions}</p>
+                <div className={styles.printSectionContent}>{selectedPolicy.sancions || 'No especificado.'}</div>
              </section>
 
              <div className={styles.printSignatureArea}>
@@ -1626,7 +1987,485 @@ export default function PoliciesModule() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Standard Modal */}
+      <AnimatePresence>
+        {isStdModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsStdModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Crear Estándar Técnico</h2>
+                <button onClick={() => setIsStdModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código del Estándar</label>
+                  <input type="text" value={newStandard.code} onChange={e => setNewStandard({...newStandard, code: e.target.value})} placeholder="Ej: STD-005" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Estándar</label>
+                  <input type="text" value={newStandard.name} onChange={e => setNewStandard({...newStandard, name: e.target.value})} placeholder="Ej: Cifrado AES-256 PII" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Categoría</label>
+                    <select value={newStandard.category} onChange={e => setNewStandard({...newStandard, category: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
+                      <option value="Arquitectura" style={{ color: 'black' }}>Arquitectura</option>
+                      <option value="Seguridad" style={{ color: 'black' }}>Seguridad</option>
+                      <option value="Interoperabilidad" style={{ color: 'black' }}>Interoperabilidad</option>
+                      <option value="Accesos" style={{ color: 'black' }}>Accesos</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Estado</label>
+                    <select value={newStandard.status} onChange={e => setNewStandard({...newStandard, status: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
+                      <option value="Activo" style={{ color: 'black' }}>Activo</option>
+                      <option value="Crítico" style={{ color: 'black' }}>Crítico</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="text" value={newStandard.document_url || ''} onChange={e => setNewStandard({...newStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    {newStandard.document_url && (
+                      <a href={newStandard.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <input type="file" id="std-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewStandard({...newStandard, document_url: url}))} />
+                      <label htmlFor="std-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                         <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button 
+                    className={styles.secondaryBtn} 
+                    onClick={() => simulateStandardAiGeneration('new')}
+                    disabled={isAiGenerating}
+                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                     <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                  </button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => setIsStdModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.primaryBtn} onClick={handleAddStandard}>Crear Estándar</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Procedure Modal */}
+      <AnimatePresence>
+        {isProcModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsProcModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Crear Procedimiento</h2>
+                <button onClick={() => setIsProcModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código</label>
+                    <input type="text" value={newProcedure.code} onChange={e => setNewProcedure({...newProcedure, code: e.target.value})} placeholder="PRC-010" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Versión</label>
+                    <input type="text" value={newProcedure.version} onChange={e => setNewProcedure({...newProcedure, version: e.target.value})} placeholder="1.0" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Título del Procedimiento</label>
+                  <input type="text" value={newProcedure.title} onChange={e => setNewProcedure({...newProcedure, title: e.target.value})} placeholder="Ej: Manual de anonimización" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Contenido / Resumen</label>
+                  <textarea value={newProcedure.content} onChange={e => setNewProcedure({...newProcedure, content: e.target.value})} placeholder="Describe el procedimiento brevemente..." rows={4} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none', resize: 'vertical' }} />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="text" value={newProcedure.document_url || ''} onChange={e => setNewProcedure({...newProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    {newProcedure.document_url && (
+                      <a href={newProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <input type="file" id="proc-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewProcedure({...newProcedure, document_url: url}))} />
+                      <label htmlFor="proc-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                         <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button 
+                    className={styles.secondaryBtn} 
+                    onClick={() => simulateProcedureAiGeneration('new')}
+                    disabled={isAiGenerating}
+                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                     <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                  </button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => setIsProcModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.primaryBtn} onClick={handleAddProcedure}>Crear Procedimiento</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Standard Detail/Edit Modal */}
+      <AnimatePresence>
+        {isStdDetailModalOpen && selectedStandard && (
+          <div className={styles.modalOverlay} onClick={() => setIsStdDetailModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Gestionar Estándar Técnico</h2>
+                <button onClick={() => setIsStdDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código del Estándar</label>
+                  <input type="text" value={selectedStandard.code} onChange={e => setSelectedStandard({...selectedStandard, code: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Estándar</label>
+                  <input type="text" value={selectedStandard.name} onChange={e => setSelectedStandard({...selectedStandard, name: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Categoría</label>
+                    <select value={selectedStandard.category} onChange={e => setSelectedStandard({...selectedStandard, category: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
+                      <option value="Arquitectura" style={{ color: 'black' }}>Arquitectura</option>
+                      <option value="Seguridad" style={{ color: 'black' }}>Seguridad</option>
+                      <option value="Interoperabilidad" style={{ color: 'black' }}>Interoperabilidad</option>
+                      <option value="Accesos" style={{ color: 'black' }}>Accesos</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Estado</label>
+                    <select value={selectedStandard.status} onChange={e => setSelectedStandard({...selectedStandard, status: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
+                      <option value="Activo" style={{ color: 'black' }}>Activo</option>
+                      <option value="Crítico" style={{ color: 'black' }}>Crítico</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="text" value={selectedStandard.document_url || ''} onChange={e => setSelectedStandard({...selectedStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    {selectedStandard.document_url && (
+                      <a href={selectedStandard.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <input type="file" id="std-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedStandard({...selectedStandard, document_url: url}))} />
+                      <label htmlFor="std-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                         <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => handleDeleteStandard(selectedStandard.id)} style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}>
+                      <Trash2 size={16} style={{ marginRight: '8px' }} /> Eliminar
+                    </button>
+                    <button 
+                      className={styles.secondaryBtn} 
+                      onClick={() => simulateStandardAiGeneration('edit')}
+                      disabled={isAiGenerating}
+                      style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                       <Cpu size={14} /> {isAiGenerating ? 'Mejorar con IA' : 'Mejorar con IA'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => setIsStdDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.primaryBtn} onClick={handleUpdateStandard}>Guardar Cambios</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Procedure Detail/Edit Modal */}
+      <AnimatePresence>
+        {isProcDetailModalOpen && selectedProcedure && (
+          <div className={styles.modalOverlay} onClick={() => setIsProcDetailModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Gestionar Procedimiento</h2>
+                <button onClick={() => setIsProcDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código</label>
+                    <input type="text" value={selectedProcedure.code} onChange={e => setSelectedProcedure({...selectedProcedure, code: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Versión</label>
+                    <input type="text" value={selectedProcedure.version} onChange={e => setSelectedProcedure({...selectedProcedure, version: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Título del Procedimiento</label>
+                  <input type="text" value={selectedProcedure.title} onChange={e => setSelectedProcedure({...selectedProcedure, title: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Contenido / Resumen</label>
+                  <textarea value={selectedProcedure.content} onChange={e => setSelectedProcedure({...selectedProcedure, content: e.target.value})} rows={4} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none', resize: 'vertical' }} />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="text" value={selectedProcedure.document_url || ''} onChange={e => setSelectedProcedure({...selectedProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    {selectedProcedure.document_url && (
+                      <a href={selectedProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <input type="file" id="proc-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedProcedure({...selectedProcedure, document_url: url}))} />
+                      <label htmlFor="proc-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                         <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => handleDeleteProcedure(selectedProcedure.id)} style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}>
+                      <Trash2 size={16} style={{ marginRight: '8px' }} /> Eliminar
+                    </button>
+                    <button 
+                      className={styles.secondaryBtn} 
+                      onClick={() => simulateProcedureAiGeneration('edit')}
+                      disabled={isAiGenerating}
+                      style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                       <Cpu size={14} /> {isAiGenerating ? 'Mejorar con IA' : 'Mejorar con IA'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => setIsProcDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.primaryBtn} onClick={handleUpdateProcedure}>Guardar Cambios</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Evidence Upload Modal */}
+      <AnimatePresence>
+        {isEvidenceModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsEvidenceModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Subir Evidencia</h2>
+                <button onClick={() => setIsEvidenceModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Documento</label>
+                  <input type="text" value={newEvidence.filename} onChange={e => setNewEvidence({...newEvidence, filename: e.target.value})} placeholder="Ej: Certificado ISO 27001" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Descripción / Notas</label>
+                  <input type="text" value={newEvidence.description} onChange={e => setNewEvidence({...newEvidence, description: e.target.value})} placeholder="Notas sobre la evidencia" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Evidencia</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="text" value={newEvidence.file_url || ''} onChange={e => setNewEvidence({...newEvidence, file_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    {newEvidence.file_url && (
+                      <a href={newEvidence.file_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <input type="file" id="ev-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewEvidence({...newEvidence, file_url: url}))} />
+                      <label htmlFor="ev-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                         <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className={styles.secondaryBtn} onClick={() => setIsEvidenceModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                  <button className={styles.primaryBtn} onClick={handleAddEvidence}>Guardar Evidencia</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Approve Workflow Modal */}
+      <AnimatePresence>
+        {isApproveModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsApproveModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ 
+                maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column',
+                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                fontFamily: 'var(--modal-font, inherit)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '32px', 
+                color: 'var(--modal-text-color, white)', 
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Asignar y Aprobar Paso</h2>
+                <button onClick={() => setIsApproveModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Responsable de Aprobación</label>
+                  <select 
+                    value={approveAssignee}
+                    onChange={e => setApproveAssignee(e.target.value)}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                  >
+                    <option value="" disabled style={{ color: 'black' }}>Seleccione el responsable asignado...</option>
+                    {teamMembers.map((m, i) => (
+                      <option key={i} value={m.name} style={{ color: 'black' }}>{m.name} ({m.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px', marginBottom: '24px' }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#60a5fa', lineHeight: 1.5 }}>
+                    <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                    Al firmar y avanzar, el documento pasará al siguiente estado del ciclo de vida y la fecha quedará registrada en la pista de auditoría.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className={styles.secondaryBtn} onClick={() => setIsApproveModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                  <button 
+                    className={styles.primaryBtn} 
+                    onClick={executeAdvanceWorkflow}
+                    disabled={!approveAssignee}
+                    style={{ opacity: !approveAssignee ? 0.5 : 1, cursor: !approveAssignee ? 'not-allowed' : 'pointer' }}
+                  >
+                    Firmar y Avanzar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
-

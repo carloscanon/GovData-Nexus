@@ -26,6 +26,7 @@ export default function CommandCenter() {
   const [wfStats, setWfStats] = useState({ total: 0, pending: 0, sla: 0, time: 0, active: 0 });
   const [assetStats, setAssetStats] = useState({ total: 0, withOwner: 0, withSteward: 0, classified: 0, lineage: 0 });
   const [secStats, setSecStats] = useState({ critical: 0, high: 0, policiesExpired: 0 });
+  const [docStats, setDocStats] = useState({ total: 0, progress: 0, policies: 0, standards: 0, procedures: 0, critical: 0 });
   const [domainMatrix, setDomainMatrix] = useState<any[]>([]);
   const [radarData, setRadarData] = useState<any[]>([]);
   const [dynamicRoadmap, setDynamicRoadmap] = useState<any[]>([]);
@@ -45,7 +46,9 @@ export default function CommandCenter() {
           { data: policies },
           { data: incidents },
           { data: members },
-          { data: diagnosticQuestions }
+          { data: diagnosticQuestions },
+          { data: standards },
+          { data: procedures }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
           supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id),
@@ -53,7 +56,9 @@ export default function CommandCenter() {
           supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('security_incidents').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('diagnostic_questions').select('code, pillar')
+          supabase.from('diagnostic_questions').select('code, pillar'),
+          supabase.from('policy_standards').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id)
         ]);
 
         // 1. Madurez
@@ -139,6 +144,39 @@ export default function CommandCenter() {
           policiesExpired: pExp
         });
 
+        // 4.5. Gestión Documental (Políticas, Estándares, Procedimientos)
+        const policiesList = policies || [];
+        const standardsList = standards || [];
+        const proceduresList = procedures || [];
+        
+        const totalDocs = policiesList.length + standardsList.length + proceduresList.length;
+        let totalProgressPoints = 0;
+        
+        const getProgressPoints = (status: string, currentStep: number) => {
+           const s = (status || '').toLowerCase();
+           if (s.includes('publicado') || s.includes('vigente') || s.includes('aprobado') || s.includes('estable')) return 100;
+           if (s.includes('revisión') || currentStep > 0) return 50;
+           return 25; // Borrador inicial
+        };
+
+        policiesList.forEach(p => totalProgressPoints += getProgressPoints(p.status, p.current_step || 0));
+        standardsList.forEach(s => totalProgressPoints += getProgressPoints(s.status, 0));
+        proceduresList.forEach(pr => totalProgressPoints += getProgressPoints(pr.status, 0));
+
+        const docProgress = totalDocs > 0 ? Math.round(totalProgressPoints / totalDocs) : 0;
+        const criticalDocs = policiesList.filter(p => (p.type || '').toLowerCase().includes('crític') || (p.status || '').toLowerCase().includes('crític')).length
+                           + standardsList.filter(s => (s.status || '').toLowerCase().includes('crític') || (s.category || '').toLowerCase().includes('crític')).length;
+
+        setDocStats({
+           total: totalDocs,
+           progress: docProgress,
+           policies: policiesList.length,
+           standards: standardsList.length,
+           procedures: proceduresList.length,
+           critical: criticalDocs
+        });
+
+
         let currentRisk = 'Desconocido';
         if (maturity && maturity.length > 0) {
           if (segScore < 40 || iCrit > 0) currentRisk = 'Alto';
@@ -189,9 +227,9 @@ export default function CommandCenter() {
         setDynamicRoadmap(pillarsForRoadmap.slice(0, 3));
 
         // 8. Roadmap Progress from Workflows
-        const roadmapTickets = workflows ? workflows.filter(w => w.category === 'Roadmap Iniciativa') : [];
+        const roadmapTickets = workflows ? workflows.filter(w => w.title && w.title.includes('[Roadmap M')) : [];
         const progressByPhase = [1, 2, 3].map(p => {
-          const phaseTasks = roadmapTickets.filter(w => w.current_step === `Fase ${p}`);
+          const phaseTasks = roadmapTickets.filter(w => w.title.includes(`[Roadmap M${p}]`));
           const total = phaseTasks.length;
           const completed = phaseTasks.filter(w => w.status === 'Completado' || w.status === 'Cerrado' || w.status === 'Aprobado').length;
           const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -211,13 +249,48 @@ export default function CommandCenter() {
 
   if (loading) return <div className={styles.container}>Cargando Centro de Gobierno 360°...</div>;
 
+  const getMaturityLevelInfo = (score: number) => {
+    if (score < 10) return { level: 0, title: 'Ausencia de Capacidad (Nivel 0)', desc: 'No existen procesos formales para gestionar los datos.', color: '#94a3b8' };
+    if (score < 30) return { level: 1, title: 'Inicial (Nivel 1)', desc: 'Las tareas dependen del esfuerzo y habilidades individuales; es reactivo.', color: '#ef4444' };
+    if (score < 50) return { level: 2, title: 'Repetible (Nivel 2)', desc: 'Se aplican mínimos procesos y estándares básicos, pero de forma aislada.', color: '#f97316' };
+    if (score < 70) return { level: 3, title: 'Definido (Nivel 3)', desc: 'Existen estándares y políticas corporativas establecidas y documentadas.', color: '#eab308' };
+    if (score < 90) return { level: 4, title: 'Gestionado (Nivel 4)', desc: 'Los procesos son medidos y controlados mediante métricas de rendimiento.', color: '#3b82f6' };
+    return { level: 5, title: 'Optimizado (Nivel 5)', desc: 'Se practica la mejora continua y automatización.', color: '#10b981' };
+  };
+
+  const matInfo = getMaturityLevelInfo(maturityScore);
+
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
+      <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div className={styles.titleArea}>
           <h1>GovData Nexus Command Center</h1>
           <p>Visión ejecutiva consolidada 360° del estado de gobierno de datos.</p>
         </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: `linear-gradient(135deg, ${matInfo.color}15, ${matInfo.color}05)`,
+            border: `1px solid ${matInfo.color}40`,
+            padding: '16px 24px',
+            borderRadius: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            cursor: 'default',
+            boxShadow: `0 8px 30px -10px ${matInfo.color}40`,
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+             <Crown size={24} color={matInfo.color} />
+             <span style={{ color: matInfo.color, fontWeight: 900, fontSize: '1.2rem', letterSpacing: '-0.5px' }}>{matInfo.title}</span>
+          </div>
+          <span style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '6px', maxWidth: '300px', textAlign: 'right', lineHeight: 1.4 }}>
+            {matInfo.desc}
+          </span>
+        </motion.div>
       </header>
 
       {/* SECCIÓN 1: KPIs Globales */}
@@ -253,6 +326,14 @@ export default function CommandCenter() {
           </div>
           <div className={styles.kpiValue}>{adoption}%</div>
           <div className={styles.kpiSub}>Uso activo de plataforma</div>
+        </div>
+        <div className={styles.kpiCard} style={{ '--kpi-color': '#06b6d4' } as any}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiTitle}>Avance Documental</span>
+            <FileText size={20} color="#06b6d4" />
+          </div>
+          <div className={styles.kpiValue}>{docStats.progress}%</div>
+          <div className={styles.kpiSub}>Docs, Estándares y Procedimientos</div>
         </div>
       </div>
 
@@ -303,6 +384,23 @@ export default function CommandCenter() {
             </div>
           </div>
 
+          <div className={styles.sectionCard}>
+            <h2 className={styles.sectionTitle}>
+              <div className={styles.sectionTitleIcon} style={{ background: '#06b6d4' }}><FileText size={20} /></div>
+              Gestión Documental Normativa
+            </h2>
+            <div className={styles.healthGrid}>
+              <div className={styles.healthItem}><span>Avance Total</span> <strong style={{ color: '#06b6d4' }}>{docStats.progress}%</strong></div>
+              <div className={styles.healthItem}><span>Docs Críticos</span> <strong style={{ color: '#ef4444' }}>{docStats.critical}</strong></div>
+              <div className={styles.healthItem}><span>Total Docs</span> <strong>{docStats.total}</strong></div>
+              <div className={styles.healthItem}><span>Políticas</span> <strong>{docStats.policies}</strong></div>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '12px', lineHeight: 1.4 }}>El avance pondera borradores (25%), en revisión (50%) y publicados (100%), asegurando visibilidad de progreso incluso si faltan aprobaciones.</p>
+          </div>
+
+        </div>
+
+        <div className={styles.twoColGrid}>
           {/* SECCIÓN 6: Valor Generado */}
           <div className={styles.sectionCard}>
             <h2 className={styles.sectionTitle}>
@@ -320,10 +418,28 @@ export default function CommandCenter() {
               </div>
             </div>
           </div>
+
+          {/* SECCIÓN 8: Radar Estratégico */}
+          <div className={styles.sectionCard}>
+            <h2 className={styles.sectionTitle}>
+              <div className={styles.sectionTitleIcon} style={{ background: '#f59e0b' }}><Target size={20} /></div>
+              Radar Estratégico
+            </h2>
+            <div style={{ width: '100%', height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar name="Madurez Actual" dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.5} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
-        <div className={styles.twoColGrid}>
-          {/* SECCIÓN 3: Dominio */}
+        {/* SECCIÓN 3: Dominio (FULL WIDTH) */}
+        <div style={{ width: '100%' }}>
           <div className={styles.sectionCard}>
             <h2 className={styles.sectionTitle}>
               <div className={styles.sectionTitleIcon} style={{ background: '#8b5cf6' }}><BarChart3 size={20} /></div>
@@ -349,24 +465,6 @@ export default function CommandCenter() {
                 ))}
               </tbody>
             </table>
-          </div>
-
-          {/* SECCIÓN 8: Radar Estratégico */}
-          <div className={styles.sectionCard}>
-            <h2 className={styles.sectionTitle}>
-              <div className={styles.sectionTitleIcon} style={{ background: '#f59e0b' }}><Target size={20} /></div>
-              Radar Estratégico
-            </h2>
-            <div style={{ width: '100%', height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                  <PolarGrid stroke="#e2e8f0" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Actual" dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.4} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
           </div>
         </div>
 

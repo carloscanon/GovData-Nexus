@@ -38,7 +38,11 @@ export default function RoadmapReport() {
 
         if (workflows) {
           workflows.forEach(w => {
-            const phase = w.current_step || 'Fase 1';
+            let phase = 'Fase 1';
+            if (w.title && w.title.includes('[Roadmap M1]')) phase = 'Fase 1';
+            else if (w.title && w.title.includes('[Roadmap M2]')) phase = 'Fase 2';
+            else if (w.title && w.title.includes('[Roadmap M3]')) phase = 'Fase 3';
+            
             if (!grouped[phase]) grouped[phase] = [];
             grouped[phase].push(w);
           });

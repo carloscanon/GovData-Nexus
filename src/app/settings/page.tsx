@@ -550,6 +550,52 @@ export default function Settings() {
                   Ajusta la apariencia de las ventanas de diálogo (ej. edición de flujos, asignación de roles).
                 </p>
 
+                <div className={styles.themeGrid} style={{ marginBottom: '24px' }}>
+                  <div 
+                    className={`${styles.themeCard} ${modalBg === '#ffffff' && modalBlur === '0px' ? styles.activeTheme : ''}`}
+                    onClick={() => {
+                      setModalBg('#ffffff');
+                      setModalBlur('0px');
+                      setModalTextColor('#0f172a');
+                    }}
+                  >
+                    <div className={styles.themePreview} style={{ background: '#e2e8f0' }}>
+                       <div style={{ width: '60%', height: '60%', background: '#ffffff', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                    </div>
+                    <span>Clásico (Blanco Sólido)</span>
+                  </div>
+
+                  <div 
+                    className={`${styles.themeCard} ${modalBg === 'rgba(15, 23, 42, 0.85)' ? styles.activeTheme : ''}`}
+                    onClick={() => {
+                      setModalBg('rgba(15, 23, 42, 0.85)');
+                      setModalBlur('24px');
+                      setModalTextColor('#ffffff');
+                    }}
+                  >
+                    <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #a855f7 100%)' }}>
+                       <div style={{ width: '60%', height: '60%', background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)' }} />
+                    </div>
+                    <span>Premium (Dark Glass)</span>
+                  </div>
+
+                  <div 
+                    className={`${styles.themeCard} ${modalBg === 'rgba(255, 255, 255, 0.85)' ? styles.activeTheme : ''}`}
+                    onClick={() => {
+                      setModalBg('rgba(255, 255, 255, 0.85)');
+                      setModalBlur('24px');
+                      setModalTextColor('#0f172a');
+                    }}
+                  >
+                    <div className={styles.themePreview} style={{ background: 'linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%)' }}>
+                       <div style={{ width: '60%', height: '60%', background: 'rgba(255, 255, 255, 0.5)', backdropFilter: 'blur(4px)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.4)' }} />
+                    </div>
+                    <span>Translúcido (Light Glass)</span>
+                  </div>
+                </div>
+
+                <h4 style={{ fontSize: '0.9rem', fontWeight: '800', marginBottom: '12px', marginTop: '16px' }}>Ajustes Avanzados de Modal</h4>
+
                 <div className={styles.colorGrid} style={{ marginBottom: '20px' }}>
                   <div className={styles.colorField}>
                     <label>Fondo de Ventana (Color/Opacidad)</label>
