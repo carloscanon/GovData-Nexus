@@ -258,27 +258,37 @@ export default function Launchpad() {
         ];
       } else if (selectedFw === 'dcam') {
         policyDefs = [
-          { title: 'DCAM Data Management Policy', type: 'Gobierno', status: 'Borrador', owner: 'CDO' },
-          { title: 'Data Ethics & Privacy', type: 'Seguridad', status: 'Borrador', owner: 'CISO' },
-          { title: 'Data Analytics Standards', type: 'Analítica', status: 'Borrador', owner: 'Data Steward' }
+          { title: 'Política de Estrategia y Valor de los Datos', type: 'Estrategia', status: 'Borrador', owner: 'CDO', objective: 'Alinear la gestión de datos con los objetivos de negocio y demostrar su valor.', scope: 'Definición de casos de uso analíticos, priorización de datos críticos (CDEs) y métricas de ROI.' },
+          { title: 'Política de Gobierno y Organización', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Establecer la estructura operativa del gobierno de datos.', scope: 'Creación del Data Governance Council, roles operativos y esquema de financiación corporativa.' },
+          { title: 'Política de Control de Calidad de Datos', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Asegurar que los datos sean aptos para el propósito del negocio (Fit-for-purpose).', scope: 'Perfilamiento sistemático, validación contra reglas de negocio y gestión de excepciones.' },
+          { title: 'Política de Significado y Contexto de Datos', type: 'Metadatos', status: 'Borrador', owner: 'Data Steward', objective: 'Proveer una semántica común para toda la organización.', scope: 'Desarrollo del Glosario de Negocio, Taxonomías y vinculación de términos comerciales a activos técnicos.' },
+          { title: 'Política de Arquitectura Analítica', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Optimizar el flujo de datos para análisis avanzado.', scope: 'Lineamientos para Data Lakes, Data Warehouses, pipelines de ingesta y herramientas de BI.' },
+          { title: 'Política de Seguridad Estratégica (Control)', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger los activos de información críticos de la empresa financiera.', scope: 'Segregación de funciones, encriptación en tránsito y reposo, y auditorías de accesos.' }
         ];
       } else if (selectedFw === 'health') {
         policyDefs = [
-          { title: 'Cumplimiento HIPAA / PHI', type: 'Legal', status: 'Borrador', owner: 'Legal' },
-          { title: 'Política de Retención de Historias Clínicas', type: 'Retención', status: 'Borrador', owner: 'Data Owner' },
-          { title: 'Cifrado de Datos Médicos', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+          { title: 'Política de Cumplimiento HIPAA / PHI', type: 'Legal', status: 'Borrador', owner: 'Legal', objective: 'Garantizar la protección de la Información de Salud Protegida (PHI).', scope: 'Todos los sistemas, aplicaciones y procesos que transmiten, almacenan o procesan datos de pacientes.' },
+          { title: 'Política de Retención de Historias Clínicas (EHR)', type: 'Retención', status: 'Borrador', owner: 'Data Owner', objective: 'Definir el ciclo de vida de los registros médicos.', scope: 'Mantenimiento seguro, archivado a largo plazo y destrucción certificada tras cumplir la retención legal.' },
+          { title: 'Política de Gestión de Consentimiento del Paciente', type: 'Seguridad', status: 'Borrador', owner: 'Legal', objective: 'Gestionar las autorizaciones de los pacientes para uso de sus datos.', scope: 'Captura, trazabilidad y revocación de consentimientos informados en plataformas digitales y físicas.' },
+          { title: 'Política de Cifrado y Transmisión de Datos Médicos', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Asegurar que la PHI no sea interceptada o leída sin autorización.', scope: 'Uso de algoritmos criptográficos robustos para datos en reposo y conexiones seguras (TLS).' },
+          { title: 'Política de Auditoría de Accesos Clínicos', type: 'Auditoría', status: 'Borrador', owner: 'Auditor', objective: 'Prevenir accesos no autorizados a historias clínicas.', scope: 'Monitoreo continuo de logs de acceso, alertas de visualización indebida y perfilamiento de usuarios.' },
+          { title: 'Política de Interoperabilidad en Salud (HL7/FHIR)', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Facilitar el intercambio seguro de datos entre prestadores.', scope: 'Adopción de estándares internacionales (HL7, FHIR, DICOM) para integración de sistemas de salud.' }
         ];
       } else if (selectedFw === 'public') {
         policyDefs = [
-          { title: 'Política de Datos Abiertos', type: 'Transparencia', status: 'Borrador', owner: 'CDO' },
-          { title: 'Transparencia Activa de Datos', type: 'Transparencia', status: 'Borrador', owner: 'Data Steward' },
-          { title: 'Anonimización de PII Público', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+          { title: 'Política Nacional de Transparencia Activa', type: 'Transparencia', status: 'Borrador', owner: 'CDO', objective: 'Garantizar el derecho de acceso a la información pública.', scope: 'Publicación proactiva de contratos, presupuestos y datos de gestión en portales oficiales.' },
+          { title: 'Política de Apertura de Datos (Open Data)', type: 'Transparencia', status: 'Borrador', owner: 'Data Steward', objective: 'Fomentar la innovación y auditoría ciudadana.', scope: 'Publicación de datasets en formatos abiertos, estructurados y legibles por máquina (CSV, JSON).' },
+          { title: 'Política de Privacidad y Anonimización Pública', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger los datos personales de los ciudadanos.', scope: 'Técnicas de enmascaramiento y anonimización obligatorias antes de publicar datasets públicos.' },
+          { title: 'Política de Calidad y Estandarización Estadística', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Asegurar la fiabilidad de las estadísticas oficiales.', scope: 'Metodologías de recolección, validación de integridad y aplicación de vocabularios controlados del estado.' },
+          { title: 'Política de Interoperabilidad Interinstitucional', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Evitar que el ciudadano sea el mensajero del estado.', scope: 'Conexión de bases de datos entre entidades a través de servicios web y APIs seguras (X-Road).' }
         ];
       } else {
         policyDefs = [
-          { title: 'Política General de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO' },
-          { title: 'Política de Calidad de Datos', type: 'Calidad', status: 'Borrador', owner: 'Data Steward' },
-          { title: 'Normativa de Seguridad de la Información', type: 'Seguridad', status: 'Borrador', owner: 'CISO' }
+          { title: 'Política General de Gobierno de Datos', type: 'Gobierno', status: 'Borrador', owner: 'CDO', objective: 'Definir el modelo fundacional de gestión de datos de la empresa.', scope: 'Roles, comités, dominios de datos y reglas generales de propiedad y custodia.' },
+          { title: 'Política de Clasificación y Protección de Información', type: 'Seguridad', status: 'Borrador', owner: 'CISO', objective: 'Proteger la información de acuerdo con su nivel de sensibilidad.', scope: 'Esquema de clasificación (Pública, Interna, Confidencial, Restringida) y controles aplicables a cada nivel.' },
+          { title: 'Política de Calidad y Gobernanza Analítica', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', objective: 'Garantizar datos confiables para la toma de decisiones empresariales.', scope: 'Identificación de CDEs, reglas de calidad, certificación de reportes y dashboards oficiales.' },
+          { title: 'Normativa de Ciclo de Vida y Retención', type: 'Retención', status: 'Borrador', owner: 'Data Owner', objective: 'Gestionar el almacenamiento de forma eficiente y legal.', scope: 'Tiempos de retención por tipo de dato, archivado en frío y borrado seguro de información obsoleta.' },
+          { title: 'Política de Integración y Arquitectura', type: 'Arquitectura', status: 'Borrador', owner: 'Data Architect', objective: 'Guiar el flujo e integración de datos entre sistemas.', scope: 'Lineamientos de APIs, flujos batch vs tiempo real, y estructuración de lagos o bodegas de datos.' }
         ];
       }
 
