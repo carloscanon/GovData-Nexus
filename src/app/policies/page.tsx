@@ -135,51 +135,63 @@ export default function PoliciesModule() {
   const [activeTab, setActiveTab] = useState('politicas');
   const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [policies, setPolicies] = useState<any[]>(policiesData);
+  // Application State
+  const [policies, setPolicies] = useState<any[]>([]);
   const [modalTab, setModalTab] = useState('general');
   const [isMounted, setIsMounted] = useState(false);
   const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const { currentTenant } = usePlatform();
 
-  // Load Policies from DB
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [standards, setStandards] = useState<any[]>([]);
+  const [procedures, setProcedures] = useState<any[]>([]);
+  const [controls, setControls] = useState<any[]>([]);
+  const [evidences, setEvidences] = useState<any[]>([]);
+
+  // Load All Data from DB
   useEffect(() => {
     if (!currentTenant?.id) return;
     setIsMounted(true);
     
-    const loadPolicies = async () => {
+    const loadAll = async () => {
       try {
-        const { data, error } = await supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false });
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          const mappedPolicies = data.map(p => ({
+        const [
+          { data: polData },
+          { data: wfData },
+          { data: stdData },
+          { data: procData },
+          { data: ctrlData },
+          { data: evData }
+        ] = await Promise.all([
+          supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
+          supabase.from('policy_workflows').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('policy_standards').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('policy_controls').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('policy_evidences').select('*').eq('tenant_id', currentTenant.id)
+        ]);
+
+        if (polData) {
+          setPolicies(polData.map(p => ({
             ...p,
             owner: p.owner || 'Usuario Asignado',
             type: p.type || 'Gobierno de Datos',
             version: p.version || '1.0',
             expiry: p.expiry || '2026'
-          }));
-          setPolicies(mappedPolicies);
-        } else {
-          // If completely empty, show initial mock data so it doesn't look broken
-          setPolicies(policiesData);
+          })));
         }
+        if (wfData) setWorkflows(wfData);
+        if (stdData) setStandards(stdData);
+        if (procData) setProcedures(procData);
+        if (ctrlData) setControls(ctrlData);
+        if (evData) setEvidences(evData);
+        
       } catch (e: any) {
-        console.error('Error fetching policies:', e);
-        if (e.code === '42P01') {
-          alert('Falta la tabla data_policies. Por favor corre el script de base de datos.');
-        }
+        console.error('Error fetching policies data:', e);
       }
     };
-    loadPolicies();
+    loadAll();
   }, [currentTenant?.id]);
-
-  // Workflow State
-  const [workflows, setWorkflows] = useState([
-    { id: 'WF-001', name: 'Estándar', steps: ['Borrador', 'Revisión Técnica', 'Publicado'], color: '#6366f1' },
-    { id: 'WF-002', name: 'Crítico / Legal', steps: ['Borrador', 'Revisión Legal', 'Aprobación CDO', 'Publicado'], color: '#ef4444' },
-    { id: 'WF-003', name: 'Rápido', steps: ['Borrador', 'Publicado'], color: '#10b981' }
-  ]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null);
   const [workflowFilter, setWorkflowFilter] = useState<string | null>(null);
   const [isWfModalOpen, setIsWfModalOpen] = useState(false);
@@ -499,7 +511,7 @@ export default function PoliciesModule() {
               <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Estándares Aplicados', value: '42', explanation: kpiExplanations['Estándares Aplicados'], color: '#8b5cf6' })}>
                 <Settings size={14} color="#8b5cf6" />
                 <span>Estándares</span>
-                <strong style={{ color: '#8b5cf6' }}>{standardsData.length * 10 + 2}</strong>
+                <strong style={{ color: '#8b5cf6' }}>{standards.length * 10 + 2}</strong>
               </div>
               <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Controles Operativos', value: totalControls.toString(), explanation: kpiExplanations['Controles Operativos'] || 'Controles operacionales en ejecución.', color: '#06b6d4' })}>
                 <CheckSquare size={14} color="#06b6d4" />
@@ -611,7 +623,7 @@ export default function PoliciesModule() {
               <span>Responsable</span>
               <span></span>
             </div>
-            {standardsData.map((std, idx) => (
+            {standards.map((std: any, idx) => (
               <motion.div 
                 key={std.id} 
                 className={styles.row}
@@ -697,20 +709,18 @@ export default function PoliciesModule() {
             <h3>Guías de Procedimiento Operativo</h3>
             <p>Repositorio de pasos técnicos para la ejecución de tareas de gobierno.</p>
             <div className={styles.evidenceGrid} style={{ marginTop: '32px', textAlign: 'left' }}>
-               <div className={styles.evidenceCard}>
-                  <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
-                  <div>
-                     <div style={{ fontWeight: 700 }}>PR-01: Clasificación de Datos Sensibles</div>
-                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Última Rev: 2024-05-10 | v1.4</div>
-                  </div>
-               </div>
-               <div className={styles.evidenceCard}>
-                  <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
-                  <div>
-                     <div style={{ fontWeight: 700 }}>PR-02: Backup y Recuperación ante Desastres</div>
-                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Última Rev: 2024-04-20 | v2.0</div>
-                  </div>
-               </div>
+               {procedures.map((proc: any, idx) => (
+                 <div key={idx} className={styles.evidenceCard}>
+                    <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><Settings color="#6366f1" /></div>
+                    <div>
+                       <div style={{ fontWeight: 700 }}>{proc.code}: {proc.title}</div>
+                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Última Rev: {proc.last_revision_date || 'N/A'} | v{proc.version || '1.0'}</div>
+                    </div>
+                 </div>
+               ))}
+               {procedures.length === 0 && (
+                 <p style={{ gridColumn: '1 / -1', textAlign: 'center' }}>No hay procedimientos documentados aún.</p>
+               )}
             </div>
           </div>
         )}
@@ -723,36 +733,38 @@ export default function PoliciesModule() {
                 <span>Frecuencia</span>
                 <span>Estado</span>
              </div>
-             {[
-               { id: 'CTRL-01', desc: 'Validación de tipos de datos en ingesta', freq: 'Tiempo Real', status: 'OK' },
-               { id: 'CTRL-02', desc: 'Revisión trimestral de accesos PII', freq: 'Trimestral', status: 'OK' },
-               { id: 'CTRL-03', desc: 'Escaneo de vulnerabilidades DB', freq: 'Semanal', status: 'Falla' },
-             ].map((ctrl, i) => (
+             {controls.map((ctrl: any, i) => (
                <div key={i} className={styles.row} style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
-                 <span className={styles.riskId}>{ctrl.id}</span>
-                 <span style={{ fontWeight: 600 }}>{ctrl.desc}</span>
-                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{ctrl.freq}</span>
+                 <span className={styles.riskId}>{ctrl.code}</span>
+                 <span style={{ fontWeight: 600 }}>{ctrl.description}</span>
+                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{ctrl.frequency}</span>
                  <span className={styles.sevBadge} style={{ 
                     background: ctrl.status === 'OK' ? '#f0fdf4' : '#fef2f2',
                     color: ctrl.status === 'OK' ? '#10b981' : '#ef4444'
                  }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
                </div>
              ))}
+             {controls.length === 0 && (
+               <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay controles operativos configurados.</div>
+             )}
           </div>
         )}
 
         {activeTab === 'evidencias' && (
           <div className={styles.evidenceGrid} style={{ padding: '32px' }}>
-            {[1,2,3,4].map(i => (
-              <div key={i} className={styles.evidenceCard}>
+            {evidences.map((ev: any, idx) => (
+              <div key={idx} className={styles.evidenceCard}>
                 <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '10px' }}><FileText color="#ef4444" /></div>
                 <div>
-                   <div style={{ fontWeight: 700 }}>Audit_Log_Q{i}_2024.pdf</div>
-                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Certificado por Auditoría Externa</div>
+                   <div style={{ fontWeight: 700 }}>{ev.filename}</div>
+                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{ev.description || 'Certificado por Auditoría Externa'}</div>
                 </div>
                 <Download size={18} style={{ marginLeft: 'auto', color: '#64748b' }} />
               </div>
             ))}
+            {evidences.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay evidencias registradas en auditoría.</div>
+            )}
           </div>
         )}
       </div>

@@ -191,6 +191,11 @@ export default function Launchpad() {
       await supabase.from('maturity_assessments').delete().eq('tenant_id', currentTenant.id);
       await supabase.from('team_members').delete().eq('tenant_id', currentTenant.id);
       await supabase.from('team_domains').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('policy_evidences').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('policy_controls').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('policy_procedures').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('policy_standards').delete().eq('tenant_id', currentTenant.id);
+      await supabase.from('policy_workflows').delete().eq('tenant_id', currentTenant.id);
       await supabase.from('data_policies').delete().eq('tenant_id', currentTenant.id);
       await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
       await supabase.from('workflow_requests').delete().eq('tenant_id', currentTenant.id);
@@ -222,15 +227,46 @@ export default function Launchpad() {
       ]);
       if (err3) throw err3;
 
-      // 4. Políticas Base
+      // 4. Políticas Base y Ecosistema Normativo
       setProcessLog('Generando políticas normativas predeterminadas...');
       await new Promise(r => setTimeout(r, 1200));
-      const { error: err4 } = await supabase.from('data_policies').insert([
-        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', status: 'Borrador', owner: 'CDO' },
-        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', status: 'Borrador', owner: 'Data Steward' },
-        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', status: 'En Revisión', owner: 'CISO' }
-      ]);
+      
+      const { data: insertedPolicies, error: err4 } = await supabase.from('data_policies').insert([
+        { tenant_id: currentTenant.id, title: 'Política General de Gobierno de Datos', type: 'Gobierno de Datos', status: 'Vigente', owner: 'CDO', version: '1.0' },
+        { tenant_id: currentTenant.id, title: 'Estándar de Calidad de Datos', type: 'Calidad', status: 'Borrador', owner: 'Data Steward', version: '0.9' },
+        { tenant_id: currentTenant.id, title: 'Normativa de Privacidad (PII)', type: 'Seguridad / Privacidad', status: 'En Revisión', owner: 'CISO', version: '1.2' }
+      ]).select();
       if (err4) throw err4;
+
+      setProcessLog('Configurando flujos de revisión y estándares técnicos...');
+      await new Promise(r => setTimeout(r, 800));
+
+      const { error: errWf } = await supabase.from('policy_workflows').insert([
+        { tenant_id: currentTenant.id, name: 'Estándar', steps: ['Borrador', 'Revisión Técnica', 'Publicado'], color: '#6366f1' },
+        { tenant_id: currentTenant.id, name: 'Crítico / Legal', steps: ['Borrador', 'Revisión Legal', 'Aprobación CDO', 'Publicado'], color: '#ef4444' },
+        { tenant_id: currentTenant.id, name: 'Rápido', steps: ['Borrador', 'Publicado'], color: '#10b981' }
+      ]);
+      if (errWf) throw errWf;
+
+      const { error: errStd } = await supabase.from('policy_standards').insert([
+        { tenant_id: currentTenant.id, code: 'STD-001', name: 'Nomenclatura de Tablas', category: 'Arquitectura', coverage: '420 tablas', status: 'Activo' },
+        { tenant_id: currentTenant.id, code: 'STD-002', name: 'Cifrado AES-256 PII', category: 'Seguridad', coverage: '28 activos', status: 'Crítico' },
+        { tenant_id: currentTenant.id, code: 'STD-003', name: 'Formato de Fechas ISO-8601', category: 'Interoperabilidad', coverage: 'Global', status: 'Activo' }
+      ]);
+      if (errStd) throw errStd;
+
+      const { error: errProc } = await supabase.from('policy_procedures').insert([
+        { tenant_id: currentTenant.id, code: 'PR-01', title: 'Clasificación de Datos Sensibles', content: 'Guía paso a paso para identificar y etiquetar PII en bases de datos relacionales.' },
+        { tenant_id: currentTenant.id, code: 'PR-02', title: 'Backup y Recuperación ante Desastres', content: 'Procedimiento operativo para restaurar copias de seguridad incrementales.' }
+      ]);
+      if (errProc) throw errProc;
+
+      const { error: errCtrl } = await supabase.from('policy_controls').insert([
+        { tenant_id: currentTenant.id, code: 'CTRL-01', description: 'Validación de tipos de datos en ingesta', frequency: 'Tiempo Real', status: 'OK', policy_id: insertedPolicies?.[1]?.id },
+        { tenant_id: currentTenant.id, code: 'CTRL-02', description: 'Revisión trimestral de accesos PII', frequency: 'Trimestral', status: 'OK', policy_id: insertedPolicies?.[2]?.id },
+        { tenant_id: currentTenant.id, code: 'CTRL-03', description: 'Escaneo de vulnerabilidades DB', frequency: 'Semanal', status: 'Falla', policy_id: insertedPolicies?.[2]?.id }
+      ]);
+      if (errCtrl) throw errCtrl;
 
       // 5. Workflows Base + Roadmap de 90 Días Automático y Pre-carga de Activos
       setProcessLog('Generando Roadmap de 90 días basado en 100% del diagnóstico...');
