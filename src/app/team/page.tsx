@@ -247,13 +247,17 @@ const [newMember, setNewMember] = useState({
       return;
     }
     try {
+      const avatarUrl = newMember.avatar
+        ? newMember.avatar.substring(0, 200)
+        : `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(newMember.name.substring(0, 20))}`;
+
       const { data, error } = await supabase.from('team_members').insert([{
         tenant_id: currentTenant.id,
-        name: newMember.name,
-        email: newMember.email || `${newMember.name.replace(/\s+/g, '').toLowerCase()}@empresa.com`,
-        role: newMember.roleType,
-        area: newMember.area || 'General',
-        avatar: newMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${newMember.name.replace(/\s+/g, '')}`
+        name: newMember.name.substring(0, 150),
+        email: (newMember.email || `${newMember.name.replace(/\s+/g, '').toLowerCase().substring(0,50)}@empresa.com`).substring(0, 200),
+        role: newMember.roleType.substring(0, 100),
+        area: (newMember.area || 'General').substring(0, 100),
+        avatar: avatarUrl
       }]).select();
 
       if (error) throw error;
@@ -794,16 +798,16 @@ const [newMember, setNewMember] = useState({
                        <div>
                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Rol de Gobierno</label>
                           <select 
-                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.08)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
                             value={newMember.roleType}
                             onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
                           >
-                             <option>Data Owner</option>
-                             <option>Data Steward</option>
-                             <option>Data Custodian</option>
-                             <option>Auditor</option>
-                             <option>CISO</option>
-                             <option>CDO</option>
+                             <option value="Data Owner" style={{ color: '#1e293b', background: 'white' }}>Data Owner</option>
+                             <option value="Data Steward" style={{ color: '#1e293b', background: 'white' }}>Data Steward</option>
+                             <option value="Data Custodian" style={{ color: '#1e293b', background: 'white' }}>Data Custodian</option>
+                             <option value="Auditor" style={{ color: '#1e293b', background: 'white' }}>Auditor</option>
+                             <option value="CISO" style={{ color: '#1e293b', background: 'white' }}>CISO</option>
+                             <option value="CDO" style={{ color: '#1e293b', background: 'white' }}>CDO</option>
                           </select>
                        </div>
                        <div>
