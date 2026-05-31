@@ -727,7 +727,7 @@ export default function PoliciesModule() {
                         <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ID: {wf.id}</span>
                      </div>
                      <div className={styles.stepList}>
-                        {wf.steps.map((step, sIdx) => (
+                        {wf.steps.map((step: string, sIdx: number) => (
                           <div key={sIdx} className={styles.stepItem}>
                              <div className={styles.stepDot} style={{ background: wf.color }}>{sIdx + 1}</div>
                              <div className={styles.stepName}>{step}</div>
