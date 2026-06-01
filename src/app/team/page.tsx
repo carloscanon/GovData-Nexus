@@ -801,7 +801,7 @@ const [newMember, setNewMember] = useState({
                     <div style={{ marginBottom: '16px' }}>
                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Seleccionar Usuario</label>
                        <select 
-                         className={styles.modalInput} 
+                         style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
                          value={newMember.name}
                          onChange={e => {
                            const user = tenantUsers.find(u => u.name === e.target.value);
@@ -812,9 +812,9 @@ const [newMember, setNewMember] = useState({
                            }
                          }}
                        >
-                         <option value="">Seleccione un usuario...</option>
+                         <option value="" style={{ color: '#94a3b8', background: '#1e293b' }}>Seleccione un usuario...</option>
                          {tenantUsers.filter(u => !members.some(m => m.name === u.name)).map(u => (
-                           <option key={u.id} value={u.name}>{u.name}</option>
+                           <option key={u.id} value={u.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{u.name}</option>
                          ))}
                        </select>
                     </div>
@@ -822,17 +822,17 @@ const [newMember, setNewMember] = useState({
                        <div>
                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Rol de Gobierno</label>
                           <select 
-                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.08)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
-                            value={newMember.roleType}
-                            onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
-                          >
-                             <option value="Data Owner" style={{ color: '#1e293b', background: 'white' }}>Data Owner</option>
-                             <option value="Data Steward" style={{ color: '#1e293b', background: 'white' }}>Data Steward</option>
-                             <option value="Data Custodian" style={{ color: '#1e293b', background: 'white' }}>Data Custodian</option>
-                             <option value="Auditor" style={{ color: '#1e293b', background: 'white' }}>Auditor</option>
-                             <option value="CISO" style={{ color: '#1e293b', background: 'white' }}>CISO</option>
-                             <option value="CDO" style={{ color: '#1e293b', background: 'white' }}>CDO</option>
-                          </select>
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
+                             value={newMember.roleType}
+                             onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
+                           >
+                              <option value="Data Owner" style={{ color: '#e2e8f0', background: '#1e293b' }}>Data Owner</option>
+                              <option value="Data Steward" style={{ color: '#e2e8f0', background: '#1e293b' }}>Data Steward</option>
+                              <option value="Data Custodian" style={{ color: '#e2e8f0', background: '#1e293b' }}>Data Custodian</option>
+                              <option value="Auditor" style={{ color: '#e2e8f0', background: '#1e293b' }}>Auditor</option>
+                              <option value="CISO" style={{ color: '#e2e8f0', background: '#1e293b' }}>CISO</option>
+                              <option value="CDO" style={{ color: '#e2e8f0', background: '#1e293b' }}>CDO</option>
+                           </select>
                        </div>
                        <div>
                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Área / Departamento</label>

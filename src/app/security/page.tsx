@@ -1,185 +1,224 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  ShieldAlert, 
-  Lock, 
-  Eye, 
-  UserCheck, 
-  AlertOctagon,
-  CheckCircle,
-  FileWarning,
-  Activity,
-  ChevronRight,
-  ShieldCheck,
-  Zap,
-  Users,
-  Search,
-  Filter,
-  X,
-  ArrowUpRight,
-  ArrowDownRight,
-  Database,
-  Briefcase,
-  Calendar,
-  Clock,
-  ExternalLink,
-  Shield,
-  Info,
-  Award,
-  Fingerprint
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ShieldAlert, Lock, Eye, UserCheck, AlertOctagon, CheckCircle,
+  FileWarning, Activity, ShieldCheck, Zap, Users, Search,
+  Filter, X, Database, Clock, ExternalLink, Shield, Info,
+  Award, Plus, Trash2, RefreshCw, AlertTriangle, ChevronDown, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 import styles from './security.module.css';
 
-// --- MOCK DATA ---
+// ─── Types ───────────────────────────────────────────────────────────────────
+interface Risk {
+  id: string; tenant_id: string; code: string; name: string;
+  description: string; asset: string; severity: string; impact: string;
+  probability: string; status: string; owner: string; action_plan: string;
+  controls: string[]; created_at: string;
+}
+interface Incident {
+  id: string; tenant_id: string; code: string; type: string;
+  description: string; severity: string; status: string;
+  assigned_to: string; created_at: string;
+}
+interface Control {
+  id: string; tenant_id: string; control_id: string; framework: string;
+  name: string; status: string; last_evaluated: string; evidence: string; notes: string;
+}
+interface AccessReview {
+  id: string; tenant_id: string; user_id: string; user_name: string;
+  role: string; asset: string; access_level: string; last_activity: string;
+  risk_level: string; status: string; notes: string;
+}
 
-const kpis = [
-  { label: 'Riesgos Críticos', value: '3', trend: 'down', trendVal: '2', desc: 'Riesgos de impacto extremo.', color: '#ef4444', pct: 30 },
-  { label: 'Activos Sensibles', value: '28', trend: 'up', trendVal: '5', desc: 'Datos PII detectados.', color: '#6366f1', pct: 45 },
-  { label: 'Políticas Vencidas', value: '5', trend: 'neutral', trendVal: '0', desc: 'Revisión requerida.', color: '#f59e0b', pct: 20 },
-  { label: 'Accesos Excesivos', value: '12', trend: 'down', trendVal: '3', desc: 'Privilegios no usados.', color: '#ec4899', pct: 60 },
-  { label: 'Incidentes Abiertos', value: '4', trend: 'up', trendVal: '1', desc: 'Alertas en investigación.', color: '#8b5cf6', pct: 15 },
-];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const SEV_COLOR: Record<string, { bg: string; text: string }> = {
+  Crítico: { bg: '#fef2f2', text: '#ef4444' },
+  Alto:    { bg: '#fff7ed', text: '#f97316' },
+  Medio:   { bg: '#fffbeb', text: '#f59e0b' },
+  Bajo:    { bg: '#f0fdf4', text: '#10b981' },
+};
+const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
+  Abierto:       { bg: '#fef2f2', text: '#ef4444' },
+  Mitigando:     { bg: '#eff6ff', text: '#3b82f6' },
+  'En Revisión': { bg: '#fffbeb', text: '#f59e0b' },
+  Cerrado:       { bg: '#f0fdf4', text: '#10b981' },
+  Investigando:  { bg: '#fef2f2', text: '#ef4444' },
+  Bloqueado:     { bg: '#fff7ed', text: '#f97316' },
+  Mitigado:      { bg: '#fffbeb', text: '#f59e0b' },
+  Activo:        { bg: '#eff6ff', text: '#3b82f6' },
+  Revocado:      { bg: '#f0fdf4', text: '#10b981' },
+};
+const FRAMEWORKS = ['ISO 27001', 'Habeas Data (Ley 1581)', 'GDPR', 'NIST Framework'];
 
-const risksData = [
-  { 
-    id: 'RSK-001', 
-    name: 'Exposición Datos PII', 
-    asset: 'Leads Marketing', 
-    severity: 'Crítico', 
-    impact: 'Alto', 
-    probability: 'Alta', 
-    status: 'Mitigando', 
-    owner: 'Seguridad TI', 
-    date: '2026-05-10',
-    description: 'Se detectaron campos de identificación personal sin enmascarar en el entorno de desarrollo.',
-    actionPlan: 'Implementar enmascaramiento dinámico y restringir acceso a solo usuarios autorizados.',
-    controls: ['Cifrado en reposo', 'MFA Obligatorio']
-  },
-  { 
-    id: 'RSK-002', 
-    name: 'Accesos Admin Excesivos', 
-    asset: 'Oracle DB Finanzas', 
-    severity: 'Alto', 
-    impact: 'Alto', 
-    probability: 'Media', 
-    status: 'Abierto', 
-    owner: 'Gobierno Datos', 
-    date: '2026-05-12',
-    description: 'Más de 15 usuarios tienen privilegios de administrador en la base de datos de producción de finanzas.',
-    actionPlan: 'Revisión de privilegios y aplicación del principio de mínimo privilegio (PoLP).',
-    controls: ['PAM (Privileged Access Mgt)', 'Log de Auditoría']
-  },
-  { 
-    id: 'RSK-003', 
-    name: 'Política de Retención Vencida', 
-    asset: 'Archivo General', 
-    severity: 'Bajo', 
-    impact: 'Bajo', 
-    probability: 'Media', 
-    status: 'En Revisión', 
-    owner: 'Legal', 
-    date: '2026-05-08',
-    description: 'La política de retención de documentos no ha sido actualizada en los últimos 24 meses.',
-    actionPlan: 'Actualización de política según nueva normativa Habeas Data.',
-    controls: ['Revisiones Periódicas']
-  },
-];
+function SevBadge({ value, map }: { value: string; map: Record<string, { bg: string; text: string }> }) {
+  const c = map[value] || { bg: '#f1f5f9', text: '#64748b' };
+  return (
+    <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, background: c.bg, color: c.text, whiteSpace: 'nowrap' }}>
+      {value}
+    </span>
+  );
+}
 
-const complianceData = [
-  { name: 'Habeas Data (Ley 1581)', pct: 95, color: '#10b981' },
-  { name: 'ISO 27001', pct: 82, color: '#6366f1' },
-  { name: 'GDPR (Global)', pct: 70, color: '#f59e0b' },
-  { name: 'NIST Framework', pct: 64, color: '#f97316' },
-];
-
-const accessData = [
-  { user: 'Carlos Ruiz', role: 'Analista Jr', asset: 'Finanzas DB', level: 'Admin', activity: 'Hace 45 días', risk: 'Alto' },
-  { user: 'Elena Marín', role: 'Consultor Ext', asset: 'Marketing Cloud', level: 'Editor', activity: 'Hoy', risk: 'Medio' },
-  { user: 'Juan Pérez', role: 'DevOps', asset: 'AWS S3 Buckets', level: 'Admin', activity: 'Hace 2 horas', risk: 'Bajo' },
-];
-
-const incidentsData = [
-  { id: 'INC-001', type: 'Fuga de Datos', description: 'Posible exfiltración de base de datos de marketing.', severity: 'Crítico', status: 'Investigando', date: 'Hace 2 horas' },
-  { id: 'INC-002', type: 'Acceso Indebido', description: 'Intento de acceso fallido recurrente desde IP externa.', severity: 'Alto', status: 'Bloqueado', date: 'Ayer' },
-  { id: 'INC-003', type: 'Malware Detectado', description: 'Detección de troyano en servidor de archivos.', severity: 'Medio', status: 'Mitigado', date: 'Hace 3 días' },
-];
-
-// --- COMPONENTS ---
-
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function SecurityModule() {
+  const { currentTenant } = usePlatform();
   const [activeTab, setActiveTab] = useState('riesgos');
-  const [selectedRisk, setSelectedRisk] = useState<any>(null);
-  const [selectedKPI, setSelectedKPI] = useState<any>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [detailTab, setDetailTab] = useState('general');
-  const [isRemediating, setIsRemediating] = useState(false);
-  const [remediationProgress, setRemediationProgress] = useState(0);
-  const [showRemediationSuccess, setShowRemediationSuccess] = useState(false);
 
-  const handleRunRemediation = () => {
-    setIsRemediating(true);
-    setRemediationProgress(0);
-    
-    // Simular pasos de remediación
-    const interval = setInterval(() => {
-      setRemediationProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsRemediating(false);
-            setShowRemediationSuccess(true);
-          }, 500);
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 100);
-  };
+  // Data
+  const [risks, setRisks] = useState<Risk[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [controls, setControls] = useState<Control[]>([]);
+  const [accessReviews, setAccessReviews] = useState<AccessReview[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  // Modals
+  const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedKPI, setSelectedKPI] = useState<any>(null);
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
 
-  if (!isMounted) return null;
+  // Search
+  const [search, setSearch] = useState('');
 
-  const kpiExplanations: Record<string, string> = {
-    'Riesgos Críticos': 'Se han identificado 3 riesgos con impacto Alto y probabilidad Alta, principalmente relacionados con la exposición de PII (Datos de Identificación Personal) en entornos de producción y accesos admin no supervisados.',
-    'Activos Sensibles': '28 activos del catálogo han sido clasificados como "Confidencial" o "Restringido" debido a la presencia de datos sensibles (cédulas, correos, teléfonos) detectada automáticamente por el motor de clasificación de Nexus AI.',
-    'Políticas Vencidas': '5 políticas de gobierno y seguridad (incluyendo Retención Documental y Gestión de Accesos) han superado su fecha de revisión anual de 24 meses y requieren actualización según la Ley 1581.',
-    'Accesos Excesivos': 'Se detectaron 12 usuarios con privilegios de Administrador que no han tenido actividad en los últimos 30 días o que tienen niveles de acceso que no corresponden a su rol actual en el organigrama.',
-    'Incidentes Abiertos': 'Hay 4 incidentes de seguridad activos: 1 Fuga de Datos (Investigación), 1 Acceso Indebido (Bloqueado), 1 Malware Detectado (Mitigado) y 1 Anomalía de Comportamiento.'
-  };
+  // New record forms
+  const [newRisk, setNewRisk] = useState({ name: '', description: '', asset: '', severity: 'Medio', impact: 'Medio', probability: 'Media', owner: '', action_plan: '' });
+  const [newIncident, setNewIncident] = useState({ type: '', description: '', severity: 'Medio', assigned_to: '' });
+  const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
 
-  // Dynamic Heatmap Calculation
-  const getHeatmapCount = (impact: string, prob: string) => {
-    return risksData.filter(r => r.impact === impact && r.probability === prob).length;
-  };
+  // ── Fetch Data ──────────────────────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
+    if (!currentTenant?.id) return;
+    const tid = currentTenant.id;
+    setLoading(true);
+    try {
+      const [r1, r2, r3, r4, r5] = await Promise.all([
+        supabase.from('security_risks').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
+        supabase.from('security_incidents').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
+        supabase.from('security_controls').select('*').eq('tenant_id', tid).order('framework'),
+        supabase.from('security_access_reviews').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
+        supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', tid).order('name'),
+      ]);
+      if (r1.data) setRisks(r1.data.map(r => ({ ...r, controls: r.controls || [] })));
+      if (r2.data) setIncidents(r2.data);
+      if (r3.data) setControls(r3.data);
+      if (r4.data) setAccessReviews(r4.data);
+      if (r5.data) setTenantUsers(r5.data);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, [currentTenant?.id]);
 
-  // ── Consolidated Global Score Banner calculations ──
-  const sciScore = Math.round(complianceData.reduce((acc, c) => acc + c.pct, 0) / complianceData.length);
+  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => { if (currentTenant?.id) fetchData(); }, [currentTenant?.id, fetchData]);
 
-  let levelText = 'CRÍTICO';
-  let levelColor = '#ef4444';
-  if (sciScore >= 88) {
-    levelText = 'FUERTE';
-    levelColor = '#10b981';
-  } else if (sciScore >= 70) {
-    levelText = 'PROTEGIDO';
-    levelColor = '#6366f1';
-  }
+  // ── Computed KPIs ───────────────────────────────────────────────────────────
+  const criticalRisks = risks.filter(r => r.severity === 'Crítico' || r.severity === 'Alto').filter(r => r.status !== 'Cerrado');
+  const openIncidents = incidents.filter(i => i.status === 'Investigando' || i.status === 'Bloqueado');
+  const highAccessCount = accessReviews.filter(a => a.risk_level === 'Alto' && a.status === 'Activo').length;
 
+  // SCI: % controles OK por framework
+  const frameworkScores = FRAMEWORKS.map(f => {
+    const fw = controls.filter(c => c.framework === f);
+    if (fw.length === 0) return { name: f, pct: 0, color: '#94a3b8' };
+    const ok = fw.filter(c => c.status === 'OK').length;
+    const partial = fw.filter(c => c.status === 'Parcial').length;
+    const pct = Math.round(((ok + partial * 0.5) / fw.length) * 100);
+    const colors: Record<string, string> = { 'ISO 27001': '#6366f1', 'Habeas Data (Ley 1581)': '#10b981', 'GDPR': '#f59e0b', 'NIST Framework': '#f97316' };
+    return { name: f, pct, color: colors[f] || '#6366f1' };
+  });
+  const sciScore = frameworkScores.length > 0 && frameworkScores.some(f => f.pct > 0)
+    ? Math.round(frameworkScores.reduce((a, f) => a + f.pct, 0) / frameworkScores.length)
+    : 0;
+
+  let levelText = sciScore >= 88 ? 'FUERTE' : sciScore >= 70 ? 'PROTEGIDO' : 'CRÍTICO';
+  let levelColor = sciScore >= 88 ? '#10b981' : sciScore >= 70 ? '#6366f1' : '#ef4444';
   const circumference = 2 * Math.PI * 52;
   const dashOffset = circumference - (sciScore / 100) * circumference;
 
-  const criticalRisksCount = risksData.filter(r => r.severity === 'Crítico' || r.severity === 'Alto').length;
+  // Heatmap
+  const getHeatCell = (impact: string, prob: string) =>
+    risks.filter(r => r.impact === impact && r.probability === prob && r.status !== 'Cerrado').length;
 
+  // ── CRUD Actions ────────────────────────────────────────────────────────────
+  const handleAddRisk = async () => {
+    if (!newRisk.name || !currentTenant?.id) return;
+    const code = 'RSK-' + String(risks.length + 1).padStart(3, '0');
+    const { error } = await supabase.from('security_risks').insert([{ ...newRisk, tenant_id: currentTenant.id, code, controls: [] }]);
+    if (!error) { fetchData(); setIsRiskModalOpen(false); setNewRisk({ name: '', description: '', asset: '', severity: 'Medio', impact: 'Medio', probability: 'Media', owner: '', action_plan: '' }); }
+    else alert('Error: ' + error.message);
+  };
+
+  const handleUpdateRiskStatus = async (id: string, status: string) => {
+    await supabase.from('security_risks').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    setRisks(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    if (selectedRisk?.id === id) setSelectedRisk(prev => prev ? { ...prev, status } : null);
+  };
+
+  const handleDeleteRisk = async (id: string) => {
+    if (!confirm('¿Eliminar este riesgo?')) return;
+    await supabase.from('security_risks').delete().eq('id', id);
+    setRisks(prev => prev.filter(r => r.id !== id));
+    setSelectedRisk(null);
+  };
+
+  const handleAddIncident = async () => {
+    if (!newIncident.type || !currentTenant?.id) return;
+    const code = 'INC-' + String(incidents.length + 1).padStart(3, '0');
+    const { error } = await supabase.from('security_incidents').insert([{ ...newIncident, tenant_id: currentTenant.id, code }]);
+    if (!error) { fetchData(); setIsIncidentModalOpen(false); setNewIncident({ type: '', description: '', severity: 'Medio', assigned_to: '' }); }
+    else alert('Error: ' + error.message);
+  };
+
+  const handleUpdateIncidentStatus = async (id: string, status: string) => {
+    await supabase.from('security_incidents').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    setIncidents(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+    if (selectedIncident?.id === id) setSelectedIncident(prev => prev ? { ...prev, status } : null);
+  };
+
+  const handleUpdateControlStatus = async (id: string, status: string) => {
+    await supabase.from('security_controls').update({ status, last_evaluated: new Date().toISOString().split('T')[0] }).eq('id', id);
+    setControls(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+  };
+
+  const handleAddAccess = async () => {
+    if (!newAccess.user_id || !newAccess.asset || !currentTenant?.id) return;
+    const user = tenantUsers.find(u => u.id === newAccess.user_id);
+    const { error } = await supabase.from('security_access_reviews').insert([{
+      ...newAccess,
+      tenant_id: currentTenant.id,
+      user_name: user?.name || '',
+      role: user?.role || '',
+    }]);
+    if (!error) { fetchData(); setIsAccessModalOpen(false); setNewAccess({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' }); }
+    else alert('Error: ' + error.message);
+  };
+
+  const handleRevokeAccess = async (id: string) => {
+    await supabase.from('security_access_reviews').update({ status: 'Revocado', updated_at: new Date().toISOString() }).eq('id', id);
+    setAccessReviews(prev => prev.map(a => a.id === id ? { ...a, status: 'Revocado' } : a));
+  };
+
+  if (!isMounted) return null;
+
+  // Filter helpers
+  const filteredRisks = risks.filter(r => r.name?.toLowerCase().includes(search.toLowerCase()) || r.asset?.toLowerCase().includes(search.toLowerCase()));
+  const filteredIncidents = incidents.filter(i => i.type?.toLowerCase().includes(search.toLowerCase()) || i.description?.toLowerCase().includes(search.toLowerCase()));
+  const filteredAccess = accessReviews.filter(a => a.user_name?.toLowerCase().includes(search.toLowerCase()) || a.asset?.toLowerCase().includes(search.toLowerCase()));
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className={styles.container}>
+      {/* Header */}
       <header className={styles.header}>
         <div className={styles.titleArea} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444 0%, #6366f1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
             <ShieldAlert size={24} />
           </div>
           <div>
@@ -187,35 +226,25 @@ export default function SecurityModule() {
             <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Gobierno de seguridad, cumplimiento normativo y gestión de riesgos corporativos.</p>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button onClick={fetchData} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: '#64748b' }}>
+            <RefreshCw size={15} /> Actualizar
+          </button>
+        </div>
       </header>
 
-      {/* ── Consolidated Global Score Banner ── */}
-      <motion.div
-        className={styles.globalBanner}
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      {/* ── Global Score Banner ── */}
+      <motion.div className={styles.globalBanner} initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className={styles.globalLeft}>
           <div className={styles.circleWrap}>
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
-              <circle
-                cx="60" cy="60" r="52" fill="none"
-                stroke={levelColor}
-                strokeWidth="10"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-                strokeLinecap="round"
-                transform="rotate(-90 60 60)"
-                style={{ transition: 'stroke-dashoffset 1.2s ease' }}
-              />
-              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
-                {sciScore}%
-              </text>
-              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
-                SEGURIDAD
-              </text>
+              <circle cx="60" cy="60" r="52" fill="none" stroke={levelColor} strokeWidth="10"
+                strokeDasharray={circumference} strokeDashoffset={dashOffset}
+                strokeLinecap="round" transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease' }} />
+              <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">{sciScore}%</text>
+              <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">SEGURIDAD</text>
             </svg>
           </div>
           <div className={styles.globalInfo}>
@@ -224,523 +253,596 @@ export default function SecurityModule() {
             </div>
             <h2 className={styles.globalTitle}>Índice de Seguridad y Cumplimiento (SCI)</h2>
             <p className={styles.globalSub}>
-              Evaluación ponderada de normativas Habeas Data, ISO 27001, GDPR y directrices NIST.
+              Calculado automáticamente desde {controls.length} controles registrados en {FRAMEWORKS.length} frameworks normativos.
             </p>
           </div>
         </div>
-
-        {/* Mini dimension pills */}
         <div className={styles.globalRight}>
-          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Riesgos Críticos', value: '3', explanation: kpiExplanations['Riesgos Críticos'] })}>
-            <ShieldAlert size={14} />
-            <span>Riesgos Críticos</span>
-            <strong style={{ color: criticalRisksCount > 0 ? '#ef4444' : '#10b981' }}>{criticalRisksCount}</strong>
-          </div>
-          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Activos Sensibles', value: '28', explanation: kpiExplanations['Activos Sensibles'] })}>
-            <Lock size={14} />
-            <span>Activos Sensibles</span>
-            <strong style={{ color: '#6366f1' }}>28</strong>
-          </div>
-          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Políticas Vencidas', value: '5', explanation: kpiExplanations['Políticas Vencidas'] })}>
-            <FileWarning size={14} />
-            <span>Políticas Vencidas</span>
-            <strong style={{ color: '#f59e0b' }}>5</strong>
-          </div>
-          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Accesos Excesivos', value: '12', explanation: kpiExplanations['Accesos Excesivos'] })}>
-            <UserCheck size={14} />
-            <span>Accesos Excesivos</span>
-            <strong style={{ color: '#ec4899' }}>12</strong>
-          </div>
-          <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Incidentes Abiertos', value: incidentsData.length.toString(), explanation: kpiExplanations['Incidentes Abiertos'] })}>
-            <Zap size={14} />
-            <span>Incidentes Abiertos</span>
-            <strong style={{ color: incidentsData.length > 0 ? '#ef4444' : '#10b981' }}>{incidentsData.length}</strong>
-          </div>
-          <div className={styles.miniPill}>
-            <CheckCircle size={14} />
-            <span>Cumplimiento SCI</span>
-            <strong style={{ color: '#10b981' }}>{sciScore}%</strong>
-          </div>
+          {[
+            { label: 'Riesgos Críticos', val: criticalRisks.length, color: criticalRisks.length > 0 ? '#ef4444' : '#10b981', icon: <ShieldAlert size={14} /> },
+            { label: 'Incidentes Abiertos', val: openIncidents.length, color: openIncidents.length > 0 ? '#ef4444' : '#10b981', icon: <Zap size={14} /> },
+            { label: 'Accesos de Riesgo', val: highAccessCount, color: highAccessCount > 0 ? '#f97316' : '#10b981', icon: <UserCheck size={14} /> },
+            { label: 'Controles Activos', val: controls.length, color: '#6366f1', icon: <CheckCircle size={14} /> },
+            { label: 'SCI Score', val: sciScore + '%', color: levelColor, icon: <Shield size={14} /> },
+          ].map((k, i) => (
+            <div key={i} className={styles.miniPill} onClick={() => setSelectedKPI(k)}>
+              {k.icon}
+              <span>{k.label}</span>
+              <strong style={{ color: k.color }}>{k.val}</strong>
+            </div>
+          ))}
         </div>
       </motion.div>
 
-      {/* Main Tabs */}
+      {/* Tabs */}
       <div className={styles.tabs}>
         {[
-          { id: 'riesgos', label: 'Riesgos', icon: <ShieldAlert size={18} /> },
-          { id: 'cumplimiento', label: 'Cumplimiento', icon: <CheckCircle size={18} /> },
-          { id: 'accesos', label: 'Accesos', icon: <UserCheck size={18} /> },
-          { id: 'incidentes', label: 'Incidentes', icon: <Zap size={18} /> },
-          { id: 'politicas', label: 'Políticas', icon: <FileWarning size={18} /> }
+          { id: 'riesgos', label: 'Riesgos', icon: <ShieldAlert size={16} />, count: risks.filter(r => r.status !== 'Cerrado').length },
+          { id: 'incidentes', label: 'Incidentes', icon: <Zap size={16} />, count: openIncidents.length },
+          { id: 'cumplimiento', label: 'Cumplimiento', icon: <CheckCircle size={16} /> },
+          { id: 'accesos', label: 'Accesos', icon: <UserCheck size={16} />, count: highAccessCount || undefined },
+          { id: 'politicas', label: 'Políticas', icon: <FileWarning size={16} /> },
         ].map(tab => (
-          <button 
-            key={tab.id}
+          <button key={tab.id}
             className={`${styles.tabBtn} ${activeTab === tab.id ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setSearch(''); }}
           >
-            {tab.icon}
-            {tab.label}
+            {tab.icon} {tab.label}
+            {tab.count !== undefined && tab.count > 0 && (
+              <span style={{ background: '#ef4444', color: 'white', borderRadius: '999px', fontSize: '0.65rem', fontWeight: 800, padding: '1px 6px', marginLeft: '4px' }}>{tab.count}</span>
+            )}
           </button>
         ))}
       </div>
 
+      {/* Search bar */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white' }}>
+          <Search size={16} color="#94a3b8" />
+          <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '0.9rem', color: '#1e293b' }} />
+          {search && <button onClick={() => setSearch('')}><X size={14} color="#94a3b8" /></button>}
+        </div>
+        {activeTab === 'riesgos' && (
+          <button onClick={() => setIsRiskModalOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #ef4444, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+            <Plus size={16} /> Nuevo Riesgo
+          </button>
+        )}
+        {activeTab === 'incidentes' && (
+          <button onClick={() => setIsIncidentModalOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #ef4444)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+            <Plus size={16} /> Nuevo Incidente
+          </button>
+        )}
+        {activeTab === 'accesos' && (
+          <button onClick={() => setIsAccessModalOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+            <Plus size={16} /> Registrar Acceso
+          </button>
+        )}
+      </div>
+
       <div className={styles.mainGrid}>
-        {/* Left Content Area */}
+        {/* ── Left Column ── */}
         <div className={styles.leftColumn}>
+
+          {/* ── RIESGOS ── */}
           {activeTab === 'riesgos' && (
             <>
               <div className={styles.heatmapCard}>
-                <div className={styles.cardTitle}>
-                  <Activity className={styles.riskIcon} color="#4f46e5" />
-                  <h3>Mapa de Calor de Riesgos Corporativos</h3>
-                </div>
+                <div className={styles.cardTitle}><Activity color="#4f46e5" /><h3>Mapa de Calor de Riesgos</h3></div>
                 <div className={styles.heatmapContainer}>
                   <div className={styles.heatmapGrid}>
-                    {/* Dynamic 3x3 Heatmap */}
-                    <div className={`${styles.heatmapCell} ${styles.critical}`} title="Alto/Alta">
-                      {getHeatmapCount('Alto', 'Alta')}
-                      <span className={styles.cellLabel}>Crítico</span>
-                    </div>
-                    <div className={`${styles.heatmapCell} ${styles.high}`} title="Medio/Alta">{getHeatmapCount('Medio', 'Alta')}</div>
-                    <div className={`${styles.heatmapCell} ${styles.medium}`} title="Bajo/Alta">{getHeatmapCount('Bajo', 'Alta')}</div>
-                    
-                    <div className={`${styles.heatmapCell} ${styles.high}`} title="Alto/Media">{getHeatmapCount('Alto', 'Media')}</div>
-                    <div className={`${styles.heatmapCell} ${styles.medium}`} title="Medio/Media">{getHeatmapCount('Medio', 'Media')}</div>
-                    <div className={`${styles.heatmapCell} ${styles.low}`} title="Bajo/Media">{getHeatmapCount('Bajo', 'Media')}</div>
-                    
-                    <div className={`${styles.heatmapCell} ${styles.medium}`} title="Alto/Baja">{getHeatmapCount('Alto', 'Baja')}</div>
-                    <div className={`${styles.heatmapCell} ${styles.low}`} title="Medio/Baja">{getHeatmapCount('Medio', 'Baja')}</div>
-                    <div className={`${styles.heatmapCell} ${styles.low}`} title="Bajo/Baja">{getHeatmapCount('Bajo', 'Baja')}</div>
+                    {[['Alto','Alta','critical'],['Medio','Alta','high'],['Bajo','Alta','medium'],
+                      ['Alto','Media','high'],['Medio','Media','medium'],['Bajo','Media','low'],
+                      ['Alto','Baja','medium'],['Medio','Baja','low'],['Bajo','Baja','low']].map(([imp,prob,cls],i) => (
+                      <div key={i} className={`${styles.heatmapCell} ${(styles as any)[cls]}`} title={`${imp}/${prob}`}>
+                        {getHeatCell(imp,prob) || ''}
+                        {imp === 'Alto' && prob === 'Alta' && <span className={styles.cellLabel}>Crítico</span>}
+                      </div>
+                    ))}
                   </div>
                   <div className={styles.heatmapLabels}>
-                    <span>Impacto →</span>
-                    <span>Probabilidad ↑</span>
+                    <span>Impacto →</span><span>Probabilidad ↑</span>
                   </div>
                 </div>
               </div>
 
-              <div className={styles.sectionHeader}>
-                <h2>Riesgos Identificados</h2>
-                <button className={styles.viewBtn}>Nuevo Riesgo</button>
-              </div>
-
-              <div className={styles.riskTable}>
-                <div className={styles.tableHeader}>
-                  <span>ID</span>
-                  <span>Nombre</span>
-                  <span>Activo</span>
-                  <span>Severidad</span>
-                  <span>Estado</span>
-                  <span></span>
-                </div>
-                {risksData.map(risk => (
-                  <div key={risk.id} className={styles.riskRow}>
-                    <span className={styles.riskId}>{risk.id}</span>
-                    <span className={styles.riskName}>{risk.name}</span>
-                    <div className={styles.riskAsset}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Database size={14} color="#64748b" /> {risk.asset}
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                          <span style={{ fontSize: '0.65rem', padding: '2px 6px', background: '#eef2ff', color: '#6366f1', borderRadius: '4px', fontWeight: 700 }}>PII</span>
-                          <span style={{ fontSize: '0.65rem', padding: '2px 6px', background: '#fff1f2', color: '#e11d48', borderRadius: '4px', fontWeight: 700 }}>CONFIDENCIAL</span>
-                        </div>
-                      </div>
+              {loading ? <p style={{ color: '#94a3b8', padding: '20px' }}>Cargando riesgos...</p> : (
+                <div className={styles.riskTable}>
+                  <div className={styles.tableHeader}>
+                    <span>ID</span><span>Nombre</span><span>Activo</span>
+                    <span>Severidad</span><span>Estado</span><span></span>
+                  </div>
+                  {filteredRisks.length === 0 ? (
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <ShieldCheck size={40} style={{ marginBottom: '12px', opacity: 0.3 }} />
+                      <p>No hay riesgos registrados. Crea el primero.</p>
                     </div>
-                    <span className={styles.sevBadge} style={{ 
-                      background: risk.severity === 'Crítico' ? '#fef2f2' : risk.severity === 'Alto' ? '#fff7ed' : '#f0fdf4',
-                      color: risk.severity === 'Crítico' ? '#ef4444' : risk.severity === 'Alto' ? '#f97316' : '#10b981'
-                    }}>
-                      {risk.severity}
-                    </span>
-                    <span className={styles.statusBadge} style={{ 
-                      borderColor: '#e2e8f0',
-                      color: '#64748b'
-                    }}>
-                      {risk.status}
-                    </span>
-                    <button className={styles.viewBtn} onClick={() => setSelectedRisk(risk)}>
-                      Ver Detalles
-                    </button>
-                  </div>
-                ))}
-              </div>
+                  ) : filteredRisks.map(risk => (
+                    <div key={risk.id} className={styles.riskRow}>
+                      <span className={styles.riskId}>{risk.code}</span>
+                      <span className={styles.riskName}>{risk.name}</span>
+                      <div className={styles.riskAsset}>
+                        <Database size={12} color="#94a3b8" /> {risk.asset || '—'}
+                      </div>
+                      <SevBadge value={risk.severity} map={SEV_COLOR} />
+                      <SevBadge value={risk.status} map={STATUS_COLOR} />
+                      <button className={styles.viewBtn} onClick={() => setSelectedRisk(risk)}>Ver</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
+          {/* ── INCIDENTES ── */}
           {activeTab === 'incidentes' && (
             <div className={styles.assetList}>
-              {incidentsData.map((inc, i) => (
-                <motion.div 
-                  key={inc.id}
-                  className={styles.riskItem}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: '12px', background: inc.severity === 'Crítico' ? '#fef2f2' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <AlertOctagon color={inc.severity === 'Crítico' ? '#ef4444' : '#64748b'} />
+              {loading ? <p style={{ color: '#94a3b8', padding: '20px' }}>Cargando...</p> :
+               filteredIncidents.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <CheckCircle size={40} style={{ marginBottom: '12px', opacity: 0.3 }} />
+                  <p>Sin incidentes activos. ¡Todo en orden!</p>
+                </div>
+              ) : filteredIncidents.map((inc, i) => (
+                <motion.div key={inc.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                  style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '12px', background: SEV_COLOR[inc.severity]?.bg || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <AlertOctagon size={20} color={SEV_COLOR[inc.severity]?.text || '#64748b'} />
                     </div>
                     <div>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{inc.type}</h4>
-                        <span className={styles.sevBadge} style={{ 
-                          background: inc.severity === 'Crítico' ? '#fef2f2' : '#f1f5f9',
-                          color: inc.severity === 'Crítico' ? '#ef4444' : '#64748b',
-                          fontSize: '0.65rem'
-                        }}>{inc.severity}</span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#94a3b8' }}>{inc.code}</span>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{inc.type}</h4>
+                        <SevBadge value={inc.severity} map={SEV_COLOR} />
                       </div>
-                      <p style={{ margin: '4px 0', fontSize: '0.9rem', color: '#64748b' }}>{inc.description}</p>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', gap: '12px' }}>
-                         <span><Clock size={12} /> {inc.date}</span>
-                         <span>•</span>
-                         <span style={{ color: '#4f46e5', fontWeight: 600 }}>{inc.status}</span>
+                      <p style={{ margin: '0 0 8px', fontSize: '0.9rem', color: '#64748b' }}>{inc.description}</p>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        <span><Clock size={11} style={{ marginRight: 3 }} />{new Date(inc.created_at).toLocaleDateString('es')}</span>
+                        {inc.assigned_to && <span>Asignado: <strong>{inc.assigned_to}</strong></span>}
                       </div>
                     </div>
                   </div>
-                  <button className={styles.viewBtn}>Investigar</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    <SevBadge value={inc.status} map={STATUS_COLOR} />
+                    <select value={inc.status} onChange={e => handleUpdateIncidentStatus(inc.id, e.target.value)}
+                      style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer', color: '#475569' }}>
+                      <option>Investigando</option><option>Bloqueado</option><option>Mitigado</option><option>Cerrado</option>
+                    </select>
+                  </div>
                 </motion.div>
               ))}
             </div>
           )}
 
+          {/* ── CUMPLIMIENTO ── */}
           {activeTab === 'cumplimiento' && (
-            <div className={styles.complianceGrid}>
-              <div className={styles.sectionHeader}>
-                <h2>Auditoría de Controles Normativos</h2>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select className={styles.viewBtn} style={{ padding: '8px 16px' }}>
-                    <option>ISO 27001:2022</option>
-                    <option>Habeas Data Ley 1581</option>
-                    <option>GDPR</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className={styles.riskTable}>
-                <div className={styles.tableHeader}>
-                  <span>Control ID</span>
-                  <span>Nombre del Control</span>
-                  <span>Estado</span>
-                  <span>Última Eval.</span>
-                  <span>Evidencia</span>
-                </div>
-                {[
-                  { id: 'ISO-A.5.1', name: 'Políticas para la seguridad de la info.', status: 'OK', date: '2026-05-01', evidence: 'DOC-POL-01' },
-                  { id: 'ISO-A.5.9', name: 'Inventario de activos de información', status: 'OK', date: '2026-05-01', evidence: 'NEXUS-CAT-01' },
-                  { id: 'ISO-A.5.15', name: 'Clasificación de la información', status: 'Parcial', date: '2026-05-05', evidence: 'NEXUS-SEC-04' },
-                  { id: 'ISO-A.8.1', name: 'Seguridad en el desarrollo (SDLC)', status: 'Falla', date: '2026-05-10', evidence: 'PENDIENTE' },
-                  { id: 'ISO-A.8.10', name: 'Eliminación de información (Wipe)', status: 'OK', date: '2026-04-28', evidence: 'PROC-DEL-02' },
-                ].map((ctrl, i) => (
-                  <div key={i} className={styles.riskRow}>
-                    <span className={styles.riskId}>{ctrl.id}</span>
-                    <span className={styles.riskName}>{ctrl.name}</span>
-                    <span className={styles.sevBadge} style={{ 
-                      background: ctrl.status === 'OK' ? '#f0fdf4' : ctrl.status === 'Parcial' ? '#fffbeb' : '#fef2f2',
-                      color: ctrl.status === 'OK' ? '#10b981' : ctrl.status === 'Parcial' ? '#f59e0b' : '#ef4444'
-                    }}>
-                      {ctrl.status === 'OK' ? 'CUMPLE' : ctrl.status === 'Parcial' ? 'PARCIAL' : 'NO CUMPLE'}
-                    </span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{ctrl.date}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>
-                      <ExternalLink size={12} /> {ctrl.evidence}
+            <div>
+              {FRAMEWORKS.map(fw => {
+                const fwControls = controls.filter(c => c.framework === fw);
+                return (
+                  <div key={fw} style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{fw}</h3>
+                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#10b981', fontWeight: 700 }}>{fwControls.filter(c => c.status === 'OK').length} OK</span>
+                        <span style={{ color: '#f59e0b' }}>{fwControls.filter(c => c.status === 'Parcial').length} Parcial</span>
+                        <span style={{ color: '#ef4444' }}>{fwControls.filter(c => c.status === 'Falla').length} Falla</span>
+                      </div>
                     </div>
+                    {fwControls.length === 0 ? (
+                      <p style={{ padding: '20px', color: '#94a3b8', fontSize: '0.9rem' }}>Sin controles registrados para este framework.</p>
+                    ) : (
+                      <div className={styles.riskTable} style={{ margin: 0, border: 'none' }}>
+                        <div className={styles.tableHeader} style={{ gridTemplateColumns: '120px 1fr 100px 100px 120px' }}>
+                          <span>Control ID</span><span>Nombre</span><span>Estado</span><span>Última Eval.</span><span>Evidencia</span>
+                        </div>
+                        {fwControls.map(ctrl => (
+                          <div key={ctrl.id} className={styles.riskRow} style={{ gridTemplateColumns: '120px 1fr 100px 100px 120px' }}>
+                            <span className={styles.riskId}>{ctrl.control_id || '—'}</span>
+                            <span className={styles.riskName}>{ctrl.name}</span>
+                            <select value={ctrl.status} onChange={e => handleUpdateControlStatus(ctrl.id, e.target.value)}
+                              style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer',
+                                color: ctrl.status === 'OK' ? '#10b981' : ctrl.status === 'Parcial' ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                              <option>OK</option><option>Parcial</option><option>Falla</option>
+                            </select>
+                            <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{ctrl.last_evaluated || '—'}</span>
+                            <span style={{ fontSize: '0.8rem', color: '#4f46e5', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {ctrl.evidence ? <><ExternalLink size={11} />{ctrl.evidence}</> : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-
-              <div className={styles.methodology} style={{ marginTop: '24px' }}>
-                <Info size={20} color="#4f46e5" />
-                <p style={{ fontSize: '0.85rem', color: '#475569' }}>
-                  Los controles se evalúan automáticamente cruzando datos del <strong>Catálogo (A.5.9)</strong>, 
-                  <strong>Calidad (A.5.15)</strong> y <strong>Workflows (A.8.1)</strong>.
+                );
+              })}
+              <div style={{ padding: '16px', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <Info size={18} color="#6366f1" style={{ flexShrink: 0, marginTop: 2 }} />
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#4338ca', lineHeight: 1.6 }}>
+                  El <strong>SCI</strong> se calcula automáticamente: cada control <em>OK</em> = 100%, <em>Parcial</em> = 50%, <em>Falla</em> = 0%.
+                  El porcentaje por framework es el promedio ponderado de sus controles.
                 </p>
               </div>
             </div>
           )}
 
+          {/* ── ACCESOS ── */}
           {activeTab === 'accesos' && (
-            <div className={styles.riskTable}>
-              <div className={styles.tableHeader}>
-                <span>Usuario</span>
-                <span>Rol</span>
-                <span>Activo</span>
-                <span>Nivel</span>
-                <span>Actividad</span>
-                <span>Riesgo</span>
-              </div>
-              {accessData.map((acc, i) => (
-                <div key={i} className={styles.riskRow}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifySelf: 'center' }}>
-                      <Users size={16} style={{ margin: '0 auto' }} />
-                    </div>
-                    <span className={styles.riskName}>{acc.user}</span>
-                  </div>
-                  <span style={{ fontSize: '0.85rem' }}>{acc.role}</span>
-                  <span className={styles.riskAsset}>{acc.asset}</span>
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{acc.level}</span>
-                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{acc.activity}</span>
-                  <span className={styles.sevBadge} style={{ 
-                    background: acc.risk === 'Alto' ? '#fef2f2' : '#f0fdf4',
-                    color: acc.risk === 'Alto' ? '#ef4444' : '#10b981'
-                  }}>{acc.risk}</span>
+            <div>
+              {loading ? <p style={{ color: '#94a3b8', padding: '20px' }}>Cargando...</p> :
+               filteredAccess.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <UserCheck size={40} style={{ marginBottom: '12px', opacity: 0.3 }} />
+                  <p>No hay revisiones de acceso registradas.</p>
                 </div>
-              ))}
+              ) : (
+                <div className={styles.riskTable}>
+                  <div className={styles.tableHeader} style={{ gridTemplateColumns: '1fr 120px 1fr 80px 100px 100px 100px' }}>
+                    <span>Usuario</span><span>Rol</span><span>Activo / Sistema</span>
+                    <span>Nivel</span><span>Actividad</span><span>Riesgo</span><span>Acción</span>
+                  </div>
+                  {filteredAccess.map(acc => (
+                    <div key={acc.id} className={styles.riskRow} style={{ gridTemplateColumns: '1fr 120px 1fr 80px 100px 100px 100px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', flexShrink: 0 }}>
+                          {acc.user_name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{acc.user_name}</span>
+                      </div>
+                      <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{acc.role || '—'}</span>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>{acc.asset}</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: acc.access_level === 'Admin' ? '#ef4444' : '#64748b' }}>{acc.access_level}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{acc.last_activity}</span>
+                      <SevBadge value={acc.risk_level} map={SEV_COLOR} />
+                      {acc.status === 'Activo' ? (
+                        <button onClick={() => handleRevokeAccess(acc.id)}
+                          style={{ fontSize: '0.75rem', padding: '5px 10px', borderRadius: '8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', cursor: 'pointer', fontWeight: 700 }}>
+                          Revocar
+                        </button>
+                      ) : (
+                        <SevBadge value={acc.status} map={STATUS_COLOR} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {activeTab === 'politicas' && (
-            <div className={styles.riskTable}>
-              <div className={styles.tableHeader}>
-                <span>Referencia</span>
-                <span>Nombre de Política</span>
-                <span>Estado</span>
-                <span>Responsable</span>
-                <span>Vencimiento</span>
-              </div>
-              {[
-                { ref: 'POL-SEC-01', name: 'Política de Protección de Datos', status: 'Vigente', owner: 'Legal', expiry: '2027-01-15' },
-                { ref: 'POL-SEC-02', name: 'Retención Documental', status: 'Vencida', owner: 'Archivo', expiry: '2024-05-10' },
-                { ref: 'POL-SEC-03', name: 'Gestión de Accesos y MFA', status: 'Vigente', owner: 'Seguridad TI', expiry: '2026-12-20' },
-                { ref: 'POL-SEC-04', name: 'Cifrado y Llaves', status: 'En Revisión', owner: 'TI Infra', expiry: '2025-06-30' },
-                { ref: 'POL-SEC-05', name: 'Backup y Recuperación', status: 'Vigente', owner: 'TI Infra', expiry: '2026-11-05' },
-              ].map((pol, i) => (
-                <div key={i} className={styles.riskRow}>
-                  <span className={styles.riskId}>{pol.ref}</span>
-                  <span className={styles.riskName}>{pol.name}</span>
-                  <span className={styles.sevBadge} style={{ 
-                    background: pol.status === 'Vigente' ? '#f0fdf4' : pol.status === 'Vencida' ? '#fef2f2' : '#fffbeb',
-                    color: pol.status === 'Vigente' ? '#10b981' : pol.status === 'Vencida' ? '#ef4444' : '#f59e0b'
-                  }}>{pol.status}</span>
-                  <span style={{ fontSize: '0.85rem' }}>{pol.owner}</span>
-                  <span style={{ fontSize: '0.85rem', color: pol.status === 'Vencida' ? '#ef4444' : '#64748b' }}>
-                    {pol.expiry}
+          {/* ── POLÍTICAS ── */}
+          {activeTab === 'politicas' && <PoliciesTab tenantId={currentTenant?.id} />}
+        </div>
+
+        {/* ── Right Column ── */}
+        <div className={styles.rightColumn}>
+          {/* Cumplimiento por framework */}
+          <div className={styles.sideCard}>
+            <div className={styles.cardTitle}><ShieldCheck color="#10b981" /><h3>Cumplimiento por Framework</h3></div>
+            <div className={styles.complianceList}>
+              {frameworkScores.map((f, i) => (
+                <div key={i} className={styles.compItem}>
+                  <div className={styles.compHeader}>
+                    <span className={styles.compName}>{f.name}</span>
+                    <span className={styles.compPct}>{f.pct}%</span>
+                  </div>
+                  <div className={styles.progressBar}>
+                    <motion.div className={styles.progressFill}
+                      initial={{ width: 0 }} animate={{ width: `${f.pct}%` }}
+                      style={{ background: f.color }} />
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    {controls.filter(c => c.framework === f.name).length} controles registrados
                   </span>
                 </div>
               ))}
+              {controls.length === 0 && (
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', padding: '16px 0' }}>
+                  Ve al tab Cumplimiento para registrar controles.
+                </p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Right Side Column (Compliance) */}
-        <div className={styles.rightColumn}>
-          <div className={styles.sideCard}>
-            <div className={styles.cardTitle}>
-              <ShieldCheck className={styles.successIcon} color="#10b981" />
-              <h3>Cumplimiento Normativo</h3>
-            </div>
-            <div className={styles.complianceList}>
-              {complianceData.map((comp, idx) => (
-                <div key={idx} className={styles.compItem}>
-                  <div className={styles.compHeader}>
-                    <span className={styles.compName}>{comp.name}</span>
-                    <span className={styles.compPct}>{comp.pct}%</span>
-                  </div>
-                  <div className={styles.progressBar}>
-                    <motion.div 
-                      className={styles.progressFill}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${comp.pct}%` }}
-                      style={{ background: comp.color }}
-                    />
-                  </div>
+          {/* Resumen de estado */}
+          <div className={styles.sideCard} style={{ marginTop: '20px' }}>
+            <div className={styles.cardTitle}><Activity color="#6366f1" /><h3>Resumen de Estado</h3></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+              {[
+                { label: 'Riesgos Abiertos', val: risks.filter(r => r.status === 'Abierto').length, color: '#ef4444' },
+                { label: 'Riesgos Mitigando', val: risks.filter(r => r.status === 'Mitigando').length, color: '#3b82f6' },
+                { label: 'Riesgos Cerrados', val: risks.filter(r => r.status === 'Cerrado').length, color: '#10b981' },
+                { label: 'Incidentes Activos', val: openIncidents.length, color: '#ef4444' },
+                { label: 'Accesos de Riesgo Alto', val: highAccessCount, color: '#f97316' },
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 500 }}>{s.label}</span>
+                  <strong style={{ color: s.color, fontSize: '1.1rem' }}>{s.val}</strong>
                 </div>
               ))}
             </div>
-            <button className={styles.viewBtn} style={{ width: '100%', marginTop: '24px' }}>
-              Ver Reporte Completo
-            </button>
-          </div>
-
-          <div className={styles.sideCard} style={{ marginTop: '24px', background: '#1e293b', color: 'white', border: 'none' }}>
-             <div className={styles.cardTitle}>
-                <Zap size={20} color="#f59e0b" />
-                <h3 style={{ color: 'white' }}>Nexus AI Insights</h3>
-             </div>
-             <p style={{ fontSize: '0.85rem', opacity: 0.8, lineHeight: 1.6 }}>
-               Se detectaron <strong>3 usuarios huérfanos</strong> con acceso a Datos PII en Salesforce. Se recomienda revocación inmediata.
-             </p>
-              {!showRemediationSuccess ? (
-                <button 
-                  className={styles.primaryBtn} 
-                  onClick={handleRunRemediation}
-                  disabled={isRemediating}
-                  style={{ 
-                    background: isRemediating ? '#4b5563' : '#4f46e5', 
-                    border: 'none', 
-                    color: 'white', 
-                    padding: '10px', 
-                    borderRadius: '8px', 
-                    cursor: isRemediating ? 'not-allowed' : 'pointer', 
-                    width: '100%', 
-                    marginTop: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  {isRemediating ? (
-                    <>
-                      <div className={styles.spinnerSmall}></div>
-                      Remediando {remediationProgress}%
-                    </>
-                  ) : (
-                    <>Ejecutar Remediación</>
-                  )}
-                </button>
-              ) : (
-                <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '8px', border: '1px solid #10b981', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <ShieldCheck size={18} color="#10b981" />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#10b981' }}>Accesos Revocados Exitosamente</span>
-                </div>
-              )}
           </div>
         </div>
       </div>
 
-      {/* KPI Explainer Modal */}
+      {/* ══════════════════ MODALS ══════════════════ */}
+
+      {/* KPI Explainer */}
       <AnimatePresence>
         {selectedKPI && (
           <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
-            <motion.div 
-              className={styles.modalContent}
-              style={{ maxWidth: '500px' }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className={styles.modalHeader} style={{ background: selectedKPI.color, color: 'white' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
-                     <ShieldAlert size={24} />
-                   </div>
-                   <h3 style={{ margin: 0, color: 'white' }}>{selectedKPI.label}</h3>
-                </div>
-                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white' }}>
-                  <X size={20} />
-                </button>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '440px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: selectedKPI.color || '#6366f1', color: 'white' }}>
+                <h3 style={{ margin: 0, color: 'white' }}>{selectedKPI.label}</h3>
+                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: 'white' }}><X size={18} /></button>
               </div>
-              <div className={styles.modalBody} style={{ padding: '32px' }}>
-                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
-                   {selectedKPI.explanation}
-                 </p>
-                 <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <Info size={20} color="#6366f1" style={{ flexShrink: 0 }} />
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                      Este valor se actualiza en tiempo real basado en el motor de escaneo de Nexus AI y el registro de riesgos.
-                    </p>
-                 </div>
-              </div>
-              <div className={styles.modalFooter}>
-                 <button className={styles.viewBtn} style={{ background: '#4f46e5', color: 'white' }} onClick={() => setSelectedKPI(null)}>
-                   Entendido
-                 </button>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <p style={{ fontSize: '2.5rem', fontWeight: 900, color: selectedKPI.color, margin: '0 0 12px' }}>{selectedKPI.val}</p>
+                <p style={{ color: '#475569', lineHeight: 1.6 }}>Valor calculado en tiempo real desde los datos registrados en este módulo.</p>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Risk Detail Modal */}
+      {/* Risk Detail */}
       <AnimatePresence>
         {selectedRisk && (
           <div className={styles.modalOverlay} onClick={() => setSelectedRisk(null)}>
-            <motion.div 
-              className={styles.modalContent}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-            >
+            <motion.div className={styles.modalContent}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
               <div className={styles.modalHeader}>
                 <div>
-                  <span className={styles.riskId}>{selectedRisk.id}</span>
-                  <h2 style={{ margin: '8px 0', fontSize: '1.75rem' }}>{selectedRisk.name}</h2>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                     <span className={styles.sevBadge} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                       {selectedRisk.severity}
-                     </span>
-                     <span className={styles.statusBadge} style={{ borderColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
-                       {selectedRisk.status}
-                     </span>
+                  <span className={styles.riskId}>{selectedRisk.code}</span>
+                  <h2 style={{ margin: '8px 0 4px', fontSize: '1.5rem', color: 'white' }}>{selectedRisk.name}</h2>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <SevBadge value={selectedRisk.severity} map={{ ...SEV_COLOR, [selectedRisk.severity]: { bg: 'rgba(255,255,255,0.15)', text: 'white' } }} />
+                    <SevBadge value={selectedRisk.status} map={{ ...STATUS_COLOR, [selectedRisk.status]: { bg: 'rgba(255,255,255,0.15)', text: 'white' } }} />
                   </div>
                 </div>
-                <button className={styles.closeBtn} onClick={() => setSelectedRisk(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}>
-                  <X size={24} />
-                </button>
+                <button onClick={() => setSelectedRisk(null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '12px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={22} /></button>
               </div>
-
-              <div className={styles.detailTabs}>
-                {['general', 'activos', 'controles', 'plan', 'historial'].map(t => (
-                  <div 
-                    key={t}
-                    className={`${styles.detailTab} ${detailTab === t ? styles.activeDetailTab : ''}`}
-                    onClick={() => setDetailTab(t)}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </div>
-                ))}
-              </div>
-
               <div className={styles.modalBody}>
-                <div className={styles.tabContent}>
-                  {detailTab === 'general' && (
-                    <div className={styles.infoGrid}>
-                      <div className={styles.infoField}>
-                        <label>Descripción del Riesgo</label>
-                        <div>{selectedRisk.description}</div>
-                      </div>
-                      <div className={styles.infoField}>
-                        <label>Responsable</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Users size={16} /> {selectedRisk.owner}
-                        </div>
-                      </div>
-                      <div className={styles.infoField}>
-                        <label>Impacto Estimado</label>
-                        <div>{selectedRisk.impact}</div>
-                      </div>
-                      <div className={styles.infoField}>
-                        <label>Probabilidad</label>
-                        <div>{selectedRisk.probability}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {detailTab === 'plan' && (
-                    <div className={styles.mitigationBox}>
-                       <h5>Plan de Acción / Mitigación</h5>
-                       <p style={{ color: '#166534', fontSize: '0.95rem', lineHeight: 1.6 }}>{selectedRisk.actionPlan}</p>
-                       <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                          <button className={styles.viewBtn}>Actualizar Progreso</button>
-                          <button className={styles.viewBtn} style={{ background: '#166534', color: 'white' }}>Cerrar Riesgo</button>
-                       </div>
-                    </div>
-                  )}
-
-                  {detailTab === 'controles' && (
-                    <div className={styles.complianceList}>
-                      {selectedRisk.controls.map((c: string, i: number) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px' }}>
-                          <Shield size={18} color="#10b981" />
-                          <span style={{ fontWeight: 600 }}>{c}</span>
-                          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>VERIFICADO</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoField}><label>Descripción</label><div>{selectedRisk.description || '—'}</div></div>
+                  <div className={styles.infoField}><label>Activo Afectado</label><div>{selectedRisk.asset || '—'}</div></div>
+                  <div className={styles.infoField}><label>Impacto</label><div>{selectedRisk.impact}</div></div>
+                  <div className={styles.infoField}><label>Probabilidad</label><div>{selectedRisk.probability}</div></div>
+                  <div className={styles.infoField}><label>Responsable</label><div>{selectedRisk.owner || '—'}</div></div>
+                  <div className={styles.infoField} style={{ gridColumn: '1 / -1' }}><label>Plan de Mitigación</label><div>{selectedRisk.action_plan || '—'}</div></div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '24px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>Cambiar estado:</label>
+                  {['Abierto', 'Mitigando', 'En Revisión', 'Cerrado'].map(s => (
+                    <button key={s} onClick={() => handleUpdateRiskStatus(selectedRisk.id, s)}
+                      style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: selectedRisk.status === s ? '#1e293b' : 'white',
+                        color: selectedRisk.status === s ? 'white' : '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
+                      {s}
+                    </button>
+                  ))}
+                  <button onClick={() => handleDeleteRisk(selectedRisk.id)}
+                    style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Trash2 size={13} /> Eliminar
+                  </button>
                 </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* New Risk Modal */}
+      <AnimatePresence>
+        {isRiskModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsRiskModalOpen(false)}>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '600px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #ef4444, #6366f1)' }}>
+                <h2 style={{ margin: 0, color: 'white' }}>Registrar Nuevo Riesgo</h2>
+                <button onClick={() => setIsRiskModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
+              </div>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nombre del Riesgo *</label>
+                    <input value={newRisk.name} onChange={e => setNewRisk({ ...newRisk, name: e.target.value })} placeholder="Ej: Exposición PII en producción"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Activo Afectado</label>
+                    <input value={newRisk.asset} onChange={e => setNewRisk({ ...newRisk, asset: e.target.value })} placeholder="Ej: DB Clientes"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  {[
+                    { label: 'Severidad', key: 'severity', opts: ['Crítico','Alto','Medio','Bajo'] },
+                    { label: 'Impacto', key: 'impact', opts: ['Alto','Medio','Bajo'] },
+                    { label: 'Probabilidad', key: 'probability', opts: ['Alta','Media','Baja'] },
+                  ].map(f => (
+                    <div key={f.key}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>{f.label}</label>
+                      <select value={(newRisk as any)[f.key]} onChange={e => setNewRisk({ ...newRisk, [f.key]: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                        {f.opts.map(o => <option key={o}>{o}</option>)}
+                      </select></div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Responsable</label>
+                  <input value={newRisk.owner} onChange={e => setNewRisk({ ...newRisk, owner: e.target.value })} placeholder="Ej: Seguridad TI"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Descripción</label>
+                  <textarea value={newRisk.description} onChange={e => setNewRisk({ ...newRisk, description: e.target.value })} rows={2} placeholder="Describe el riesgo..."
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ marginBottom: '24px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Plan de Mitigación</label>
+                  <textarea value={newRisk.action_plan} onChange={e => setNewRisk({ ...newRisk, action_plan: e.target.value })} rows={2} placeholder="Acciones a tomar..."
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button onClick={() => setIsRiskModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                  <button onClick={handleAddRisk} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #ef4444, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Save size={15} /> Guardar Riesgo
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Incident Modal */}
+      <AnimatePresence>
+        {isIncidentModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsIncidentModalOpen(false)}>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #f97316, #ef4444)' }}>
+                <h2 style={{ margin: 0, color: 'white' }}>Reportar Incidente</h2>
+                <button onClick={() => setIsIncidentModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
+              </div>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Tipo de Incidente *</label>
+                    <select value={newIncident.type} onChange={e => setNewIncident({ ...newIncident, type: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      <option value="">Seleccionar...</option>
+                      {['Fuga de Datos','Acceso Indebido','Malware Detectado','Anomalía de Comportamiento','Phishing','Denegación de Servicio','Otros'].map(o => <option key={o}>{o}</option>)}
+                    </select></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Severidad</label>
+                    <select value={newIncident.severity} onChange={e => setNewIncident({ ...newIncident, severity: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      {['Crítico','Alto','Medio','Bajo'].map(o => <option key={o}>{o}</option>)}
+                    </select></div>
+                </div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Descripción</label>
+                  <textarea value={newIncident.description} onChange={e => setNewIncident({ ...newIncident, description: e.target.value })} rows={3}
+                    placeholder="Describe qué ocurrió..."
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ marginBottom: '24px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Asignado a</label>
+                  <select value={newIncident.assigned_to} onChange={e => setNewIncident({ ...newIncident, assigned_to: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                    <option value="">Sin asignar</option>
+                    {tenantUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                  </select></div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button onClick={() => setIsIncidentModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                  <button onClick={handleAddIncident} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #f97316, #ef4444)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} /> Reportar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Access Modal */}
+      <AnimatePresence>
+        {isAccessModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsAccessModalOpen(false)}>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                <h2 style={{ margin: 0, color: 'white' }}>Registrar Revisión de Acceso</h2>
+                <button onClick={() => setIsAccessModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
+              </div>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Usuario *</label>
+                  <select value={newAccess.user_id} onChange={e => setNewAccess({ ...newAccess, user_id: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                    <option value="">Selecciona un usuario...</option>
+                    {tenantUsers.map(u => <option key={u.id} value={u.id}>{u.name} — {u.email}</option>)}
+                  </select></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Activo / Sistema *</label>
+                    <input value={newAccess.asset} onChange={e => setNewAccess({ ...newAccess, asset: e.target.value })} placeholder="Ej: Oracle DB Finanzas"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nivel de Acceso</label>
+                    <select value={newAccess.access_level} onChange={e => setNewAccess({ ...newAccess, access_level: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      {['Admin','Editor','Viewer','Solo Lectura'].map(o => <option key={o}>{o}</option>)}
+                    </select></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Última Actividad</label>
+                    <input value={newAccess.last_activity} onChange={e => setNewAccess({ ...newAccess, last_activity: e.target.value })} placeholder="Ej: Hace 30 días"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nivel de Riesgo</label>
+                    <select value={newAccess.risk_level} onChange={e => setNewAccess({ ...newAccess, risk_level: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      {['Alto','Medio','Bajo'].map(o => <option key={o}>{o}</option>)}
+                    </select></div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button onClick={() => setIsAccessModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                  <button onClick={handleAddAccess} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Save size={15} /> Guardar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Policies Tab (reads from data_policies) ───────────────────────────────────
+function PoliciesTab({ tenantId }: { tenantId?: string }) {
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from('data_policies').select('id, title, status, owner, expiry, framework_origin, type').eq('tenant_id', tenantId).order('expiry')
+      .then(({ data }) => { if (data) setPolicies(data); setLoading(false); });
+  }, [tenantId]);
+
+  const today = new Date();
+  const isExpired = (expiry: string) => new Date(expiry + '-01-01') < today;
+  const expiringSoon = (expiry: string) => {
+    const d = new Date(expiry + '-01-01');
+    const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 90;
+  };
+
+  if (loading) return <p style={{ color: '#94a3b8', padding: '20px' }}>Cargando políticas...</p>;
+  if (policies.length === 0) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+      <FileWarning size={40} style={{ marginBottom: '12px', opacity: 0.3 }} />
+      <p>No hay políticas registradas. Ve al módulo de Políticas para crearlas.</p>
+    </div>
+  );
+
+  return (
+    <div className={styles.riskTable}>
+      <div className={styles.tableHeader} style={{ gridTemplateColumns: '1fr 100px 120px 100px 100px' }}>
+        <span>Política</span><span>Tipo</span><span>Motivo</span><span>Owner</span><span>Estado</span>
+      </div>
+      {policies.map(pol => {
+        const expired = isExpired(pol.expiry || '2099');
+        const soon = expiringSoon(pol.expiry || '2099');
+        const statusDisplay = expired ? 'Vencida' : soon ? 'Por Vencer' : pol.status;
+        return (
+          <div key={pol.id} className={styles.riskRow} style={{ gridTemplateColumns: '1fr 100px 120px 100px 100px' }}>
+            <span className={styles.riskName}>{pol.title}</span>
+            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{pol.type || '—'}</span>
+            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{pol.framework_origin || '—'}</span>
+            <span style={{ fontSize: '0.82rem' }}>{pol.owner || '—'}</span>
+            <SevBadge value={statusDisplay} map={{
+              Vigente: { bg: '#f0fdf4', text: '#10b981' },
+              Vencida: { bg: '#fef2f2', text: '#ef4444' },
+              'Por Vencer': { bg: '#fffbeb', text: '#f59e0b' },
+              Borrador: { bg: '#f8fafc', text: '#94a3b8' },
+              'En Revisión': { bg: '#eff6ff', text: '#3b82f6' },
+            }} />
+          </div>
+        );
+      })}
     </div>
   );
 }
