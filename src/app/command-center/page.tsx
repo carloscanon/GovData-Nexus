@@ -48,7 +48,9 @@ export default function CommandCenter() {
           { data: members },
           { data: diagnosticQuestions },
           { data: standards },
-          { data: procedures }
+          { data: procedures },
+          { data: committeesData },
+          { data: committeeDocsData }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
           supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id),
@@ -58,7 +60,9 @@ export default function CommandCenter() {
           supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('diagnostic_questions').select('code, pillar'),
           supabase.from('policy_standards').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id)
+          supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('gov_committees').select('id').eq('tenant_id', currentTenant.id),
+          supabase.from('gov_committee_documents').select('id, committee_id')
         ]);
 
         // 1. Madurez
@@ -196,11 +200,12 @@ export default function CommandCenter() {
         setAdoption(Math.min(numMembers * 10, 100)); // Basado estrictamente en miembros reales (ej: 10 usuarios = 100%)
 
         // Ejecución Estratégica
-        let comites = 'No Evaluado';
-        let decisiones = 0;
-        if (estScore > 75) { comites = 'Formal y Activo'; decisiones = 12; }
-        else if (estScore > 40) { comites = 'Informal/Esporádico'; decisiones = 3; }
-        else if (estScore > 0) { comites = 'Inexistente'; decisiones = 0; }
+        const comCount = committeesData ? committeesData.length : 0;
+        const committeeIds = committeesData ? committeesData.map((c: any) => c.id) : [];
+        const tenantDocsCount = committeeDocsData ? committeeDocsData.filter((d: any) => committeeIds.includes(d.committee_id)).length : 0;
+
+        let comites = comCount.toString();
+        let decisiones = tenantDocsCount;
 
         let presupuesto = 'No Evaluado';
         if (estScore > 80) presupuesto = 'Asignado (100%)';
@@ -627,8 +632,8 @@ export default function CommandCenter() {
             Panel Directivo (Comité de Gobierno)
           </h2>
           <div className={styles.healthGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <div className={styles.healthItem}><span>Comités Ejecutados</span> <strong style={{ fontSize: '0.9rem' }}>{execStats.comites}</strong></div>
-            <div className={styles.healthItem}><span>Decisiones Tomadas</span> <strong>{execStats.decisiones}</strong></div>
+            <div className={styles.healthItem}><span>Comités Creados</span> <strong style={{ fontSize: '0.9rem' }}>{execStats.comites}</strong></div>
+            <div className={styles.healthItem}><span>Actas y Resoluciones</span> <strong>{execStats.decisiones}</strong></div>
             <div className={styles.healthItem}><span>Iniciativas Activas</span> <strong>{execStats.activas}</strong></div>
             <div className={styles.healthItem}><span>Presupuesto Ejec.</span> <strong style={{ fontSize: '0.9rem', color: execStats.presupuesto.includes('Asignado') ? '#10b981' : '#f59e0b' }}>{execStats.presupuesto}</strong></div>
           </div>
