@@ -28,6 +28,7 @@ import {
   Rocket
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './Sidebar.module.css';
 
@@ -40,8 +41,9 @@ const menuItems = [
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
   { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
   { icon: FileText, label: 'Políticas', href: '/policies', module: 'catalog' },
-  { icon: Zap, label: 'Workflows', href: '/workflows', module: 'workflows' },
   { icon: Users, label: 'Roles y Equipo', href: '/team', module: 'team' },
+  { icon: Users, label: 'Comités de Gobierno', href: '/data-governance/committees', module: 'team' },
+  { icon: Zap, label: 'Workflows', href: '/workflows', module: 'workflows' },
   { icon: BarChart3, label: 'Madurez', href: '/maturity', module: 'maturity' },
 ];
 
@@ -59,22 +61,15 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     if (onCloseMobile) onCloseMobile();
   };
   const { mode, setMode, currentTenant, tenants, setCurrentTenant } = usePlatform();
-  const [userRole, setUserRole] = React.useState<string | null>(null);
-  const [userName, setUserName] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('govdata_role'));
-      setUserName(localStorage.getItem('govdata_user_name'));
-    }
-  }, []);
+  const { data: session } = useSession();
+  
+  const userRole = session?.user?.role || null;
+  const userName = session?.user?.name || null;
 
   // Logout handler
-  const handleLogout = () => {
-    localStorage.removeItem('govdata_role');
-    localStorage.removeItem('govdata_user_name');
+  const handleLogout = async () => {
     localStorage.removeItem('govdata_current_tenant_id');
-    window.location.href = '/login';
+    await signOut({ callbackUrl: '/login' });
   };
 
   // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin/admin (ve todo)

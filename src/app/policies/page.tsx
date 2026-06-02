@@ -367,20 +367,35 @@ export default function PoliciesModule() {
     }
   };
 
-  const handleNativeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+  const handleNativeFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    callback: (url: string) => void,
+    fileType: 'evidencias' | 'procedimientos' | 'politicas' | 'estandares' = 'politicas'
+  ) => {
     const file = e.target.files?.[0];
     if (!file || !currentTenant?.id) return;
-    
+
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${currentTenant.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      
-      const { data, error } = await supabase.storage.from('documents').upload(fileName, file);
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      // Organized path: tenantId / type / timestamp_filename
+      const filePath = `${currentTenant.id}/${fileType}/${Date.now()}_${safeName}`;
+
+      const { error } = await supabase.storage
+        .from('policy-documents')
+        .upload(filePath, file, { upsert: false });
+
       if (error) throw error;
-      
-      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(fileName);
-      callback(urlData.publicUrl);
+
+      // Generate a signed URL valid for 1 year (31,536,000 s)
+      const { data: signedData, error: signErr } = await supabase.storage
+        .from('policy-documents')
+        .createSignedUrl(filePath, 31536000);
+
+      if (signErr || !signedData?.signedUrl) throw signErr || new Error('No signed URL');
+
+      callback(signedData.signedUrl);
     } catch (err: any) {
       alert(`Error subiendo documento: ${err.message}`);
     } finally {
@@ -2051,7 +2066,7 @@ export default function PoliciesModule() {
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
-                      <input type="file" id="std-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewStandard({...newStandard, document_url: url}))} />
+                      <input type="file" id="std-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewStandard({...newStandard, document_url: url}), 'estandares')} />
                       <label htmlFor="std-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
@@ -2133,7 +2148,7 @@ export default function PoliciesModule() {
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
-                      <input type="file" id="proc-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewProcedure({...newProcedure, document_url: url}))} />
+                      <input type="file" id="proc-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewProcedure({...newProcedure, document_url: url}), 'procedimientos')} />
                       <label htmlFor="proc-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
@@ -2223,7 +2238,7 @@ export default function PoliciesModule() {
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
-                      <input type="file" id="std-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedStandard({...selectedStandard, document_url: url}))} />
+                      <input type="file" id="std-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedStandard({...selectedStandard, document_url: url}), 'estandares')} />
                       <label htmlFor="std-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
@@ -2310,7 +2325,7 @@ export default function PoliciesModule() {
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
-                      <input type="file" id="proc-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedProcedure({...selectedProcedure, document_url: url}))} />
+                      <input type="file" id="proc-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedProcedure({...selectedProcedure, document_url: url}), 'procedimientos')} />
                       <label htmlFor="proc-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
@@ -2386,7 +2401,7 @@ export default function PoliciesModule() {
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
-                      <input type="file" id="ev-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewEvidence({...newEvidence, file_url: url}))} />
+                      <input type="file" id="ev-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewEvidence({...newEvidence, file_url: url}), 'evidencias')} />
                       <label htmlFor="ev-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>

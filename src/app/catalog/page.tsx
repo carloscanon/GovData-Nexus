@@ -35,6 +35,7 @@ import AutoScanModal from '@/components/catalog/AutoScanModal';
 import ImportExcelModal from '@/components/catalog/ImportExcelModal';
 import CatalogStatsModal from '@/components/catalog/CatalogStatsModal';
 import { usePlatform } from '@/contexts/PlatformContext';
+import { useSession } from 'next-auth/react';
 import styles from './catalog.module.css';
 
 interface DataAsset {
@@ -86,12 +87,8 @@ export default function Catalog() {
     criticality: ''
   });
 
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const role = localStorage.getItem('govdata_role');
-    setUserRole(role);
-  }, []);
+  const { data: session } = useSession();
+  const userRole = session?.user?.role || null;
 
   useEffect(() => {
     fetchAssets();

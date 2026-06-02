@@ -67,11 +67,11 @@ export default function QualityModule() {
   const [rules, setRules] = useState<any[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState<string>('');
   const [stats, setStats] = useState({
-    completeness: mode === 'DEMO' ? 92 : 0,
-    accuracy: mode === 'DEMO' ? 88 : 0,
-    consistency: mode === 'DEMO' ? 95 : 0,
-    uniqueness: mode === 'DEMO' ? 97 : 0,
-    timeliness: mode === 'DEMO' ? 91 : 0
+    completeness: 0,
+    accuracy: 0,
+    consistency: 0,
+    uniqueness: 0,
+    timeliness: 0
   });
 
   const [sourceStats, setSourceStats] = useState<any[]>([]);
@@ -84,8 +84,7 @@ export default function QualityModule() {
     { id: '4', name: 'IDs Duplicados', system: 'Data Lake', affected: 12, severity: 'Crítica', owner: 'Ana Belen', date: 'Hace 10m', total: 2000, compliant: 1988, pct: '99.40' },
   ];
 
-  const [incidents, setIncidents] = useState<any[]>(mode === 'DEMO' ? demoIncidents : []);
-
+  const [incidents, setIncidents] = useState<any[]>([]);
   const handleExecuteRules = async () => {
     if (mode === 'ENTERPRISE' && !selectedAssetId) {
       alert('Por favor, seleccione un activo de información para validar.');
@@ -95,55 +94,34 @@ export default function QualityModule() {
     setIsExecuting(true);
     setExecutionProgress(0);
 
-    // Si es empresa, buscamos las reglas reales del activo
-    let activeRules = [];
-    if (mode === 'ENTERPRISE') {
-      const { data } = await supabase
-        .from('quality_rules')
-        .select('*')
-        .eq('asset_id', selectedAssetId)
-        .or('status.eq.Activa,status.is.null');
-      activeRules = data || [];
+    const { data: activeRules } = await supabase
+      .from('quality_rules')
+      .select('*')
+      .eq('asset_id', selectedAssetId)
+      .or('status.eq.Activa,status.is.null');
 
-      if (activeRules.length === 0) {
-        setIsExecuting(false);
-        alert('No se encontraron reglas activas para este activo. Cree una regla primero.');
-        return;
-      }
+    if (!activeRules || activeRules.length === 0) {
+      setIsExecuting(false);
+      alert('No se encontraron reglas activas para este activo. Cree una regla primero.');
+      return;
     }
 
-    // Simular escaneo de reglas
     for (let i = 0; i <= 100; i += 10) {
       setExecutionProgress(i);
-      await new Promise(r => setTimeout(r, mode === 'DEMO' ? 200 : 400));
+      await new Promise(r => setTimeout(r, 400));
     }
-
-    const newStats = mode === 'DEMO' ? {
-      completeness: Math.floor(90 + Math.random() * 8),
-      accuracy: Math.floor(85 + Math.random() * 10),
-      consistency: Math.floor(92 + Math.random() * 5),
-      uniqueness: Math.floor(95 + Math.random() * 4),
-      timeliness: Math.floor(88 + Math.random() * 10)
-    } : {
-      completeness: 100 - (activeRules.filter(r => r.type === 'Nulos').length * 2),
-      accuracy: 100 - (activeRules.filter(r => r.type === 'Formato').length * 3),
-      consistency: 98,
-      uniqueness: 100 - (activeRules.filter(r => r.type === 'Duplicados').length * 5),
-      timeliness: 100
-    };
 
     let executionResults: any[] = [];
 
-    if (mode === 'ENTERPRISE') {
-      const asset = assets.find(a => a.id === selectedAssetId);
-      
-      const isExternal = asset?.tags?.includes('Metadatos_Externos');
-      if (isExternal) {
-        setAssetToConnect(asset);
-        setIsConnectModalOpen(true);
-        setIsExecuting(false);
-        return;
-      }
+    const asset = assets.find(a => a.id === selectedAssetId);
+    
+    const isExternal = asset?.tags?.includes('Metadatos_Externos');
+    if (isExternal) {
+      setAssetToConnect(asset);
+      setIsConnectModalOpen(true);
+      setIsExecuting(false);
+      return;
+    }
 
       // Si no tiene table_name, pedir confirmación al usuario
       let resolvedTableName = asset?.table_name;
@@ -167,152 +145,117 @@ export default function QualityModule() {
         asset.table_name = resolvedTableName;
       }
       
-      executionResults = await Promise.all(activeRules.map(async rule => {
-        let total = 0;
-        let affected = 0;
+      // Buscar configuración de conexión a la BD Externa (usar la más reciente si hay duplicados con el mismo nombre)
+      let { data: conns } = await supabase.from('data_connections')
+         .select('*')
+         .eq('name', asset?.source)
+         .or(`tenant_id.eq.${currentTenant?.id || '00000000-0000-0000-0000-000000000001'},tenant_id.is.null`)
+         .order('created_at', { ascending: false })
+         .limit(1);
+      let conn = conns?.[0];
+      
+      // Fallback para activos importados previamente que guardaron el tipo de fuente en lugar del nombre de la conexión
+      if (!conn) {
+         let fallbackSourceId = null;
+         if (asset?.source === 'PostgreSQL / MySQL') fallbackSourceId = 'postgres'; // O 'mysql', buscaremos ambos
+         
+         const { data: fallbackConns } = await supabase
+            .from('data_connections')
+            .select('*')
+            .or('host.neq.,connection_string.neq.')
+            .not('host', 'is', null)
+            .or(`tenant_id.eq.${currentTenant?.id || '00000000-0000-0000-0000-000000000001'},tenant_id.is.null`)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+         if (fallbackConns && fallbackConns.length > 0) {
+            conn = fallbackConns[0];
+            console.log("Usando conexión de fallback:", conn.name);
+         }
+      }
+
+      if (!conn) {
+         alert(`No se encontró una configuración de conexión para la fuente "${asset?.source}". Asegúrese de haber conectado el activo mediante el descubridor de metadatos.`);
+         setIsExecuting(false);
+         return;
+      }
+      
+      // Se asume que si la conexión fue guardada y funcionó en AutoScan, la API podrá resolverla
+      // (pg asume localhost si host es vacío)
+
+      // Preparar mapeo de campos
+      const { data: fields } = await supabase.from('asset_fields').select('id, field_name').eq('asset_id', selectedAssetId);
+      
+      const preparedRules = activeRules.map(r => {
+         const field = fields?.find(f => f.id === r.field_id);
+         let fName = field?.field_name;
+         if (!fName) {
+           if (r.field_id === 'f-gen-1') fName = 'id';
+           else if (r.field_id === 'f-gen-2') fName = 'nombre';
+           else if (r.field_id === 'f-gen-3') fName = 'email';
+           else if (r.field_id === 'f-gen-4') fName = 'estado';
+         }
+         return {
+           id: r.id,
+           type: r.type,
+           config: r.config,
+           fieldName: fName
+         };
+      });
+
+      try {
+        const scanRes = await fetch('/api/quality-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            database_type: conn.source_id,
+            host: conn.host,
+            user: conn.username,
+            key: conn.password_encrypted,
+            connection_string: conn.connection_string,
+            table_name: resolvedTableName,
+            rules: preparedRules
+          })
+        });
+
+        const scanData = await scanRes.json();
         
-        try {
-          const { data: fieldData } = await supabase.from('asset_fields').select('field_name').eq('id', rule.field_id).single();
-          let fieldName = fieldData?.field_name;
-          let targetTable = resolvedTableName;
-          // Limpiar para evitar "Invalid path specified in request URL"
-          if (targetTable) {
-             targetTable = targetTable.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-          }
-
-          if (!fieldName) {
-            // Intento de fallback si es un campo mock (f-gen-1 -> id)
-            if (rule.field_id === 'f-gen-1') fieldName = 'id';
-            else if (rule.field_id === 'f-gen-2') fieldName = 'nombre';
-            else if (rule.field_id === 'f-gen-3') fieldName = 'email';
-            else if (rule.field_id === 'f-gen-4') fieldName = 'estado';
-            else {
-              return {
-                id: rule.id.slice(0, 8),
-                name: rule.name,
-                system: asset?.source || 'N/A',
-                total: 0,
-                compliant: 0,
-                affected: 0,
-                pct: '0.00',
-                severity: rule.severity,
-                owner: 'Nexus AI',
-                date: 'Error',
-                status: `⚠️ No se pudo determinar el nombre de la columna para el ID: ${rule.field_id}`,
-                fieldError: true
-              };
-            }
-          }
-
-          if (targetTable && fieldName) {
-            // Pre-validar que la columna existe en la tabla
-            const { error: colCheck } = await supabase.from(targetTable).select(fieldName).limit(1);
-            if (colCheck) {
-              console.warn(`⚠️ Error validando columna "${fieldName}" en tabla "${targetTable}":`, colCheck);
-              return {
-                id: rule.id.slice(0, 8),
-                name: rule.name,
-                system: asset?.source || 'N/A',
-                total: 0,
-                compliant: 0,
-                affected: 0,
-                pct: '0.00',
-                severity: rule.severity,
-                owner: 'Nexus AI',
-                date: 'Error de BD',
-                status: `⚠️ ${colCheck.message || 'La tabla o columna no existe en la base de datos.'}`,
-                fieldError: true
-              };
-            }
-
-            // Siempre extraer el total real de la tabla
-            const { count: tCount, error: tErr } = await supabase.from(targetTable).select('*', { count: 'exact', head: true });
-            if (tErr) {
-              console.error(`Error contando total en ${targetTable}:`, tErr);
-              return {
-                id: rule.id.slice(0, 8),
-                name: rule.name,
-                system: asset?.source || 'N/A',
-                total: 0,
-                compliant: 0,
-                affected: 0,
-                pct: '0.00',
-                severity: rule.severity,
-                owner: 'Nexus AI',
-                date: 'Error de BD',
-                status: `⚠️ No se pudo consultar la tabla ${targetTable}. Detalle: ${tErr.message}`,
-                fieldError: true
-              };
-            }
-            total = tCount || 0;
-
-            if (rule.type === 'Nulos') {
-              const { count: aCount, error: aErr } = await supabase.from(targetTable).select('*', { count: 'exact', head: true }).is(fieldName, null);
-              if (aErr) console.error(`Error contando nulos en ${targetTable}.${fieldName}:`, aErr?.message, aErr?.code, aErr?.details);
-              
-              affected = aCount || 0;
-            } else {
-              // Para otras reglas, extraemos muestra y procesamos en memoria
-              const { data: allData, error: dErr } = await supabase.from(targetTable).select(fieldName).limit(5000);
-              if (dErr) {
-                console.error(`Error extrayendo datos de ${targetTable}.${fieldName}:`, dErr?.message, dErr?.code, dErr?.details);
-                alert(`Error al analizar la tabla "${targetTable}" y campo "${fieldName}". Detalle: ${dErr?.message || 'Revisar permisos RLS'}`);
-              }
-              
-              if (allData) {
-                if (allData.length > total) total = allData.length;
-                if (rule.type === 'Duplicados') {
-                  const vals = allData.map(d => d[fieldName]).filter(v => v !== null);
-                  const uniqueVals = new Set(rule.config?.caseSensitive ? vals : vals.map((v: any) => String(v).toLowerCase()));
-                  affected = vals.length - uniqueVals.size;
-                } else if (rule.type === 'Formato') {
-                  const pattern = rule.config?.regex || '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$';
-                  try {
-                    const formatRegex = new RegExp(pattern);
-                    affected = allData.filter(d => d[fieldName] && !formatRegex.test(String(d[fieldName]))).length;
-                  } catch {
-                    console.error('Regex inválido:', pattern);
-                    affected = 0;
-                  }
-                } else if (rule.type === 'Rango') {
-                  const min = rule.config?.min ?? 0;
-                  const max = rule.config?.max ?? 100000;
-                  affected = allData.filter(d => {
-                    const val = Number(d[fieldName]);
-                    return !isNaN(val) && (val < min || val > max);
-                  }).length;
-                } else if (rule.type === 'Negocio') {
-                  if (rule.config?.allowedValues) {
-                    const allowed = rule.config.allowedValues.split(',').map((v: string) => v.trim().toLowerCase());
-                    affected = allData.filter(d => d[fieldName] && !allowed.includes(String(d[fieldName]).trim().toLowerCase())).length;
-                  }
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Error ejecutando regla:", rule.name, err);
+        if (!scanData.success) {
+          alert('Error durante el escaneo externo: ' + scanData.error);
+          setIsExecuting(false);
+          return;
         }
 
-        // Evitar ceros o cálculos erróneos si la tabla está vacía
-        if (total === 0) total = 1; 
-        const compliant = Math.max(0, total - affected);
-        const pct = (compliant / total) * 100;
+        executionResults = activeRules.map(rule => {
+          const result = scanData.ruleResults.find((r: any) => r.ruleId === rule.id);
+          const total = result ? (result.total || 1) : 1;
+          const affected = result ? result.affected : 0;
+          const compliant = Math.max(0, total - affected);
+          const pct = (compliant / total) * 100;
 
-        return {
-          id: rule.id.slice(0, 8),
-          name: rule.name,
-          system: asset?.source || 'N/A',
-          total: total,
-          compliant: compliant,
-          affected: affected,
-          pct: pct.toFixed(2),
-          severity: rule.severity,
-          owner: 'Nexus AI',
-          date: 'Recién detectado',
-          status: 'Abierto'
-        };
-      }));
+          return {
+            id: rule.id.slice(0, 8),
+            name: rule.name,
+            system: asset?.source || 'N/A',
+            total: total,
+            compliant: compliant,
+            affected: affected,
+            pct: pct.toFixed(2),
+            severity: rule.severity,
+            owner: 'Nexus AI',
+            date: 'Recién detectado',
+            status: result?.error ? `⚠️ Error: ${result.error}` : 'Abierto',
+            fieldError: !!result?.error
+          };
+        });
+      } catch (err) {
+        console.error("Error conectando con la API de escaneo:", err);
+        alert('Fallo crítico al conectar con la base de datos origen.');
+        setIsExecuting(false);
+        return;
+      }
+
+        // Los datos mapeados ya fueron formateados en el ciclo de ejecución de la API
 
       // Guardar en DB para persistencia y obtener los IDs reales
       const dbPayload = executionResults.map(r => ({
@@ -372,10 +315,29 @@ export default function QualityModule() {
       } else {
         setIncidents(executionResults);
       }
-    }
 
-    setStats(newStats);
-    setLastExecutionResults(mode === 'ENTERPRISE' ? executionResults : incidents); // En demo usamos los mock incidents
+      // Calcular promedio general del activo y actualizarlo
+      let avgScore = 0;
+      if (executionResults.length > 0) {
+        const sum = executionResults.reduce((acc, r) => acc + parseFloat(r.pct), 0);
+        avgScore = Math.round(sum / executionResults.length);
+      }
+
+      const { error: updateAssetErr } = await supabase
+        .from('data_assets')
+        .update({ quality_score: avgScore })
+        .eq('id', selectedAssetId);
+        
+      if (updateAssetErr) {
+        console.error('Error actualizando quality_score en data_assets:', updateAssetErr);
+      } else {
+        // Actualizar localmente el quality_score para este activo
+        setAssets(prev => prev.map(a => a.id === selectedAssetId ? { ...a, quality_score: avgScore } : a));
+      }
+      
+      fetchEnterpriseKPIs();
+
+    setLastExecutionResults(executionResults);
     setIsExecuting(false);
     setShowSummaryModal(true);
   };
@@ -425,7 +387,7 @@ export default function QualityModule() {
     if (selectedAssetId) {
       fetchRules(selectedAssetId);
       fetchIncidents(selectedAssetId);
-    } else if (mode === 'ENTERPRISE') {
+    } else {
       fetchIncidents(); // Cargar incidentes globales si no hay activo seleccionado
     }
     setTimeout(() => setLoading(false), 1000);
@@ -475,18 +437,6 @@ export default function QualityModule() {
   const handleToggleRule = async (ruleId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Activa' ? 'Inactiva' : 'Activa';
 
-    // En modo DEMO solo operamos en memoria y localStorage
-    if (mode === 'DEMO') {
-      setRules(prev => {
-        const updated = prev.map(r => r.id === ruleId ? { ...r, status: newStatus } : r);
-        if (selectedAssetId) {
-          localStorage.setItem(`govdata_rules_${selectedAssetId}`, JSON.stringify(updated));
-        }
-        return updated;
-      });
-      return;
-    }
-
     try {
       const { error } = await supabase
         .from('quality_rules')
@@ -515,10 +465,6 @@ export default function QualityModule() {
   };
 
   const handleResolveIncident = async (incidentDbId: string) => {
-    if (mode !== 'ENTERPRISE') {
-      alert('Esta función solo está disponible en la versión Enterprise.');
-      return;
-    }
     
     try {
       const { error } = await supabase
@@ -545,17 +491,16 @@ export default function QualityModule() {
 
   const fetchIncidents = async (assetId?: string) => {
     let tenantAssetIds: string[] = [];
-    if (mode === 'ENTERPRISE') {
-      const { data: tenantAssets } = await supabase
-        .from('data_assets')
-        .select('id')
-        .eq('tenant_id', currentTenant?.id || '00000000-0000-0000-0000-000000000001');
-      tenantAssetIds = (tenantAssets || []).map(a => a.id);
-      
-      if (tenantAssetIds.length === 0 && !assetId) {
-        setIncidents([]);
-        return;
-      }
+    
+    const { data: tenantAssets } = await supabase
+      .from('data_assets')
+      .select('id')
+      .eq('tenant_id', currentTenant?.id || '00000000-0000-0000-0000-000000000001');
+    tenantAssetIds = (tenantAssets || []).map(a => a.id);
+    
+    if (tenantAssetIds.length === 0 && !assetId) {
+      setIncidents([]);
+      return;
     }
 
     let query = supabase
@@ -594,7 +539,7 @@ export default function QualityModule() {
         status: d.status
       })));
 
-      if (mode === 'ENTERPRISE') {
+      if (data.length > 0) {
         let totalRecords = 0;
         let totalAffected = 0;
         data.forEach(d => {
@@ -674,7 +619,6 @@ export default function QualityModule() {
   };
 
   const fetchEnterpriseKPIs = async () => {
-    if (mode !== 'ENTERPRISE') return;
     try {
       // 1. Obtener solo los activos correspondientes al tenant activo
       const { data: tenantAssets } = await supabase

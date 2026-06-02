@@ -169,27 +169,15 @@ export default function Team() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
   const [isOrgChartModalOpen, setIsOrgChartModalOpen] = useState(false);
+  const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
   const [members, setMembers] = useState<GovernanceMember[]>([]);
   const [domains, setDomains] = useState<GovernanceDomain[]>([]);
   const [newDomain, setNewDomain] = useState<Partial<GovernanceDomain>>({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!currentTenant?.id) return;
-    const fetchUsers = async () => {
-      try {
-        const { data } = await supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', currentTenant.id).order('name');
-        if (data) setTenantUsers(data);
-      } catch (e) {
-        console.error('Error fetching tenant users:', e);
-      }
-    };
-    fetchUsers();
-  }, [currentTenant?.id]);
-
   const { getItem, setItem } = useTenantStorage();
 
-const [newMember, setNewMember] = useState({
+  const [newMember, setNewMember] = useState({
     name: '',
     roleType: 'Data Steward' as any,
     area: '',
@@ -202,8 +190,19 @@ const [newMember, setNewMember] = useState({
   useEffect(() => {
     if (!currentTenant?.id) return;
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
       try {
+        // 1. Fetch tenant users FIRST so we have avatars ready
+        const { data: usersData } = await supabase
+          .from('tenant_users')
+          .select('id, name, email, avatar')
+          .eq('tenant_id', currentTenant.id)
+          .order('name');
+
+        const freshUsers = usersData || [];
+        setTenantUsers(freshUsers);
+
+        // 2. Now fetch members and domains in parallel, using freshUsers for avatar lookup
         const [membersRes, domainsRes] = await Promise.all([
           supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
@@ -212,9 +211,18 @@ const [newMember, setNewMember] = useState({
         if (membersRes.data) {
           const mappedMembers = membersRes.data.map(m => {
             const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
-            const fixedAvatar = (m.avatar && !m.avatar.includes('/initials/'))
-              ? m.avatar
-              : `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+            // Look up by email first (more reliable), then by name
+            const tenantUser = freshUsers.find(u =>
+              (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
+              (m.name && u.name && u.name.toLowerCase() === m.name.toLowerCase())
+            );
+            // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
+            const isReal = (url: string | null | undefined) =>
+              !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
+            const fixedAvatar =
+              isReal(tenantUser?.avatar) ? tenantUser!.avatar :
+              isReal(m.avatar)           ? m.avatar :
+              `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
             return {
               ...m,
               avatar: fixedAvatar,
@@ -244,7 +252,7 @@ const [newMember, setNewMember] = useState({
       }
     };
 
-    fetchData();
+    fetchAllData();
   }, [currentTenant?.id]);
 
   const handleAddMember = async () => {
@@ -288,6 +296,28 @@ const [newMember, setNewMember] = useState({
         console.error('Detalles del error:', e.message || JSON.stringify(e));
         alert(`Error guardando el miembro: ${e.message || 'Verifica tu base de datos.'}`);
       }
+  };
+
+  const handleUpdateMember = async () => {
+    if (!currentTenant?.id || !selectedMember) return;
+    try {
+      const { data, error } = await supabase.from('team_members').update({
+        role: newMember.roleType.substring(0, 100),
+        area: (newMember.area || 'General').substring(0, 100)
+      }).eq('id', selectedMember.id).select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setMembers(members.map(m => m.id === selectedMember.id ? { ...m, role: data[0].role, roleType: data[0].role as any, area: data[0].area } : m));
+      }
+      setIsEditMemberModalOpen(false);
+      setSelectedMember({ ...selectedMember, role: data[0].role, roleType: data[0].role as any, area: data[0].area } as GovernanceMember);
+      alert("Perfil actualizado correctamente.");
+    } catch (e: any) {
+      console.error(e);
+      alert(`Error actualizando el miembro: ${e.message}`);
+    }
   };
 
   const handleAddDomain = async () => {
@@ -506,21 +536,25 @@ const [newMember, setNewMember] = useState({
                   <div className={styles.memberHeader}>
                     <div className={styles.avatarArea}>
                       <div className={styles.avatar} style={{ padding: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
-                        <img
-                          src={member.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(member.name)}`}
-                          alt={member.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.parentElement) {
-                              target.parentElement.style.color = 'white';
-                              target.parentElement.style.fontSize = '1rem';
-                              target.parentElement.style.fontWeight = '800';
-                              target.parentElement.innerHTML = member.name.split(' ').map((n: string) => n[0]).join('');
-                            }
-                          }}
-                        />
+                        {member.avatar && member.avatar.startsWith('http') ? (
+                          <img
+                            src={member.avatar}
+                            alt={member.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                              if (target.parentElement) {
+                                target.parentElement.innerHTML = `<span style="color:white;font-size:1.1rem;font-weight:800;display:flex;align-items:center;justify-content:center;width:100%;height:100%;">${initials}</span>`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span style={{ color: 'white', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                            {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div className={styles.scoreBadge} title="Steward Score">{member.stats.stewardScore}%</div>
                     </div>
@@ -674,24 +708,25 @@ const [newMember, setNewMember] = useState({
                 <button className={styles.closeBtn} onClick={() => setSelectedMember(null)}><XCircle size={24} /></button>
                 <div className={styles.profileBasicInfo}>
                    <div className={styles.largeAvatar} style={{ padding: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
-                     <img
-                       src={selectedMember.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(selectedMember.name)}`}
-                       alt={selectedMember.name}
-                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                       onError={(e) => {
-                         const target = e.target as HTMLImageElement;
-                         target.style.display = 'none';
-                         if (target.parentElement) {
-                           target.parentElement.style.color = 'white';
-                           target.parentElement.style.display = 'flex';
-                           target.parentElement.style.alignItems = 'center';
-                           target.parentElement.style.justifyContent = 'center';
-                           target.parentElement.style.fontSize = '1.8rem';
-                           target.parentElement.style.fontWeight = '800';
-                           target.parentElement.innerHTML = selectedMember.name.split(' ').map((n: string) => n[0]).join('');
-                         }
-                       }}
-                     />
+                     {selectedMember.avatar && selectedMember.avatar.startsWith('http') ? (
+                       <img
+                         src={selectedMember.avatar}
+                         alt={selectedMember.name}
+                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                         onError={(e) => {
+                           const target = e.target as HTMLImageElement;
+                           target.style.display = 'none';
+                           const initials = selectedMember.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                           if (target.parentElement) {
+                             target.parentElement.innerHTML = `<span style="color:white;font-size:1.8rem;font-weight:800;display:flex;align-items:center;justify-content:center;width:100%;height:100%;">${initials}</span>`;
+                           }
+                         }}
+                       />
+                     ) : (
+                       <span style={{ color: 'white', fontSize: '1.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                         {selectedMember.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                       </span>
+                     )}
                    </div>
                    <div>
                       <h2>{selectedMember.name}</h2>
@@ -758,11 +793,22 @@ const [newMember, setNewMember] = useState({
                  </div>
               </div>
 
-              <div className={styles.profileFooter}>
+               <div className={styles.profileFooter}>
                  <button className={styles.secondaryBtn} style={{ width: '100%', justifyContent: 'center' }}><Mail size={16} /> Contactar Responsable</button>
                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <button className={styles.secondaryBtn} style={{ justifyContent: 'center' }}>Reasignar</button>
-                    <button className={styles.primaryBtn} style={{ justifyContent: 'center' }}>Editar Perfil</button>
+                    <button className={styles.primaryBtn} style={{ justifyContent: 'center' }} onClick={() => {
+                      setNewMember({
+                        name: selectedMember.name,
+                        roleType: selectedMember.roleType,
+                        area: selectedMember.area,
+                        domain: selectedMember.domain,
+                        email: selectedMember.email,
+                        country: selectedMember.country,
+                        avatar: selectedMember.avatar || ''
+                      });
+                      setIsEditMemberModalOpen(true);
+                    }}>Editar Perfil</button>
                  </div>
               </div>
             </motion.div>
@@ -813,8 +859,8 @@ const [newMember, setNewMember] = useState({
                          }}
                        >
                          <option value="" style={{ color: '#94a3b8', background: '#1e293b' }}>Seleccione un usuario...</option>
-                         {tenantUsers.filter(u => !members.some(m => m.name === u.name)).map(u => (
-                           <option key={u.id} value={u.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{u.name}</option>
+                         {tenantUsers.map(u => (
+                           <option key={u.id} value={u.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{u.name} {members.some(m => m.name === u.name) ? '(Ya asignado)' : ''}</option>
                          ))}
                        </select>
                     </div>
@@ -858,6 +904,77 @@ const [newMember, setNewMember] = useState({
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                        <button className={styles.secondaryBtn} onClick={() => setIsAssignModalOpen(false)}>Cancelar</button>
                        <button className={styles.primaryBtn} onClick={handleAddMember}>Confirmar Asignación</button>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* Modal: Editar Responsable */}
+       <AnimatePresence>
+         {isEditMemberModalOpen && (
+           <div className={styles.modalOverlay} onClick={() => setIsEditMemberModalOpen(false)} style={{ zIndex: 10000 }}>
+              <motion.div 
+                 className={styles.assignModal}
+                 style={{ 
+                   maxWidth: '700px', width: '90%', display: 'flex', flexDirection: 'column', 
+                   background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+                   backdropFilter: 'blur(var(--modal-blur, 24px))', 
+                   WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+                   border: '1px solid rgba(255,255,255,0.1)',
+                   borderRadius: '32px', 
+                   color: 'var(--modal-text-color, white)', 
+                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                 }}
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 exit={{ opacity: 0, scale: 0.9 }}
+                 onClick={e => e.stopPropagation()}
+               >
+                  <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Editar Perfil de Gobierno</h2>
+                     <button onClick={() => setIsEditMemberModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+                  </div>
+                  <div style={{ padding: '32px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Usuario</label>
+                       <input 
+                         type="text" 
+                         disabled
+                         style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '1rem', outline: 'none', cursor: 'not-allowed' }}
+                         value={newMember.name}
+                       />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Rol de Gobierno</label>
+                          <select 
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
+                             value={newMember.roleType}
+                             onChange={e => setNewMember({...newMember, roleType: e.target.value as any})}
+                           >
+                              <option value="Data Owner">Data Owner</option>
+                              <option value="Data Steward">Data Steward</option>
+                              <option value="Data Custodian">Data Custodian</option>
+                              <option value="Auditor">Auditor</option>
+                              <option value="CISO">CISO</option>
+                              <option value="CDO">CDO</option>
+                           </select>
+                       </div>
+                       <div>
+                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Área / Departamento</label>
+                          <input 
+                            type="text" 
+                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
+                            value={newMember.area}
+                            onChange={e => setNewMember({...newMember, area: e.target.value})}
+                          />
+                       </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                       <button className={styles.secondaryBtn} onClick={() => setIsEditMemberModalOpen(false)}>Cancelar</button>
+                       <button className={styles.primaryBtn} onClick={handleUpdateMember}>Guardar Cambios</button>
                     </div>
                  </div>
               </motion.div>

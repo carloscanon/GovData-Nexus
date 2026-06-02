@@ -209,12 +209,54 @@ export default function CommandCenter() {
 
         setExecStats({ comites, decisiones, activas: wTotal, presupuesto });
 
-        // 6. Dominio (Sin mock data, forzado a real o cero)
-        setDomainMatrix([
-          { name: 'Clientes', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
-          { name: 'Finanzas', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
-          { name: 'Talento Humano', madurez: 0, calidad: 0, riesgo: 'Desconocido' },
-          { name: 'Riesgos', madurez: 0, calidad: 0, riesgo: 'Desconocido' }
+        // 6. Dominio (Agrupado por fuente/sistema)
+        const domainMap = new Map<string, { totalAssets: number, totalQuality: number, risks: number }>();
+        
+        if (assets && assets.length > 0) {
+          assets.forEach(a => {
+            const domainName = a.source || 'General';
+            const existing = domainMap.get(domainName) || { totalAssets: 0, totalQuality: 0, risks: 0 };
+            existing.totalAssets += 1;
+            existing.totalQuality += (a.quality_score || 0);
+            domainMap.set(domainName, existing);
+          });
+        }
+        
+        if (incidents && incidents.length > 0) {
+          // Relacionar incidentes de riesgo alto/crítico con el dominio
+          incidents.forEach(inc => {
+            if ((inc.severity === 'Alto' || inc.severity === 'Crítico') && inc.status !== 'Cerrado') {
+              const assetId = inc.asset_affected; // O inc.asset_id dependiendo de la tabla, veamos.
+              // Para simplificar, buscaremos el activo en memory
+              const matchedAsset = assets?.find(a => a.id === inc.asset_id || a.name === inc.asset_affected);
+              if (matchedAsset) {
+                const dName = matchedAsset.source || 'General';
+                if (domainMap.has(dName)) {
+                  domainMap.get(dName)!.risks += 1;
+                }
+              }
+            }
+          });
+        }
+
+        const newDomainMatrix = Array.from(domainMap.entries()).map(([name, data]) => {
+          const calidadPromedio = data.totalAssets > 0 ? Math.round(data.totalQuality / data.totalAssets) : 0;
+          let riesgoTxt = 'Bajo';
+          if (data.risks > 2) riesgoTxt = 'Alto';
+          else if (data.risks > 0) riesgoTxt = 'Medio';
+          else if (calidadPromedio < 50) riesgoTxt = 'Medio';
+
+          return {
+            name,
+            madurez: maturityScore, // Usamos la madurez global por ahora
+            calidad: calidadPromedio,
+            riesgo: riesgoTxt
+          };
+        });
+
+        // Si no hay activos, mostrar defaults vacíos
+        setDomainMatrix(newDomainMatrix.length > 0 ? newDomainMatrix.slice(0, 5) : [
+          { name: 'Sistemas Core', madurez: 0, calidad: 0, riesgo: 'Desconocido' }
         ]);
 
         const pillarsForRoadmap = (computedRadarData.length > 0 ? computedRadarData : fallbackRadar).map(r => ({

@@ -248,13 +248,15 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  min-width: 1000px; /* Garantiza que las columnas mantengan estructura legible y no colapsen */
+  min-width: 1000px;
 }
 
 .table th {
@@ -264,6 +266,10 @@
   color: #64748b;
   background-color: var(--accent);
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .table td {

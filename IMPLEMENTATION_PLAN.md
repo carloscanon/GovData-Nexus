@@ -20,5 +20,5 @@
 ## Fase 4: Despliegue y Persistencia
 - [x] Configuración de puerto alternativo (3010).
 - [x] Push inicial a repositorio GitHub.
-- [ ] Integración con Supabase / PostgreSQL (Próximo paso).
-- [ ] Auth real con NextAuth.js (Próximo paso).
+- [x] Integración con Supabase / PostgreSQL (Completado).
+- [x] Auth real con NextAuth.js (Completado).

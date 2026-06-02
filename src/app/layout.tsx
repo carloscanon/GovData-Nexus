@@ -11,21 +11,13 @@ import { Menu } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
 
+import { AuthProvider } from '@/components/AuthProvider';
+
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const isLoginPage = pathname === '/login';
   const isSuperadminLayout = pathname?.startsWith('/superadmin');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem('govdata_role');
-      if (!role && pathname !== '/login') {
-        router.push('/login');
-      }
-    }
-  }, [pathname, router]);
 
   // If we are in superadmin or login, we don't render the default sidebar or mobile header
   // Note: Superadmin layout handles its own sidebar
@@ -77,9 +69,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <PlatformProvider>
-          <LayoutContent>{children}</LayoutContent>
-        </PlatformProvider>
+        <AuthProvider>
+          <PlatformProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </PlatformProvider>
+        </AuthProvider>
       </body>
     </html>
   );

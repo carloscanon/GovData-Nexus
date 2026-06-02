@@ -77,6 +77,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         .from('data_connections')
         .select('*')
         .eq('source_id', sourceId)
+        .or(`tenant_id.eq.${currentTenant?.id || '00000000-0000-0000-0000-000000000001'},tenant_id.is.null`)
         .order('last_used', { ascending: false });
       
       if (!error) setSavedConnections(data || []);
@@ -102,8 +103,8 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
     setSelectedSource(src);
     setStep('credentials');
     fetchConnections(src.id);
-    if (!connData.host) {
-      setConnData({ ...connData, name: `${src.name} Connection` });
+    if (src.id !== 'files') {
+      setConnData({ ...connData, name: '' });
     }
   };
 
@@ -119,6 +120,11 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
   };
 
   const startScan = async () => {
+    if (!connData.name || connData.name.trim() === '') {
+      alert('Por favor, asigne un nombre a la conexión antes de escanear.');
+      return;
+    }
+
     setStep('scanning');
     setProgress(0);
 
@@ -149,6 +155,9 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         setDiscoveredAssets(result.assets);
         setScanResult(result);
 
+        setDiscoveredAssets(result.assets);
+        setScanResult(result);
+
         // Guardar o actualizar la conexión en Supabase
         const connPayload = {
           name: connData.name,
@@ -157,6 +166,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
           username: connData.user,
           password_encrypted: connData.key,
           connection_string: connData.connectionString,
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
           last_used: new Date().toISOString()
         };
 
@@ -207,7 +217,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         code_id: `AS-${Date.now().toString().slice(-6)}`,
         name: importConfig.asset_name || selectedAssetToImport.name,
         type: selectedAssetToImport.type || 'Tabla SQL',
-        source: selectedSource.name,
+        source: connData?.name || selectedSource.name,
         owner: 'Escaneo Automático',
         data_owner: importConfig.data_owner,
         sensitivity: importConfig.sensitivity,
@@ -234,7 +244,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         table_name: selectedAssetToImport.name, // Nombre técnico REAL de la tabla física
         description: selectedAssetToImport.description,
         type: selectedAssetToImport.type,
-        source: selectedSource.name,
+        source: connData?.name || selectedSource.name,
         owner: 'Escaneo Automático',
         data_owner: importConfig.data_owner,
         sensitivity: importConfig.sensitivity,
@@ -255,7 +265,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
           code_id: `AS-${Date.now().toString().slice(-6)}`,
           name: importConfig.asset_name || selectedAssetToImport.name,
           type: selectedAssetToImport.type || 'Tabla SQL',
-          source: selectedSource.name,
+          source: connData?.name || selectedSource.name,
           owner: 'Escaneo Automático',
           data_owner: importConfig.data_owner,
           sensitivity: importConfig.sensitivity,
@@ -384,7 +394,7 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
                 </div>
               )}
 
-              {step === 'credentials' && (
+              {step === 'credentials' && selectedSource.id !== 'files' && (
                 <div className={styles.credentialsView}>
                   <div className={styles.connHeader}>
                     <div className={styles.iconCircle} style={{ color: selectedSource.color, backgroundColor: selectedSource.color + '15' }}>
@@ -453,6 +463,24 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
                     <button className={styles.scanNowBtn} onClick={startScan}>
                       <Search size={18} />
                       Probar e Iniciar Escaneo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'credentials' && selectedSource.id === 'files' && (
+                <div className={styles.credentialsView}>
+                  <div className={styles.connHeader}>
+                    <div className={styles.iconCircle} style={{ color: selectedSource.color, backgroundColor: selectedSource.color + '15' }}>
+                      <selectedSource.icon size={32} />
+                    </div>
+                    <h3>Subir Archivo Local</h3>
+                    <p>Para cargar y escanear archivos locales (Excel o CSV) desde tu equipo, cierra este modal y utiliza el botón principal "Importar Excel" que se encuentra en la parte superior del catálogo. Dicha funcionalidad ya incluye el escaneo nativo de archivos.</p>
+                  </div>
+                  <div className={styles.actions}>
+                    <button className={styles.backBtn} onClick={() => setStep('source')}>Volver a conectores</button>
+                    <button className={styles.scanNowBtn} onClick={handleClose}>
+                      Entendido, ir a Importar
                     </button>
                   </div>
                 </div>

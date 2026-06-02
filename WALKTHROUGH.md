@@ -27,6 +27,11 @@
 ### 6. Asistente Nexus AI
 - **Floating Assistant**: Chat interactivo para consultas rápidas sobre el estado del gobierno.
 
+### 7. Seguridad y Autenticación
+- **NextAuth.js**: Sesiones encriptadas vía JWT y validación HTTP-only.
+- **Role-Based Access Control (RBAC)**: Manejo de permisos para Superadmin, Admin y Usuarios base desde Supabase y middleware de Next.js.
+- **Multitenancy Estricto**: Filtros automáticos de datos según el `tenant_id` asignado a la sesión del usuario.
+
 ## 🛠️ Cómo Ejecutar
 Para iniciar la plataforma en tu entorno local:
 

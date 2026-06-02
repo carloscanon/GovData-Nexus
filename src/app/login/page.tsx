@@ -13,7 +13,7 @@ import {
 import { motion } from 'framer-motion';
 import styles from './login.module.css';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { signIn } from 'next-auth/react';
 
 const STORAGE_KEY = 'govdata_login_config';
 
@@ -126,149 +126,42 @@ export default function Login() {
     
     const normalizedEmail = email.toLowerCase().trim();
     
-    try {
-      // 1. Hardcoded superadmin login
-      if (normalizedEmail === 'admin@govdata.io' && password === 'admin123') {
-        localStorage.setItem('govdata_role', 'superadmin');
-        localStorage.setItem('govdata_user_name', 'Super Admin');
-        window.location.href = '/';
-        return;
-      }
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: normalizedEmail,
+      password,
+    });
 
-      // 2. Hardcoded carlos@demo.govdata.com login
-      if (normalizedEmail === 'carlos@demo.govdata.com' && password === 'admin123') {
-        localStorage.setItem('govdata_role', 'admin');
-        localStorage.setItem('govdata_user_name', 'Carlos Admin');
-        localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
-        window.location.href = '/';
-        return;
-      }
-
-      // 3. Other robust local fallbacks in case Supabase is down
-      if (normalizedEmail === 'info@consultoresexpertos.com.co' && password === 'Consultores2026*') {
-        localStorage.setItem('govdata_role', 'admin');
-        localStorage.setItem('govdata_user_name', 'Pepito Perez');
-        localStorage.setItem('govdata_current_tenant_id', '4dfc332c-5a5d-431f-85c8-749c4b4e096e');
-        window.location.href = '/';
-        return;
-      }
-
-      if (normalizedEmail === 'bancoldex@banco.gov.co' && password === 'Consultores20216') {
-        localStorage.setItem('govdata_role', 'admin');
-        localStorage.setItem('govdata_user_name', 'Bancoldex Admin');
-        localStorage.setItem('govdata_current_tenant_id', 'aec4f0dd-e8f8-482e-984a-aaad504aa61a');
-        window.location.href = '/';
-        return;
-      }
-
-      // Consultar en Supabase
-      const { data, error } = await supabase
-        .from('tenant_users')
-        .select('*')
-        .eq('email', normalizedEmail)
-        .eq('password', password)
-        .single();
-
-      if (error || !data) {
-        setIsLoading(false);
-        setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
-        return;
-      }
-
-      // Set tenant ID and role from user data so the dashboard loads their company
-      const userRole = data.role || 'user';
-      localStorage.setItem('govdata_role', userRole);
-      localStorage.setItem('govdata_user_name', data.name);
-      localStorage.setItem('govdata_current_tenant_id', data.tenant_id);
-      window.location.href = '/';
-    } catch (err) {
-      console.error('Login error:', err);
-      
-      // Dynamic fallback for offline/database issues
-      if (normalizedEmail.includes('demo.govdata.com') || normalizedEmail.includes('carlos')) {
-        localStorage.setItem('govdata_role', 'admin');
-        localStorage.setItem('govdata_user_name', 'Carlos Admin');
-        localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
-        window.location.href = '/';
-        return;
-      }
-
+    if (result?.error) {
+      setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
       setIsLoading(false);
-      setError('Error de red. Se iniciará sesión local si utilizas credenciales demo.');
+    } else {
+      router.push('/');
+      router.refresh();
     }
   };
 
-  const handleQuickLogin = (quickEmail: string, quickPass: string) => {
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
     setEmail(quickEmail);
     setPassword(quickPass);
     setIsLoading(true);
     setError('');
     
     const normalizedEmail = quickEmail.toLowerCase().trim();
-    setTimeout(async () => {
-      try {
-        if (normalizedEmail === 'admin@govdata.io' && quickPass === 'admin123') {
-          localStorage.setItem('govdata_role', 'superadmin');
-          localStorage.setItem('govdata_user_name', 'Super Admin');
-          window.location.href = '/';
-          return;
-        }
+    
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: normalizedEmail,
+      password: quickPass,
+    });
 
-        if (normalizedEmail === 'carlos@demo.govdata.com' && quickPass === 'admin123') {
-          localStorage.setItem('govdata_role', 'admin');
-          localStorage.setItem('govdata_user_name', 'Carlos Admin');
-          localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
-          window.location.href = '/';
-          return;
-        }
-
-        if (normalizedEmail === 'info@consultoresexpertos.com.co' && quickPass === 'Consultores2026*') {
-          localStorage.setItem('govdata_role', 'admin');
-          localStorage.setItem('govdata_user_name', 'Pepito Perez');
-          localStorage.setItem('govdata_current_tenant_id', '4dfc332c-5a5d-431f-85c8-749c4b4e096e');
-          window.location.href = '/';
-          return;
-        }
-
-        if (normalizedEmail === 'bancoldex@banco.gov.co' && quickPass === 'Consultores20216') {
-          localStorage.setItem('govdata_role', 'admin');
-          localStorage.setItem('govdata_user_name', 'Bancoldex Admin');
-          localStorage.setItem('govdata_current_tenant_id', 'aec4f0dd-e8f8-482e-984a-aaad504aa61a');
-          window.location.href = '/';
-          return;
-        }
-
-        const { data, error: dbError } = await supabase
-          .from('tenant_users')
-          .select('*')
-          .eq('email', normalizedEmail)
-          .eq('password', quickPass)
-          .single();
-
-        if (dbError || !data) {
-          setIsLoading(false);
-          setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
-          return;
-        }
-
-        const userRole = data.role || 'user';
-        localStorage.setItem('govdata_role', userRole);
-        localStorage.setItem('govdata_user_name', data.name);
-        localStorage.setItem('govdata_current_tenant_id', data.tenant_id);
-        window.location.href = '/';
-      } catch (err) {
-        console.error('Quick login error:', err);
-        if (normalizedEmail.includes('demo.govdata.com') || normalizedEmail.includes('carlos')) {
-          localStorage.setItem('govdata_role', 'admin');
-          localStorage.setItem('govdata_user_name', 'Carlos Admin');
-          localStorage.setItem('govdata_current_tenant_id', '00000000-0000-0000-0000-000000000001');
-          window.location.href = '/';
-          return;
-        }
-        setIsLoading(false);
-        setError('Error de red. Iniciando en modo local...');
-      }
-    }, 500);
+    if (result?.error) {
+      setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
+      setIsLoading(false);
+    } else {
+      router.push('/');
+      router.refresh();
+    }
   };
 
 

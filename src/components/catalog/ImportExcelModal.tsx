@@ -108,33 +108,60 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
       try {
         const bstr = e.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        
         const sheetsData: any = {};
         const requiredSheets = ['Activos', 'Campos', 'Responsables', 'Clasificacion', 'Calidad'];
         const currentErrors: string[] = [];
 
-        requiredSheets.forEach(sheetName => {
-          if (!wb.SheetNames.includes(sheetName)) {
-            currentErrors.push(`Falta la hoja obligatoria: ${sheetName}`);
-          } else {
-            sheetsData[sheetName] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
-          }
-        });
+        const isCSV = file.name.toLowerCase().endsWith('.csv');
 
-        if (currentErrors.length === 0) {
-          // Validar códigos únicos en Activos
-          const codigos = sheetsData.Activos.map((a: any) => a.Codigo_Activo);
-          const uniqueCodigos = new Set(codigos);
-          if (uniqueCodigos.size !== codigos.length) {
-            currentErrors.push('Existen códigos de activo duplicados en la hoja Activos.');
+        if (isCSV) {
+          const sheetName = wb.SheetNames[0];
+          const csvData: any = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+          
+          if (csvData.length === 0) {
+            currentErrors.push('El archivo CSV está vacío.');
           }
 
-          // Validar que Campos tengan un Código_Activo existente
-          sheetsData.Campos.forEach((c: any, index: number) => {
-            if (!uniqueCodigos.has(c.Codigo_Activo)) {
-              currentErrors.push(`Error en Campos (Fila ${index + 2}): El código ${c.Codigo_Activo} no existe en Activos.`);
+          sheetsData.Activos = csvData.map((row: any, index: number) => ({
+            Codigo_Activo: row.Codigo_Activo || `CSV-${index}`,
+            Nombre_Activo: row.Nombre_Activo || row.name || row.Nombre || `Activo CSV ${index}`,
+            Tipo_Activo: row.Tipo_Activo || row.type || 'Archivo CSV',
+            Sistema_Fuente: row.Sistema_Fuente || row.source || 'Carga CSV',
+            Area_Duena: row.Area_Duena || row.owner || 'No Asignado',
+            Estado: row.Estado || row.status || 'Borrador',
+            Descripcion: row.Descripcion || row.description || '',
+            Criticidad: row.Criticidad || 'Media',
+            Etiquetas: row.Etiquetas || 'CSV'
+          }));
+          sheetsData.Campos = [];
+          sheetsData.Responsables = [];
+          sheetsData.Clasificacion = [];
+          sheetsData.Calidad = [];
+
+        } else {
+          requiredSheets.forEach(sheetName => {
+            if (!wb.SheetNames.includes(sheetName)) {
+              currentErrors.push(`Falta la hoja obligatoria: ${sheetName}`);
+            } else {
+              sheetsData[sheetName] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
             }
           });
+
+          if (currentErrors.length === 0) {
+            // Validar códigos únicos en Activos
+            const codigos = sheetsData.Activos.map((a: any) => a.Codigo_Activo);
+            const uniqueCodigos = new Set(codigos);
+            if (uniqueCodigos.size !== codigos.length) {
+              currentErrors.push('Existen códigos de activo duplicados en la hoja Activos.');
+            }
+
+            // Validar que Campos tengan un Código_Activo existente
+            sheetsData.Campos.forEach((c: any, index: number) => {
+              if (!uniqueCodigos.has(c.Codigo_Activo)) {
+                currentErrors.push(`Error en Campos (Fila ${index + 2}): El código ${c.Codigo_Activo} no existe en Activos.`);
+              }
+            });
+          }
         }
 
         setData(sheetsData);
@@ -315,14 +342,14 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
                   type="file" 
                   ref={fileInputRef} 
                   onChange={handleFileUpload} 
-                  accept=".xlsx, .xls"
+                  accept=".xlsx, .xls, .csv"
                   style={{ display: 'none' }}
                 />
                 <button 
                   onClick={() => fileInputRef.current?.click()} 
                   className={styles.uploadBtn}
                 >
-                  Seleccionar Archivo
+                  Seleccionar Archivo (.xlsx o .csv)
                 </button>
               </div>
             </div>

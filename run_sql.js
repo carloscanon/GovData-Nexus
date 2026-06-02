@@ -4,7 +4,8 @@ const lines = env.split('\n');
 const url = lines.find(l => l.startsWith('NEXT_PUBLIC_SUPABASE_URL')).split('=')[1].trim();
 const key = lines.find(l => l.startsWith('NEXT_PUBLIC_SUPABASE_ANON_KEY')).split('=')[1].trim();
 
-const sql = fs.readFileSync('security_tables.sql', 'utf8');
+const filename = process.argv[2] || 'security_tables.sql';
+const sql = fs.readFileSync(filename, 'utf8');
 
 fetch(url + '/rest/v1/rpc/exec_sql', {
   method: 'POST',

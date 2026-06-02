@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   LayoutDashboard,
   Building2,
@@ -45,14 +46,14 @@ export default function SuperAdminLayout({
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
+  const { data: session, status } = useSession();
+
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem('govdata_role');
-      if (role !== 'superadmin') {
-        router.push('/');
-      }
+    if (status === 'loading') return;
+    if (session?.user?.role !== 'superadmin') {
+      router.push('/');
     }
-  }, [router]);
+  }, [session, status, router]);
 
   return (
     <div className="sa-layout">
