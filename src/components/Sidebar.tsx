@@ -28,7 +28,7 @@ import {
   Rocket
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+
 import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './Sidebar.module.css';
 
@@ -61,15 +61,22 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     if (onCloseMobile) onCloseMobile();
   };
   const { mode, setMode, currentTenant, tenants, setCurrentTenant } = usePlatform();
-  const { data: session } = useSession();
-  
-  const userRole = session?.user?.role || null;
-  const userName = session?.user?.name || null;
+  const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [userName, setUserName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('govdata_role'));
+      setUserName(localStorage.getItem('govdata_user_name'));
+    }
+  }, []);
 
   // Logout handler
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    localStorage.removeItem('govdata_role');
+    localStorage.removeItem('govdata_user_name');
     localStorage.removeItem('govdata_current_tenant_id');
-    await signOut({ callbackUrl: '/login' });
+    window.location.href = '/login';
   };
 
   // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin/admin (ve todo)
