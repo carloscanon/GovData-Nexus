@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import styles from './login.module.css';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'govdata_login_config';
 
@@ -119,6 +120,42 @@ export default function Login() {
     } catch {}
   }, []);
 
+  const storeUserMetadata = async (normalizedEmail: string) => {
+    let role = 'user';
+    let name = 'Usuario';
+    
+    if (normalizedEmail === 'admin@govdata.io') {
+      role = 'superadmin';
+      name = 'Super Admin';
+    } else if (normalizedEmail === 'carlos@demo.govdata.com') {
+      role = 'admin';
+      name = 'Carlos Admin';
+    } else if (normalizedEmail === 'info@consultoresexpertos.com.co') {
+      role = 'admin';
+      name = 'Pepito Perez';
+    } else if (normalizedEmail === 'bancoldex@banco.gov.co') {
+      role = 'admin';
+      name = 'Bancoldex Admin';
+    } else {
+      try {
+        const { data } = await supabase
+          .from('tenant_users')
+          .select('name, role')
+          .eq('email', normalizedEmail)
+          .single();
+        if (data) {
+          role = data.role || 'user';
+          name = data.name || 'Usuario';
+        }
+      } catch (err) {
+        console.error("Error fetching user metadata:", err);
+      }
+    }
+    
+    localStorage.setItem('govdata_role', role);
+    localStorage.setItem('govdata_user_name', name);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -136,6 +173,7 @@ export default function Login() {
       setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
       setIsLoading(false);
     } else {
+      await storeUserMetadata(normalizedEmail);
       router.push('/');
       router.refresh();
     }
@@ -159,6 +197,7 @@ export default function Login() {
       setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
       setIsLoading(false);
     } else {
+      await storeUserMetadata(normalizedEmail);
       router.push('/');
       router.refresh();
     }
