@@ -49,7 +49,7 @@ export default function Committees() {
     const fetch = async () => {
       const { data, error } = await supabase
         .from("tenant_users")
-        .select("id, name")
+        .select("id, name, avatar")
         .eq("tenant_id", currentTenant.id);
       
       if (error || !data || data.length === 0) {
@@ -241,35 +241,47 @@ export default function Committees() {
       </div>
 
       <div className={styles.committeeGrid}>
-        {committees.map((c) => (
-          <motion.div 
-            key={c.id} 
-            className={styles.committeeCard} 
-            onClick={() => openDocsModal(c)}
-            style={{ cursor: 'pointer' }}
-          >
-            <div className={styles.cardHeader}>
-              <div className={styles.cardIcon}>
-                <Shield size={20} />
-              </div>
-            </div>
-            <h3 className={styles.cardTitle}>{c.name}</h3>
-            <p className={styles.cardDesc}>{c.description}</p>
-            <div className={styles.cardFooter}>
-              <div className={styles.ownerInfo}>
-                <div className={styles.ownerAvatar}>
-                  {(c.owner || c.description?.split('Responsable: ')[1]?.split(')')[0] || 'U').charAt(0).toUpperCase()}
+        {committees.map((c) => {
+          const ownerName = c.owner || c.description?.split('Responsable: ')[1]?.split(')')[0] || 'Asignado';
+          const ownerUser = tenantUsers.find(u => u.name === ownerName);
+          const initials = ownerName.charAt(0).toUpperCase();
+          
+          return (
+            <motion.div 
+              key={c.id} 
+              className={styles.committeeCard} 
+              onClick={() => openDocsModal(c)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className={styles.cardHeader}>
+                <div className={styles.cardIcon}>
+                  <Shield size={20} />
                 </div>
-                <span className={styles.ownerName}>
-                  {c.owner || c.description?.split('Responsable: ')[1]?.split(')')[0] || 'Asignado'}
-                </span>
               </div>
-              <div className={styles.memberCount}>
-                <FileText size={14} /> Actas
+              <h3 className={styles.cardTitle}>{c.name}</h3>
+              <p className={styles.cardDesc}>{c.description}</p>
+              <div className={styles.cardFooter}>
+                <div className={styles.ownerInfo}>
+                  <div className={styles.ownerAvatar} style={{ overflow: 'hidden' }}>
+                    {ownerUser?.avatar ? (
+                      <img 
+                        src={ownerUser.avatar} 
+                        alt={ownerName} 
+                        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+                      />
+                    ) : (
+                      initials
+                    )}
+                  </div>
+                  <span className={styles.ownerName}>{ownerName}</span>
+                </div>
+                <div className={styles.memberCount}>
+                  <FileText size={14} /> Actas
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
 
       <AnimatePresence>
@@ -310,18 +322,33 @@ export default function Committees() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Sponsor / Owner</label>
-                  <select
-                    className={styles.inputField}
-                    value={newCommittee.owner}
-                    onChange={(e) => setNewCommittee({ ...newCommittee, owner: e.target.value })}
-                  >
-                    <option value="">Seleccionar Owner...</option>
-                    {tenantUsers.map((u) => (
-                      <option key={u.id} value={u.name}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <select
+                      className={styles.inputField}
+                      value={newCommittee.owner}
+                      onChange={(e) => setNewCommittee({ ...newCommittee, owner: e.target.value })}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Seleccionar Owner...</option>
+                      {tenantUsers.map((u) => (
+                        <option key={u.id} value={u.name}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                    {newCommittee.owner && (
+                      <div className={styles.ownerAvatar} style={{ width: '40px', height: '40px', fontSize: '1rem', overflow: 'hidden', flexShrink: 0 }}>
+                        {(() => {
+                          const selectedU = tenantUsers.find(u => u.name === newCommittee.owner);
+                          return selectedU?.avatar ? (
+                            <img src={selectedU.avatar} alt={newCommittee.owner} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            newCommittee.owner.charAt(0).toUpperCase()
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Documento Fundacional (Acta/Resolución)</label>

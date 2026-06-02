@@ -302,6 +302,8 @@ export default function Team() {
     if (!currentTenant?.id || !selectedMember) return;
     try {
       const { data, error } = await supabase.from('team_members').update({
+        name: newMember.name.substring(0, 150),
+        email: newMember.email.substring(0, 200),
         role: newMember.roleType.substring(0, 100),
         area: (newMember.area || 'General').substring(0, 100)
       }).eq('id', selectedMember.id).select();
@@ -309,14 +311,41 @@ export default function Team() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setMembers(members.map(m => m.id === selectedMember.id ? { ...m, role: data[0].role, roleType: data[0].role as any, area: data[0].area } : m));
+        setMembers(members.map(m => m.id === selectedMember.id ? { 
+          ...m, 
+          name: data[0].name,
+          email: data[0].email,
+          role: data[0].role, 
+          roleType: data[0].role as any, 
+          area: data[0].area 
+        } : m));
       }
       setIsEditMemberModalOpen(false);
-      setSelectedMember({ ...selectedMember, role: data[0].role, roleType: data[0].role as any, area: data[0].area } as GovernanceMember);
+      setSelectedMember(null);
       alert("Perfil actualizado correctamente.");
     } catch (e: any) {
       console.error(e);
       alert(`Error actualizando el miembro: ${e.message}`);
+    }
+  };
+
+  const handleDeleteMember = async (memberId: number) => {
+    if (!confirm("¿Está seguro que desea eliminar este miembro del equipo de gobierno?")) return;
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      setMembers(members.filter(m => m.id !== memberId));
+      setSelectedMember(null);
+      setIsEditMemberModalOpen(false);
+      alert("Miembro de gobierno eliminado exitosamente.");
+    } catch (e: any) {
+      console.error(e);
+      alert(`Error eliminando el miembro: ${e.message}`);
     }
   };
 
