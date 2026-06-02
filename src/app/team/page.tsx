@@ -602,11 +602,7 @@ export default function Team() {
 
       const fallbackAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
-      const rawAvatar = newMember.avatar || fallbackAvatar;
-
-      // Only truncate if longer than 250 chars (varchar(255) safe limit)
-
-      const avatarUrl = rawAvatar.length > 250 ? fallbackAvatar : rawAvatar;
+      const avatarUrl = newMember.avatar || fallbackAvatar;
 
 
 
