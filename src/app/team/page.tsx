@@ -33,7 +33,9 @@ import {
   Info,
   X,
   Settings,
-  Upload
+  Upload,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
@@ -44,7 +46,7 @@ import styles from './team.module.css';
 
 interface GovernanceMember {
 
-  id: number;
+  id: any;
 
   name: string;
 
@@ -428,19 +430,29 @@ export default function Team() {
 
 
 
-        // 2. Now fetch members and domains in parallel, using freshUsers for avatar lookup
+        // 2. Fetch members, domains, assets, and incidents in parallel
 
-        const [membersRes, domainsRes] = await Promise.all([
+        const [membersRes, domainsRes, assetsRes, incidentsRes] = await Promise.all([
 
           supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
 
-          supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
+          supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
+
+          supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
+
+          supabase.from('quality_incidents').select('id, asset_id, status').eq('tenant_id', currentTenant.id).eq('status', 'Abierto')
 
         ]);
 
 
 
         if (membersRes.data) {
+
+          const freshAssets = assetsRes.data || [];
+
+          const freshIncidents = incidentsRes.data || [];
+
+
 
           const mappedMembers = membersRes.data.map(m => {
 
@@ -456,6 +468,8 @@ export default function Team() {
 
             );
 
+
+
             // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
 
             const isReal = (url: string | null | undefined) =>
@@ -470,6 +484,22 @@ export default function Team() {
 
               `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
+
+
+            // Calculate real assets and incidents managed by the member
+
+            const mNameLower = (m.name || '').toLowerCase().trim();
+
+            const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
+
+            const assetsManaged = memberAssets.length;
+
+            const assetIds = memberAssets.map(a => a.id);
+
+            const openIncidents = freshIncidents.filter(i => assetIds.includes(i.asset_id)).length;
+
+
+
             return {
 
               ...m,
@@ -480,9 +510,29 @@ export default function Team() {
 
               country: 'Colombia',
 
-              stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
+              stats: { 
 
-              assignments: { assets: [], policies: [], workflows: 0 }
+                assetsManaged, 
+
+                openIncidents, 
+
+                stewardScore: Math.max(70, Math.min(100, 100 - (openIncidents * 5))), 
+
+                slaCompliance: Math.max(80, Math.min(100, 100 - (openIncidents * 3))), 
+
+                qualityAvg: Math.max(60, Math.min(100, 95 - (openIncidents * 4)))
+
+              },
+
+              assignments: { 
+
+                assets: memberAssets.map(a => a.name), 
+
+                policies: [], 
+
+                workflows: 0 
+
+              }
 
             };
 
@@ -648,9 +698,9 @@ export default function Team() {
 
       if (data && data.length > 0) {
 
-        setMembers(members.map(m => m.id === selectedMember.id ? { 
+        const updated = { 
 
-          ...m, 
+          ...selectedMember, 
 
           name: data[0].name,
 
@@ -664,13 +714,15 @@ export default function Team() {
 
           avatar: data[0].avatar
 
-        } : m));
+        };
+
+        setMembers(members.map(m => m.id === selectedMember.id ? updated : m));
+
+        setSelectedMember(updated);
 
       }
 
       setIsEditMemberModalOpen(false);
-
-      setSelectedMember(null);
 
       alert("Perfil actualizado correctamente.");
 
@@ -686,7 +738,7 @@ export default function Team() {
 
 
 
-  const handleDeleteMember = async (memberId: number) => {
+  const handleDeleteMember = async (memberId: any) => {
 
     if (!confirm("¿Está seguro que desea eliminar este miembro del equipo de gobierno?")) return;
 
