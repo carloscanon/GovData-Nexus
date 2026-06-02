@@ -11,7 +11,7 @@ import { Menu } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
 
-import { AuthProvider } from '@/components/AuthProvider';
+
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -69,11 +69,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <AuthProvider>
-          <PlatformProvider>
+        <PlatformProvider>
             <LayoutContent>{children}</LayoutContent>
           </PlatformProvider>
-        </AuthProvider>
       </body>
     </html>
   );
