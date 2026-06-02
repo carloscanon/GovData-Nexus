@@ -106,8 +106,9 @@ export default function Committees() {
     } else {
       const newComId = data?.[0]?.id;
       if (newComId && uploadFile) {
-        // Handle file upload to storage
-        const path = `${currentTenant.id}/${newCommittee.name}/${uploadFile.name}`;
+        // Tenant-isolated path: tenants/{tenant_id}/committees/{committee_id}/{ts}_{file}
+        const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `tenants/${currentTenant.id}/committees/${newComId}/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage.from("governance-docs").upload(path, uploadFile);
         
         if (!uploadError) {
@@ -150,7 +151,9 @@ export default function Committees() {
     if (!uploadFile || !selectedCommittee || !currentTenant?.id) return;
     setIsUploadingDoc(true);
     try {
-      const path = `${currentTenant.id}/${selectedCommittee.name}/${Date.now()}_${uploadFile.name}`;
+      // Tenant-isolated path: tenants/{tenant_id}/committees/{committee_id}/{ts}_{file}
+      const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `tenants/${currentTenant.id}/committees/${selectedCommittee.id}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage.from("governance-docs").upload(path, uploadFile);
       
       if (!uploadError) {
@@ -166,10 +169,11 @@ export default function Committees() {
         if (data && data.length > 0) {
           setCommitteeDocs([...committeeDocs, data[0]]);
         }
-        alert("Documento subido y registrado exitosamente.");
+        alert("✅ Documento subido y registrado exitosamente.");
         setUploadFile(null);
       } else {
-        alert("Error subiendo el archivo: " + uploadError.message);
+        console.error('Upload error:', uploadError);
+        alert("Error subiendo documento: " + uploadError.message);
       }
     } catch (e: any) {
       alert("Error: " + e.message);
