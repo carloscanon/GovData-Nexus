@@ -967,12 +967,22 @@ export default function Team() {
                   </div>
                   <div style={{ padding: '32px' }}>
                     <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Usuario</label>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre de Usuario</label>
                        <input 
                          type="text" 
-                         disabled
-                         style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '1rem', outline: 'none', cursor: 'not-allowed' }}
+                         style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
                          value={newMember.name}
+                         onChange={e => setNewMember({...newMember, name: e.target.value})}
+                       />
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Correo Electrónico</label>
+                       <input 
+                         type="email" 
+                         style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
+                         value={newMember.email}
+                         onChange={e => setNewMember({...newMember, email: e.target.value})}
+                         placeholder="correo@empresa.com"
                        />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
@@ -1002,8 +1012,11 @@ export default function Team() {
                        </div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                       <button className={styles.secondaryBtn} onClick={() => setIsEditMemberModalOpen(false)}>Cancelar</button>
-                       <button className={styles.primaryBtn} onClick={handleUpdateMember}>Guardar Cambios</button>
+                        <button className={styles.dangerBtn} style={{ marginRight: 'auto' }} onClick={() => selectedMember && handleDeleteMember(selectedMember.id)}>
+                           Eliminar Miembro
+                        </button>
+                        <button className={styles.secondaryBtn} onClick={() => setIsEditMemberModalOpen(false)}>Cancelar</button>
+                        <button className={styles.primaryBtn} onClick={handleUpdateMember}>Guardar Cambios</button>
                     </div>
                  </div>
               </motion.div>

@@ -873,3 +873,23 @@
   font-size: 0.82rem;
   font-weight: 800;
 }
+
+.dangerBtn {
+  background: #ef4444;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.dangerBtn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
