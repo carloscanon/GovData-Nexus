@@ -49,6 +49,7 @@ interface WorkflowReq {
   slaStatus: 'Ok' | 'Warning' | 'Overdue';
   description?: string;
   assignee?: string;
+  expirationDate?: string;
   currentStep: string;
   timeline: { step: string; user: string; date: string; status: string }[];
 }
@@ -953,7 +954,7 @@ export default function Workflows() {
                                 className={styles.modalInput}
                                 style={{ padding: '4px 8px' }}
                                 value={selectedReq.priority}
-                                onChange={(e) => setSelectedReq({...selectedReq, priority: e.target.value})}
+                                onChange={(e) => setSelectedReq({...selectedReq, priority: e.target.value as any})}
                               >
                                 <option value="Baja">Baja</option>
                                 <option value="Media">Media</option>
