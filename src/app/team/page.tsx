@@ -403,7 +403,7 @@ export default function Team() {
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
         supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status').eq('tenant_id', currentTenant.id).eq('status', 'Abierto'),
         supabase.from('data_policies').select('id, title, owner').eq('tenant_id', currentTenant.id),
-        supabase.from('workflow_requests').select('id, requested_by, assigned_to').eq('tenant_id', currentTenant.id)
+        supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id)
       ]);
 
       if (membersRes.data) {
