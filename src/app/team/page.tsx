@@ -1547,7 +1547,7 @@ export default function Team() {
 
                     <div className={styles.assetList}>
 
-                       {selectedMember.assignments.assets.map((asset, i) => (
+                       {selectedMember.assignments.assets.map((asset: string, i: number) => (
 
                          <div key={i} className={styles.assetTag}>{asset}</div>
 
