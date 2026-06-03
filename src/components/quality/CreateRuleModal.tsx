@@ -174,6 +174,26 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
     if (id) fetchFields(id);
   };
 
+  // Plantillas de la Biblioteca Corporativa
+  const corporateTemplates = [
+    { id: 't1', name: 'Correo electrónico válido', type: 'Formato', config: { formatType: 'email', regex: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' }, description: 'Valida estructura estándar de email', domain: 'Clientes', industry: 'General', system: 'CRM/ERP' },
+    { id: 't2', name: 'RFC válido (México)', type: 'Formato', config: { formatType: 'custom', regex: '^[A-ZÑ&]{3,4}\\d{6}[A-Z0-9]{3}$' }, description: 'Valida estructura oficial del RFC', domain: 'Finanzas', industry: 'Servicios', system: 'SAT' },
+    { id: 't3', name: 'NIT válido (Colombia)', type: 'Formato', config: { formatType: 'custom', regex: '^\\d{9}-\\d{1}$' }, description: 'Valida estructura oficial de identificación fiscal NIT', domain: 'Finanzas', industry: 'Servicios', system: 'DIAN' },
+    { id: 't4', name: 'Documento único de identidad', type: 'Duplicados', config: { caseSensitive: true }, description: 'Valida que no existan duplicados en identificaciones', domain: 'Clientes', industry: 'General', system: 'Todos' },
+    { id: 't5', name: 'Fecha de nacimiento válida', type: 'Rango', config: { min: 1900, max: 2026 }, description: 'Valida que el año de nacimiento esté en rango realista', domain: 'RRHH', industry: 'General', system: 'Nómina' },
+    { id: 't6', name: 'Código SAP válido', type: 'Formato', config: { formatType: 'custom', regex: '^SAP-\\d{5,8}$' }, description: 'Valida formato de código de producto o proveedor SAP', domain: 'Compras', industry: 'Manufactura', system: 'SAP ERP' }
+  ];
+
+  const handleApplyTemplate = (tpl: any) => {
+    setRuleData((prev: any) => ({
+      ...prev,
+      name: tpl.name,
+      type: tpl.type,
+      config: tpl.config || {},
+      description: tpl.description
+    }));
+  };
+
   const handleSave = async () => {
     setLoading(true);
     console.log("Saving Rule Payload:", ruleData);
@@ -203,11 +223,12 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
             name: ruleData.name,
             type: ruleData.type,
             severity: ruleData.severity,
-            field_id: ruleData.field_id,
+            field_id: ruleData.field_id || null,
             config: ruleData.config
           }).eq('id', ruleToEdit.id).select()
         : supabase.from('quality_rules').insert([{
             ...ruleData,
+            field_id: ruleData.field_id || null,
             status: 'Activa'
           }]).select();
       
@@ -231,7 +252,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal}>
+      <div className={styles.modal} style={{ maxWidth: '700px' }}>
         <header className={styles.header}>
           <div className={styles.titleIcon}>
             <Zap size={20} color="white" />
@@ -243,7 +264,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
           <button onClick={onClose} className={styles.closeBtn}><X size={20} /></button>
         </header>
 
-        <div className={styles.content}>
+        <div className={styles.content} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div className={styles.formGroup}>
             <label>1. Seleccionar Activo de Datos</label>
             <select 
@@ -258,7 +279,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>2. Campo a Validar</label>
+              <label>2. Campo Principal a Validar</label>
               <select 
                 value={ruleData.field_id} 
                 onChange={(e) => setRuleData({ ...ruleData, field_id: e.target.value })}
@@ -274,23 +295,49 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
               <label>3. Tipo de Regla</label>
               <select 
                 value={ruleData.type} 
-                onChange={(e) => setRuleData({ ...ruleData, type: e.target.value })}
+                onChange={(e) => setRuleData({ ...ruleData, type: e.target.value, config: {} })}
                 className={styles.select}
               >
                 <option value="Nulos">No Nulos (Completitud)</option>
                 <option value="Duplicados">Unicidad (Sin duplicados)</option>
                 <option value="Formato">Formato (Email, RFC, etc.)</option>
                 <option value="Rango">Rango (Valores min/max)</option>
-                <option value="Negocio">Lógica de Negocio</option>
+                <option value="Comparacion">Comparación de Campos (A vs B)</option>
+                <option value="Negocio">Lógica de Negocio / Fórmula</option>
               </select>
             </div>
           </div>
+
+          {/* Biblioteca Corporativa Panel */}
+          {!ruleToEdit && (
+            <div className={styles.configBox} style={{ border: '1px solid #6366f1', background: '#f5f7ff' }}>
+              <div className={styles.configHeader} style={{ background: '#e0e4ff', color: '#4f46e5' }}>
+                <Shield size={16} />
+                <span>¿Usar plantilla de la Biblioteca Corporativa?</span>
+              </div>
+              <div className={styles.configBody} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px' }}>
+                {corporateTemplates.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => handleApplyTemplate(tpl)}
+                    className={styles.sevBtn}
+                    style={{ fontSize: '0.78rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px', padding: '8px 12px' }}
+                  >
+                    <strong style={{ color: '#4f46e5' }}>{tpl.name}</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                      Dom: {tpl.domain} · Sis: {tpl.system}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className={styles.formGroup}>
             <label>4. Nombre de la Regla</label>
             <input 
               type="text" 
-              placeholder="Ej: Email debe tener formato válido" 
+              placeholder="Ej: Email debe tener formato válido o fecha_fin >= fecha_inicio" 
               className={styles.input}
               value={ruleData.name}
               onChange={(e) => setRuleData({ ...ruleData, name: e.target.value })}
@@ -401,24 +448,64 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
                   </div>
                 </div>
               )}
+              {ruleData.type === 'Comparacion' && (
+                <div className={styles.configDetail}>
+                  <p>Compara el campo principal seleccionado arriba con otro campo o valor.</p>
+                  <div className={styles.rangeInputs} style={{ gridTemplateColumns: '1fr 2fr' }}>
+                    <div>
+                      <label>Operador</label>
+                      <select
+                        className={styles.selectSmall}
+                        value={ruleData.config?.operator || '>='}
+                        onChange={(e) => setRuleData({...ruleData, config: {...ruleData.config, operator: e.target.value}})}
+                      >
+                        <option value=">=">&gt;= (Mayor o igual)</option>
+                        <option value="<=">&lt;= (Menor o igual)</option>
+                        <option value="=">= (Igual a)</option>
+                        <option value=">">&gt; (Mayor estricto)</option>
+                        <option value="<">&lt; (Menor estricto)</option>
+                        <option value="!=">!= (Diferente de)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label>Campo de Comparación</label>
+                      <select
+                        className={styles.selectSmall}
+                        value={ruleData.config?.compareFieldId || ''}
+                        onChange={(e) => setRuleData({...ruleData, config: {...ruleData.config, compareFieldId: e.target.value}})}
+                      >
+                        <option value="">-- Seleccionar campo --</option>
+                        {fields.map(f => (
+                          <option key={f.id} value={f.field_name}>{f.field_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '8px' }}>
+                    <label>O valor constante (si no seleccionó campo):</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="Ej: 18 o 'Activo'"
+                      value={ruleData.config?.constantValue || ''}
+                      onChange={(e) => setRuleData({...ruleData, config: {...ruleData.config, constantValue: e.target.value}})}
+                    />
+                  </div>
+                </div>
+              )}
               {ruleData.type === 'Negocio' && (
                 <div className={styles.configDetail}>
-                  <label>Valores Permitidos (separados por coma)</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="Activo, Inactivo, Suspendido"
-                    value={ruleData.config?.allowedValues || ''}
-                    onChange={(e) => setRuleData({...ruleData, config: {...ruleData.config, allowedValues: e.target.value}})}
-                  />
-                  <label style={{ marginTop: '10px', display: 'block' }}>Expresión de Validación (opcional)</label>
+                  <label>Fórmula o Expresión Matemática / Lógica</label>
                   <textarea
                     className={styles.textarea}
-                    placeholder="Ej: campo_edad >= 18 AND campo_edad <= 120"
+                    placeholder="Ej: monto_total = subtotal + impuestos o edad >= 18"
                     rows={3}
                     value={ruleData.config?.expression || ''}
                     onChange={(e) => setRuleData({...ruleData, config: {...ruleData.config, expression: e.target.value}})}
                   />
+                  <p style={{ fontSize: '0.75rem', marginTop: '4px', color: '#94a3b8' }}>
+                    Puede usar operadores matemáticos estándar y nombres de campos.
+                  </p>
                 </div>
               )}
             </div>
@@ -445,7 +532,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
           <button 
             onClick={handleSave} 
             className={styles.saveBtn}
-            disabled={loading || !ruleData.field_id || !ruleData.name}
+            disabled={loading || !ruleData.name}
           >
             {loading ? 'Guardando...' : ruleToEdit ? 'Guardar Cambios' : 'Activar Regla'}
           </button>

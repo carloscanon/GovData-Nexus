@@ -123,29 +123,35 @@ export default function Login() {
   const storeUserMetadata = async (normalizedEmail: string) => {
     let role = 'user';
     let name = 'Usuario';
+    let tenantId = '00000000-0000-0000-0000-000000000001'; // Default fallback
     
     if (normalizedEmail === 'admin@govdata.io') {
       role = 'superadmin';
       name = 'Super Admin';
+      tenantId = 'global';
     } else if (normalizedEmail === 'carlos@demo.govdata.com') {
       role = 'admin';
       name = 'Carlos Admin';
+      tenantId = '00000000-0000-0000-0000-000000000001';
     } else if (normalizedEmail === 'info@consultoresexpertos.com.co') {
       role = 'admin';
       name = 'Pepito Perez';
+      tenantId = '4dfc332c-5a5d-431f-85c8-749c4b4e096e';
     } else if (normalizedEmail === 'bancoldex@banco.gov.co') {
       role = 'admin';
       name = 'Bancoldex Admin';
+      tenantId = 'aec4f0dd-e8f8-482e-984a-aaad504aa61a';
     } else {
       try {
         const { data } = await supabase
           .from('tenant_users')
-          .select('name, role')
-          .eq('email', normalizedEmail)
+          .select('name, role, tenant_id')
+          .ilike('email', normalizedEmail)
           .single();
         if (data) {
           role = data.role || 'user';
           name = data.name || 'Usuario';
+          tenantId = data.tenant_id || tenantId;
         }
       } catch (err) {
         console.error("Error fetching user metadata:", err);
@@ -154,6 +160,7 @@ export default function Login() {
     
     localStorage.setItem('govdata_role', role);
     localStorage.setItem('govdata_user_name', name);
+    localStorage.setItem('govdata_current_tenant_id', tenantId);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -174,8 +181,7 @@ export default function Login() {
       setIsLoading(false);
     } else {
       await storeUserMetadata(normalizedEmail);
-      router.push('/');
-      router.refresh();
+      window.location.href = '/';
     }
   };
 
@@ -198,8 +204,7 @@ export default function Login() {
       setIsLoading(false);
     } else {
       await storeUserMetadata(normalizedEmail);
-      router.push('/');
-      router.refresh();
+      window.location.href = '/';
     }
   };
 

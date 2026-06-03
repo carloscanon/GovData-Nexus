@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTenantStorage } from '@/hooks/useTenantStorage';
 
 import { 
@@ -41,6 +41,29 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './team.module.css';
+
+function parseTextSla(slaStr: string, createdTime: number): number | null {
+  const clean = (slaStr || '').toLowerCase().trim();
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  
+  const monthIdx = months.findIndex(m => clean.includes(m));
+  if (monthIdx === -1) return null;
+  
+  const createdYear = new Date(createdTime).getFullYear();
+  let day = 1;
+  
+  if (clean.startsWith('finales de') || clean.includes('fin de')) {
+    day = new Date(createdYear, monthIdx + 1, 0).getDate();
+  } else if (clean.startsWith('mediados de') || clean.includes('mitad de')) {
+    day = 15;
+  } else if (clean.startsWith('inicios de') || clean.startsWith('principio de')) {
+    day = 5;
+  } else {
+    day = new Date(createdYear, monthIdx + 1, 0).getDate();
+  }
+  
+  return new Date(createdYear, monthIdx, day, 23, 59, 59).getTime();
+}
 
 // --- Types ---
 
@@ -292,7 +315,7 @@ export default function Team() {
 
   const [activeTab, setActiveTab] = useState<'team' | 'domains' | 'raci' | 'coverage'>('team');
 
-  const [selectedMember, setSelectedMember] = useState<GovernanceMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -304,7 +327,11 @@ export default function Team() {
 
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
 
-  const [members, setMembers] = useState<GovernanceMember[]>([]);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+
+  const [reassignTargetId, setReassignTargetId] = useState('');
+
+  const [members, setMembers] = useState<any[]>([]);
 
   const [domains, setDomains] = useState<GovernanceDomain[]>([]);
 
@@ -312,464 +339,328 @@ export default function Team() {
 
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
-
-
   const { getItem, setItem } = useTenantStorage();
 
-
-
   const [newMember, setNewMember] = useState({
-
     name: '',
-
     roleType: 'Data Steward' as any,
-
     area: '',
-
     domain: 'Comercial',
-
     email: '',
-
     country: 'México',
-
     avatar: ''
-
   });
-
-
 
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-
-
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-
     const file = e.target.files?.[0];
-
     if (!file || !currentTenant?.id) return;
 
-
-
     setIsUploadingAvatar(true);
-
     try {
-
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-
       const path = `tenants/${currentTenant.id}/avatars/${Date.now()}_${safeName}`;
-
       
-
       const { error: uploadError } = await supabase.storage.from("governance-docs").upload(path, file);
-
       if (uploadError) throw uploadError;
 
-
-
       // Generate a long-lived signed URL (10 years)
-
       const { data: signedData, error: signError } = await supabase.storage
-
         .from("governance-docs")
-
         .createSignedUrl(path, 315360000);
-
       
-
       if (signError || !signedData?.signedUrl) throw signError || new Error("Failed to get signed URL");
 
-
-
       setNewMember(prev => ({ ...prev, avatar: signedData.signedUrl }));
-
       alert("✅ Foto subida exitosamente.");
-
     } catch (err: any) {
-
       console.error("Avatar upload error:", err);
-
       alert("Error subiendo imagen: " + err.message);
-
     } finally {
-
       setIsUploadingAvatar(false);
-
     }
-
   };
 
-
-
-  useEffect(() => {
-
+  const fetchAllData = useCallback(async () => {
     if (!currentTenant?.id) return;
 
-
-
-    const fetchAllData = async () => {
-
-      try {
-
-        // 1. Fetch tenant users FIRST so we have avatars ready
-
-        const { data: usersData } = await supabase
-
-          .from('tenant_users')
-
-          .select('id, name, email, avatar')
-
-          .eq('tenant_id', currentTenant.id)
-
-          .order('name');
-
-
-
-        const freshUsers = usersData || [];
-
-        setTenantUsers(freshUsers);
-
-
-
-        // 2. Fetch members, domains, assets, and incidents in parallel
-
-        const [membersRes, domainsRes, assetsRes, incidentsRes] = await Promise.all([
-
-          supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
-
-          supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
-
-          supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
-
-          supabase.from('quality_incidents').select('id, asset_id, status').eq('tenant_id', currentTenant.id).eq('status', 'Abierto')
-
-        ]);
-
-
-
-        if (membersRes.data) {
-
-          const freshAssets = assetsRes.data || [];
-
-          const freshIncidents = incidentsRes.data || [];
-
-
-
-          const mappedMembers = membersRes.data.map(m => {
-
-            const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
-
-            // Look up by email first (more reliable), then by name
-
-            const tenantUser = freshUsers.find(u =>
-
-              (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
-
-              (m.name && u.name && u.name.toLowerCase() === m.name.toLowerCase())
-
-            );
-
-
-
-            // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
-
-            const isReal = (url: string | null | undefined) =>
-
-              !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
-
-            const fixedAvatar =
-
-              isReal(tenantUser?.avatar) ? tenantUser!.avatar :
-
-              isReal(m.avatar)           ? m.avatar :
-
-              `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
-
-
-
-            // Calculate real assets and incidents managed by the member
-
-            const mNameLower = (m.name || '').toLowerCase().trim();
-
-            const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
-
-            const assetsManaged = memberAssets.length;
-
-            const assetIds = memberAssets.map(a => a.id);
-
-            const openIncidents = freshIncidents.filter(i => assetIds.includes(i.asset_id)).length;
-
-
-
-            return {
-
-              ...m,
-
-              avatar: fixedAvatar,
-
-              roleType: m.role || 'Data Steward',
-
-              country: 'Colombia',
-
-              stats: { 
-
-                assetsManaged, 
-
-                openIncidents, 
-
-                stewardScore: Math.max(70, Math.min(100, 100 - (openIncidents * 5))), 
-
-                slaCompliance: Math.max(80, Math.min(100, 100 - (openIncidents * 3))), 
-
-                qualityAvg: Math.max(60, Math.min(100, 95 - (openIncidents * 4)))
-
-              },
-
-              assignments: { 
-
-                assets: memberAssets.map(a => a.name), 
-
-                policies: [], 
-
-                workflows: 0 
-
+    try {
+      // 1. Fetch tenant users FIRST so we have avatars ready
+      const { data: usersData } = await supabase
+        .from('tenant_users')
+        .select('id, name, email, avatar')
+        .eq('tenant_id', currentTenant.id)
+        .order('name');
+
+      const freshUsers = usersData || [];
+      setTenantUsers(freshUsers);
+
+      // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
+      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes] = await Promise.all([
+        supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
+        supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
+        supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
+        supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status').eq('tenant_id', currentTenant.id).eq('status', 'Abierto'),
+        supabase.from('data_policies').select('id, title, owner').eq('tenant_id', currentTenant.id),
+        supabase.from('workflow_requests').select('id, requested_by, assigned_to').eq('tenant_id', currentTenant.id)
+      ]);
+
+      if (membersRes.data) {
+        const freshAssets = assetsRes.data || [];
+        const freshIncidents = incidentsRes.data || [];
+        const freshPolicies = policiesRes.data || [];
+        const freshWorkflows = workflowsRes.data || [];
+
+        const mappedMembers = membersRes.data.map(m => {
+          const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
+          // Look up by email first (more reliable), then by name
+          const tenantUser = freshUsers.find(u =>
+            (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
+            (m.name && u.name && u.name.toLowerCase() === m.name.toLowerCase())
+          );
+
+          // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
+          const isReal = (url: string | null | undefined) =>
+            !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
+          const fixedAvatar =
+            isReal(tenantUser?.avatar) ? tenantUser!.avatar :
+            isReal(m.avatar)           ? m.avatar :
+            `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+
+          // Calculate real assets and incidents managed by the member
+          const mNameLower = (m.name || '').toLowerCase().trim();
+          const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
+          const assetsManaged = memberAssets.length;
+          const assetIds = memberAssets.map(a => a.id);
+          
+          const openIncidentsList = freshIncidents
+            .filter(i => assetIds.includes(i.asset_id))
+            .map(i => {
+              const asset = freshAssets.find(a => a.id === i.asset_id);
+              return {
+                id: i.id,
+                issue_type: i.issue_type,
+                severity: i.severity || 'media',
+                asset_name: asset ? asset.name : 'Activo'
+              };
+            });
+          
+          const openIncidents = openIncidentsList.length;
+
+          const memberPolicies = freshPolicies
+            .filter(p => (p.owner || '').toLowerCase().trim() === mNameLower)
+            .map(p => p.title);
+
+          const memberWorkflows = freshWorkflows
+            .filter(w => w.assigned_to && w.assigned_to.toLowerCase().trim() === mNameLower);
+          const memberWorkflowsCount = freshWorkflows
+            .filter(w => w.requested_by === m.id || (w.assigned_to && w.assigned_to.toLowerCase().trim() === mNameLower)).length;
+          const overdueWorkflows = memberWorkflows.filter(w => {
+            let isOverdue = w.sla_status === 'Overdue';
+            const createdTime = new Date(w.created_at).getTime();
+            const nowTime = Date.now();
+            const slaStr = (w.sla || '').trim();
+            const hoursMatch = slaStr.match(/^(\d+)h$/);
+
+            if (w.status === 'Pendiente' || w.status === 'En Revisión' || w.status === 'Escalado') {
+              if (hoursMatch) {
+                const slaHours = parseInt(hoursMatch[1], 10);
+                const diffHours = (nowTime - createdTime) / (1000 * 60 * 60);
+                if (diffHours > slaHours) {
+                  isOverdue = true;
+                }
+              } else {
+                const parsedSlaTime = parseTextSla(slaStr, createdTime);
+                if (parsedSlaTime !== null && nowTime > parsedSlaTime) {
+                  isOverdue = true;
+                }
               }
+            } else {
+              isOverdue = false;
+            }
+            return isOverdue;
+          }).length;
 
-            };
-
-          });
-
-          setMembers(mappedMembers);
-
-        }
-
-
-
-        if (domainsRes.data) {
-
-          const mappedDomains = domainsRes.data.map(d => ({
-
-            ...d,
-
-            owner: d.owner || 'Por definir',
-
-            steward: 'Por definir',
-
-            custodian: 'Por definir',
-
-            coverage: 50,
-
-            status: 'Parcial'
-
-          }));
-
-          setDomains(mappedDomains);
-
-        }
-
-      } catch (e: any) {
-
-        console.error('Error fetching team data:', e);
-
-        if (e?.code === '42P01') alert("Faltan las tablas team_members o team_domains en Supabase.");
-
+          return {
+            ...m,
+            avatar: fixedAvatar,
+            roleType: m.role || 'Data Steward',
+            country: 'Colombia',
+            stats: { 
+              assetsManaged, 
+              openIncidents, 
+              stewardScore: Math.max(50, Math.min(100, 100 - (openIncidents * 5) - (overdueWorkflows * 8))), 
+              slaCompliance: Math.max(0, Math.min(100, 100 - (openIncidents * 3) - (overdueWorkflows * 15))), 
+              qualityAvg: Math.max(60, Math.min(100, 95 - (openIncidents * 4)))
+            },
+            assignments: { 
+              assets: memberAssets.map(a => a.name), 
+              policies: memberPolicies, 
+              workflows: memberWorkflowsCount,
+              incidents: openIncidentsList
+            }
+          };
+        });
+        setMembers(mappedMembers);
       }
 
-    };
-
-
-
-    fetchAllData();
-
+      if (domainsRes.data) {
+        const mappedDomains = domainsRes.data.map(d => {
+          const domainOwner = membersRes.data?.find(m => m.id === d.owner_id);
+          return {
+            ...d,
+            owner: domainOwner ? domainOwner.name : 'Por definir',
+            steward: 'Por definir',
+            custodian: 'Por definir',
+            coverage: 50,
+            status: 'Parcial'
+          };
+        });
+        setDomains(mappedDomains as any);
+      }
+    } catch (e: any) {
+      console.error('Error fetching team data:', e);
+      if (e?.code === '42P01') alert("Faltan las tablas team_members o team_domains en Supabase.");
+    }
   }, [currentTenant?.id]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
 
 
   const handleAddMember = async () => {
-
     if (!currentTenant?.id) return;
-
     if (!newMember.name) {
-
       alert("Por favor selecciona un usuario primero.");
-
       return;
-
     }
-
     try {
-
       const seed = encodeURIComponent(newMember.name.replace(/\s+/g, '').substring(0, 30));
-
       const fallbackAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
-
       const avatarUrl = newMember.avatar || fallbackAvatar;
 
-
-
       const { data, error } = await supabase.from('team_members').insert([{
-
         tenant_id: currentTenant.id,
-
         name: newMember.name.substring(0, 150),
-
         email: (newMember.email || `${newMember.name.replace(/\s+/g, '').toLowerCase().substring(0,50)}@empresa.com`).substring(0, 200),
-
         role: newMember.roleType.substring(0, 100),
-
         area: (newMember.area || 'General').substring(0, 100),
-
         avatar: avatarUrl
-
       }]).select();
 
-
-
       if (error) throw error;
-
-
-
-      if (data && data.length > 0) {
-
-        const m = data[0];
-
-        const memberToAdd: GovernanceMember = {
-
-          ...m,
-
-          domain: newMember.domain,
-
-          country: newMember.country,
-
-          stats: { assetsManaged: 0, openIncidents: 0, stewardScore: 100, slaCompliance: 100, qualityAvg: 100 },
-
-          assignments: { assets: [], policies: [], workflows: 0 }
-
-        };
-
-        setMembers([...members, memberToAdd]);
-
-      }
 
       setIsAssignModalOpen(false);
-
       setNewMember({ name: '', roleType: 'Data Steward', area: '', domain: 'Comercial', email: '', country: 'México', avatar: '' });
-
-      } catch (e: any) {
-
-        console.error('Detalles del error:', e.message || JSON.stringify(e));
-
-        alert(`Error guardando el miembro: ${e.message || 'Verifica tu base de datos.'}`);
-
-      }
-
+      await fetchAllData();
+      alert("Miembro agregado y asignado correctamente.");
+    } catch (e: any) {
+      console.error('Detalles del error:', e.message || JSON.stringify(e));
+      alert(`Error guardando el miembro: ${e.message || 'Verifica tu base de datos.'}`);
+    }
   };
-
-
 
   const handleUpdateMember = async () => {
-
     if (!currentTenant?.id || !selectedMember) return;
-
     try {
+      const oldName = selectedMember.name;
+      const newName = newMember.name.substring(0, 150);
 
-      const { data, error } = await supabase.from('team_members').update({
-
-        name: newMember.name.substring(0, 150),
-
+      const { error } = await supabase.from('team_members').update({
+        name: newName,
         email: newMember.email.substring(0, 200),
-
         role: newMember.roleType.substring(0, 100),
-
         area: (newMember.area || 'General').substring(0, 100),
-
         avatar: newMember.avatar
-
-      }).eq('id', selectedMember.id).select();
-
-
+      }).eq('id', selectedMember.id);
 
       if (error) throw error;
 
-
-
-      if (data && data.length > 0) {
-
-        const updated = { 
-
-          ...selectedMember, 
-
-          name: data[0].name,
-
-          email: data[0].email,
-
-          role: data[0].role, 
-
-          roleType: data[0].role as any, 
-
-          area: data[0].area,
-
-          avatar: data[0].avatar
-
-        };
-
-        setMembers(members.map(m => m.id === selectedMember.id ? updated : m));
-
-        setSelectedMember(updated);
-
+      if (oldName.toLowerCase().trim() !== newName.toLowerCase().trim()) {
+        await Promise.all([
+          supabase.from('data_assets')
+            .update({ data_owner: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('data_owner', oldName),
+          supabase.from('data_policies')
+            .update({ owner: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('owner', oldName)
+        ]);
       }
 
       setIsEditMemberModalOpen(false);
-
+      await fetchAllData();
+      setSelectedMember(null);
       alert("Perfil actualizado correctamente.");
-
     } catch (e: any) {
-
       console.error(e);
-
       alert(`Error actualizando el miembro: ${e.message}`);
-
     }
-
   };
 
-
-
   const handleDeleteMember = async (memberId: any) => {
-
     if (!confirm("¿Está seguro que desea eliminar este miembro del equipo de gobierno?")) return;
-
     try {
-
       const { error } = await supabase
-
         .from('team_members')
-
         .delete()
-
         .eq('id', memberId);
-
-
 
       if (error) throw error;
 
-
-
-      setMembers(members.filter(m => m.id !== memberId));
-
-      setSelectedMember(null);
-
       setIsEditMemberModalOpen(false);
-
+      setSelectedMember(null);
+      await fetchAllData();
       alert("Miembro de gobierno eliminado exitosamente.");
-
     } catch (e: any) {
-
       console.error(e);
-
       alert(`Error eliminando el miembro: ${e.message}`);
-
     }
+  };
 
+  const handleReassign = async () => {
+    if (!currentTenant?.id || !selectedMember || !reassignTargetId) return;
+    
+    const targetMember = members.find(m => m.id === reassignTargetId);
+    if (!targetMember) return;
+
+    try {
+      const sourceName = selectedMember.name;
+      const targetName = targetMember.name;
+
+      // 1. Reassign data assets (by name)
+      const { error: assetErr } = await supabase.from('data_assets')
+        .update({ data_owner: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('data_owner', sourceName);
+      if (assetErr) throw assetErr;
+
+      // 2. Reassign policies (by name)
+      const { error: policyErr } = await supabase.from('data_policies')
+        .update({ owner: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('owner', sourceName);
+      if (policyErr) throw policyErr;
+
+      // 3. Reassign domains (by owner_id UUID)
+      const { error: domainErr } = await supabase.from('team_domains')
+        .update({ owner_id: targetMember.id })
+        .eq('tenant_id', currentTenant.id)
+        .eq('owner_id', selectedMember.id);
+      if (domainErr) throw domainErr;
+
+      alert("Responsabilidades reasignadas correctamente.");
+      setIsReassignModalOpen(false);
+      setSelectedMember(null);
+      await fetchAllData();
+    } catch (e: any) {
+      console.error(e);
+      alert(`Error durante la reasignación: ${e.message}`);
+    }
   };
 
 
@@ -1672,61 +1563,58 @@ export default function Team() {
 
                  <div className={styles.profileSection}>
 
-                    <h4><BookOpen size={16} /> Políticas Bajo su Responsabilidad</h4>
+                     <h4><BookOpen size={16} /> Políticas Bajo su Responsabilidad</h4>
 
-                    <div className={styles.policyList}>
+                     <div className={styles.policyList}>
 
-                       {selectedMember.assignments.policies.map((policy, i) => (
+                        {selectedMember.assignments.policies && selectedMember.assignments.policies.length > 0 ? (
+                          selectedMember.assignments.policies.map((policy: string, i: number) => (
+                            <div key={i} className={styles.policyItem}>
+                               <div className={styles.policyIcon}><Shield size={14} /></div>
+                               <span>{policy}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ color: '#64748b', fontSize: '0.85rem', padding: '8px' }}>Sin políticas asignadas.</div>
+                        )}
 
-                         <div key={i} className={styles.policyItem}>
+                     </div>
 
-                            <div className={styles.policyIcon}><Shield size={14} /></div>
-
-                            <span>{policy}</span>
-
-                         </div>
-
-                       ))}
-
-                    </div>
-
-                 </div>
-
-
-
-                 <div className={styles.profileSection}>
-
-                    <h4><Activity size={16} /> Incidentes Recientes</h4>
-
-                    <div className={styles.incidentList}>
-
-                       <div className={styles.incidentItem} data-severity="alta">
-
-                          <AlertTriangle size={14} /> <span>Anomalía en CLIENTES_MASTER (PII)</span>
-
-                       </div>
-
-                       <div className={styles.incidentItem} data-severity="media">
-
-                          <Clock size={14} /> <span>SLA excedido en REQ-882</span>
-
-                       </div>
-
-                    </div>
-
-                 </div>
-
-              </div>
+                  </div>
 
 
 
-               <div className={styles.profileFooter}>
+                  <div className={styles.profileSection}>
 
-                 <button className={styles.secondaryBtn} style={{ width: '100%', justifyContent: 'center' }}><Mail size={16} /> Contactar Responsable</button>
+                     <h4><Activity size={16} /> Incidentes Recientes ({selectedMember.assignments.incidents?.length || 0})</h4>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                     <div className={styles.incidentList}>
 
-                    <button className={styles.secondaryBtn} style={{ justifyContent: 'center' }}>Reasignar</button>
+                        {selectedMember.assignments.incidents && selectedMember.assignments.incidents.length > 0 ? (
+                          selectedMember.assignments.incidents.map((incident: any, i: number) => (
+                            <div key={i} className={styles.incidentItem} data-severity={incident.severity === 'alta' ? 'alta' : 'media'}>
+                               <AlertTriangle size={14} /> <span>{incident.issue_type} en {incident.asset_name}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ color: '#64748b', fontSize: '0.85rem', padding: '8px' }}>No hay incidentes abiertos.</div>
+                        )}
+
+                     </div>
+
+                  </div>
+
+               </div>
+
+
+
+                <div className={styles.profileFooter}>
+
+                  <button className={styles.secondaryBtn} style={{ width: '100%', justifyContent: 'center' }} onClick={() => window.open(`mailto:${selectedMember.email}`)}><Mail size={16} /> Contactar Responsable</button>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+
+                     <button className={styles.secondaryBtn} style={{ justifyContent: 'center' }} onClick={() => setIsReassignModalOpen(true)}>Reasignar</button>
 
                     <button className={styles.primaryBtn} style={{ justifyContent: 'center' }} onClick={() => {
 
@@ -2652,6 +2540,126 @@ export default function Team() {
               </div>
 
             </motion.div>
+
+          </div>
+
+        )}
+
+      </AnimatePresence>
+
+
+
+      {/* Modal: Reasignar Responsabilidades */}
+
+      <AnimatePresence>
+
+        {isReassignModalOpen && selectedMember && (
+
+          <div className={styles.modalOverlay} onClick={() => setIsReassignModalOpen(false)} style={{ zIndex: 10000 }}>
+
+             <motion.div 
+
+                className={styles.assignModal}
+
+                style={{ 
+
+                  maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column', 
+
+                  background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
+
+                  backdropFilter: 'blur(var(--modal-blur, 24px))', 
+
+                  WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
+
+                  border: '1px solid rgba(255,255,255,0.1)',
+
+                  borderRadius: '24px', 
+
+                  color: 'var(--modal-text-color, white)', 
+
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+
+                }}
+
+                initial={{ opacity: 0, scale: 0.9 }}
+
+                animate={{ opacity: 1, scale: 1 }}
+
+                exit={{ opacity: 0, scale: 0.9 }}
+
+                onClick={e => e.stopPropagation()}
+
+              >
+
+                 <div className={styles.modalHeader} style={{ background: 'transparent', padding: '24px 24px 0 24px', borderBottom: 'none' }}>
+
+                    <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Reasignar Responsabilidades</h2>
+
+                    <button onClick={() => setIsReassignModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+
+                 </div>
+
+                 <div style={{ padding: '24px' }}>
+
+                   <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#94a3b8' }}>
+
+                     Transfiere todos los activos de datos, políticas y dominios asignados a <strong>{selectedMember.name}</strong> hacia otro miembro del equipo.
+
+                   </p>
+
+                   
+
+                   <div style={{ marginBottom: '20px' }}>
+
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.85rem' }}>Seleccionar Nuevo Responsable</label>
+
+                      <select 
+
+                         style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '0.95rem', outline: 'none' }}
+
+                         value={reassignTargetId}
+
+                         onChange={e => setReassignTargetId(e.target.value)}
+
+                       >
+
+                          <option value="">Seleccione un miembro...</option>
+
+                          {members.filter(m => m.id !== selectedMember.id).map(m => (
+
+                            <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+
+                          ))}
+
+                       </select>
+
+                   </div>
+
+
+
+                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+
+                       <button className={styles.secondaryBtn} onClick={() => setIsReassignModalOpen(false)}>Cancelar</button>
+
+                       <button 
+
+                          className={styles.primaryBtn} 
+
+                          onClick={handleReassign}
+
+                          disabled={!reassignTargetId}
+
+                        >
+
+                          Confirmar Reasignación
+
+                       </button>
+
+                   </div>
+
+                 </div>
+
+             </motion.div>
 
           </div>
 

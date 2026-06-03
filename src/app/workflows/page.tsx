@@ -65,6 +65,29 @@ interface SlaRule {
 
 const auditEvents: any[] = [];
 
+function parseTextSla(slaStr: string, createdTime: number): number | null {
+  const clean = (slaStr || '').toLowerCase().trim();
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  
+  const monthIdx = months.findIndex(m => clean.includes(m));
+  if (monthIdx === -1) return null;
+  
+  const createdYear = new Date(createdTime).getFullYear();
+  let day = 1;
+  
+  if (clean.startsWith('finales de') || clean.includes('fin de')) {
+    day = new Date(createdYear, monthIdx + 1, 0).getDate();
+  } else if (clean.startsWith('mediados de') || clean.includes('mitad de')) {
+    day = 15;
+  } else if (clean.startsWith('inicios de') || clean.startsWith('principio de')) {
+    day = 5;
+  } else {
+    day = new Date(createdYear, monthIdx + 1, 0).getDate();
+  }
+  
+  return new Date(createdYear, monthIdx, day, 23, 59, 59).getTime();
+}
+
 export default function Workflows() {
   const { mode, currentTenant } = usePlatform();
   const [requests, setRequests] = useState<WorkflowReq[]>([]);
@@ -81,12 +104,122 @@ export default function Workflows() {
   const [isSlaModalOpen, setIsSlaModalOpen] = useState(false);
   const [slaRules, setSlaRules] = useState<SlaRule[]>([]);
   const [newSlaRule, setNewSlaRule] = useState<Partial<SlaRule>>({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48 });
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [filterPriority, setFilterPriority] = useState('Todos');
+  const [filterSlaStatus, setFilterSlaStatus] = useState('Todos');
+  const [filterAssignee, setFilterAssignee] = useState('Todos');
+
   const [newReq, setNewReq] = useState({
     title: '',
     category: '',
     priority: 'Media',
     description: ''
   });
+
+  const [comments, setComments] = useState<any[]>([]);
+  const [evidences, setEvidences] = useState<any[]>([]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+
+  useEffect(() => {
+    if (!selectedReq || !currentTenant?.id) {
+      setComments([]);
+      setEvidences([]);
+      return;
+    }
+
+    const fetchCommentsAndEvidences = async () => {
+      try {
+        const [commentsRes, evidencesRes] = await Promise.all([
+          supabase.from('workflow_comments')
+            .select('*')
+            .eq('request_id', selectedReq.id)
+            .eq('tenant_id', currentTenant.id)
+            .order('created_at', { ascending: true }),
+          supabase.from('workflow_evidences')
+            .select('*')
+            .eq('request_id', selectedReq.id)
+            .eq('tenant_id', currentTenant.id)
+            .order('created_at', { ascending: true })
+        ]);
+
+        if (commentsRes.data) setComments(commentsRes.data);
+        if (evidencesRes.data) setEvidences(evidencesRes.data);
+      } catch (e) {
+        console.error('Error fetching comments/evidences:', e);
+      }
+    };
+
+    fetchCommentsAndEvidences();
+  }, [selectedReq, currentTenant?.id]);
+
+  const handlePostComment = async () => {
+    if (!newCommentText.trim() || !selectedReq || !currentTenant?.id) return;
+
+    try {
+      const { data, error } = await supabase.from('workflow_comments').insert([{
+        tenant_id: currentTenant.id,
+        request_id: selectedReq.id,
+        author: 'Usuario Actual',
+        comment: newCommentText.trim()
+      }]).select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setComments([...comments, data[0]]);
+        setNewCommentText('');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Error al publicar comentario: ' + e.message);
+    }
+  };
+
+  const handleEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedReq || !currentTenant?.id) return;
+
+    setIsUploadingEvidence(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `tenants/${currentTenant.id}/workflows/${selectedReq.id}/${Date.now()}_${safeName}`;
+
+      const { error: uploadError } = await supabase.storage.from("governance-docs").upload(path, file);
+      if (uploadError) throw uploadError;
+
+      // Create signed URL for download
+      const { data: signedData, error: signError } = await supabase.storage
+        .from("governance-docs")
+        .createSignedUrl(path, 315360000); // 10 years
+      
+      if (signError || !signedData?.signedUrl) throw signError || new Error("Failed to get signed URL");
+
+      // Save record to DB
+      const { data: dbData, error: dbError } = await supabase.from('workflow_evidences').insert([{
+        tenant_id: currentTenant.id,
+        request_id: selectedReq.id,
+        filename: file.name,
+        file_url: signedData.signedUrl,
+        uploaded_by: 'Usuario Actual',
+        description: 'Adjunto de validación'
+      }]).select();
+
+      if (dbError) throw dbError;
+
+      if (dbData && dbData.length > 0) {
+        setEvidences([...evidences, dbData[0]]);
+        alert("✅ Evidencia subida e integrada correctamente.");
+      }
+    } catch (err: any) {
+      console.error("Evidence upload error:", err);
+      alert("Error subiendo evidencia: " + err.message);
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
 
   const handleAddRequest = async () => {
     if (!newReq.title || !currentTenant?.id) return;
@@ -150,7 +283,11 @@ export default function Workflows() {
         status: selectedReq.status,
         sla_status: selectedReq.slaStatus,
         current_step: selectedReq.currentStep,
-        timeline: selectedReq.timeline
+        timeline: selectedReq.timeline,
+        assigned_to: selectedReq.assignee || null,
+        priority: selectedReq.priority,
+        sla: selectedReq.sla,
+        category: selectedReq.category
       }).eq('id', selectedReq.id);
 
       if (error) throw error;
@@ -190,7 +327,7 @@ export default function Workflows() {
   const handleDeleteSlaRule = async (id: string) => {
     if (!currentTenant?.id) return;
     try {
-      const { error } = await supabase.from('sla_rules').delete().eq('id', id);
+      const { error } = await supabase.from('sla_rules').delete().eq('id', id).eq('tenant_id', currentTenant.id);
       if (error) throw error;
       setSlaRules(slaRules.filter(r => r.id !== id));
     } catch (e) {
@@ -207,19 +344,83 @@ export default function Workflows() {
           supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
           supabase.from('sla_rules').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
           supabase.from('team_domains').select('id, name').eq('tenant_id', currentTenant.id),
-          supabase.from('team_members').select('id, name').eq('tenant_id', currentTenant.id)
+          supabase.from('team_members').select('id, name, avatar').eq('tenant_id', currentTenant.id)
         ]);
 
         if (reqs.data) {
-          const mappedReqs = reqs.data.map(r => ({
-            ...r,
-            requester: r.requested_by ? 'Miembro Asignado' : 'Sistema', // Simplify for now
-            type: 'Solicitud Sistema',
-            date: new Date(r.created_at).toISOString().split('T')[0],
-            slaStatus: r.sla_status,
-            currentStep: r.current_step
-          }));
+          const mappedReqs = reqs.data.map(r => {
+            // Calculate dynamic SLA status based on creation date and limit hours
+            let calculatedSlaStatus = r.sla_status || 'Ok';
+            let expirationDateStr = 'N/A';
+            const createdTime = new Date(r.created_at).getTime();
+            const nowTime = Date.now();
+            const slaStr = (r.sla || '').trim();
+            const hoursMatch = slaStr.match(/^(\d+)h$/);
+
+            if (hoursMatch) {
+              const slaHours = parseInt(hoursMatch[1], 10);
+              const expTime = new Date(createdTime + slaHours * 60 * 60 * 1000);
+              expirationDateStr = expTime.toLocaleString('es-CO');
+            } else {
+              const parsedSlaTime = parseTextSla(slaStr, createdTime);
+              if (parsedSlaTime !== null) {
+                expirationDateStr = new Date(parsedSlaTime).toLocaleString('es-CO');
+              }
+            }
+
+            if (r.status === 'Pendiente' || r.status === 'En Revisión' || r.status === 'Escalado') {
+              if (hoursMatch) {
+                const slaHours = parseInt(hoursMatch[1], 10);
+                const diffHours = (nowTime - createdTime) / (1000 * 60 * 60);
+                
+                if (diffHours > slaHours) {
+                  calculatedSlaStatus = 'Overdue';
+                } else if (slaHours - diffHours <= 8) {
+                  calculatedSlaStatus = 'Warning';
+                } else {
+                  calculatedSlaStatus = 'Ok';
+                }
+              } else {
+                const parsedSlaTime = parseTextSla(slaStr, createdTime);
+                if (parsedSlaTime !== null) {
+                  if (nowTime > parsedSlaTime) {
+                    calculatedSlaStatus = 'Overdue';
+                  } else if (parsedSlaTime - nowTime <= 24 * 60 * 60 * 1000) {
+                    calculatedSlaStatus = 'Warning';
+                  } else {
+                    calculatedSlaStatus = 'Ok';
+                  }
+                }
+              }
+            } else {
+              calculatedSlaStatus = 'Ok';
+            }
+
+            return {
+              ...r,
+              requester: r.requested_by ? 'Miembro Asignado' : 'Sistema', // Simplify for now
+              type: 'Solicitud Sistema',
+              date: new Date(r.created_at).toISOString().split('T')[0],
+              slaStatus: calculatedSlaStatus,
+              expirationDate: expirationDateStr,
+              currentStep: r.current_step,
+              assignee: r.assigned_to || ''
+            };
+          });
           setRequests(mappedReqs as any);
+
+          // Sync SLA status back to DB if they changed
+          reqs.data.forEach((r, idx) => {
+            const mapped = mappedReqs[idx];
+            if (mapped.slaStatus !== r.sla_status) {
+              supabase.from('workflow_requests')
+                .update({ sla_status: mapped.slaStatus })
+                .eq('id', r.id)
+                .then(({ error }) => {
+                  if (error) console.error(`Error syncing SLA status for ${r.id}:`, error);
+                });
+            }
+          });
         }
 
         if (slas.data) setSlaRules(slas.data as any);
@@ -240,9 +441,35 @@ export default function Workflows() {
   }, [currentTenant?.id]);
 
   const filteredRequests = requests.filter(req => {
+    // 1. Domain filter
     if (activeDomain && req.category !== activeDomain) return false;
-    if (activeTab === 'pendientes') return req.status === 'Pendiente' || req.status === 'En Revisión';
-    if (activeTab === 'mis') return req.requester === 'Usuario Actual'; // Simulación basada en creador real
+    
+    // 2. Tab filter
+    if (activeTab === 'pendientes') {
+      if (req.status !== 'Pendiente' && req.status !== 'En Revisión' && req.status !== 'Escalado') return false;
+    } else if (activeTab === 'mis') {
+      if (req.requester !== 'Usuario Actual') return false;
+    }
+    
+    // 3. Search Term filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matches = 
+        String(req.id).toLowerCase().includes(term) ||
+        String(req.title).toLowerCase().includes(term) ||
+        String(req.requester).toLowerCase().includes(term) ||
+        String(req.assignee).toLowerCase().includes(term);
+      if (!matches) return false;
+    }
+    
+    // 4. Advanced filters
+    if (filterPriority !== 'Todos' && req.priority !== filterPriority) return false;
+    if (filterSlaStatus !== 'Todos' && req.slaStatus !== filterSlaStatus) return false;
+    if (filterAssignee !== 'Todos') {
+      if (filterAssignee === '' && req.assignee !== '') return false;
+      if (filterAssignee !== '' && req.assignee !== filterAssignee) return false;
+    }
+    
     return true;
   });
 
@@ -252,6 +479,18 @@ export default function Workflows() {
       case 'Alta': return '#f97316';
       case 'Media': return '#f59e0b';
       default: return '#10b981';
+    }
+  };
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'Pendiente': return { background: '#fff7ed', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' };
+      case 'En Revisión': return { background: '#eff6ff', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' };
+      case 'Aprobado': return { background: '#f0fdf4', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' };
+      case 'Rechazado': return { background: '#fef2f2', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
+      case 'Escalado': return { background: '#faf5ff', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.2)' };
+      case 'Cerrado': return { background: '#f1f5f9', color: '#64748b', border: '1px solid rgba(100, 116, 139, 0.2)' };
+      default: return { background: '#f1f5f9', color: '#64748b' };
     }
   };
 
@@ -291,8 +530,8 @@ export default function Workflows() {
                className={styles.escalationAlert}
             >
                <AlertTriangle size={20} />
-               <span>Atención: Hay <strong>3 solicitudes</strong> con SLA vencido que requieren escalamiento inmediato.</span>
-               <button className={styles.alertAction}>Ver Críticos</button>
+               <span>Atención: Hay <strong>{requests.filter(r => r.slaStatus === 'Overdue').length} solicitudes</strong> con SLA vencido que requieren escalamiento inmediato.</span>
+               <button className={styles.alertAction} onClick={() => { setFilterSlaStatus('Overdue'); setIsAdvancedFilterOpen(true); }}>Ver Críticos</button>
             </motion.div>
          )}
       </AnimatePresence>
@@ -300,7 +539,7 @@ export default function Workflows() {
       {/* ── Consolidated Global Score Banner calculations ── */}
       {(() => {
         const totalRequests = requests.length;
-        const pendingRequests = requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión').length;
+        const pendingRequests = requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión' || r.status === 'Escalado').length;
         const overdueRequests = requests.filter(r => r.slaStatus === 'Overdue').length;
         const approvedToday = requests.filter(r => r.status === 'Aprobado' || r.status === 'Cerrado').length;
         const escalatedRequests = requests.filter(r => r.status === 'Escalado').length;
@@ -412,7 +651,7 @@ export default function Workflows() {
            <div className={styles.sidebarSection}>
               <h4 className={styles.sidebarTitle}>Bandejas</h4>
               <button className={`${styles.sideTab} ${activeTab === 'pendientes' && !activeDomain ? styles.activeSideTab : ''}`} onClick={() => { setActiveTab('pendientes'); setActiveDomain(null); }}>
-                 <Clock size={16} /> Pendientes <span className={styles.count}>{requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión').length}</span>
+                 <Clock size={16} /> Pendientes <span className={styles.count}>{requests.filter(r => r.status === 'Pendiente' || r.status === 'En Revisión' || r.status === 'Escalado').length}</span>
               </button>
               <button className={`${styles.sideTab} ${activeTab === 'mis' ? styles.activeSideTab : ''}`} onClick={() => { setActiveTab('mis'); setActiveDomain(null); }}>
                  <User size={16} /> Mis Solicitudes <span className={styles.count}>{requests.filter(r => r.requester === 'Usuario Actual').length}</span>
@@ -437,13 +676,96 @@ export default function Workflows() {
         </div>
 
         <div className={styles.registryArea}>
-           <div className={styles.registryHeader}>
-              <div className={styles.searchBar}>
-                 <Search size={18} />
-                 <input type="text" placeholder="Buscar solicitud, ID o usuario..." />
-              </div>
-              <button className={styles.filterBtn}><Filter size={16} /> Filtros Avanzados</button>
-           </div>
+            <div className={styles.registryHeader}>
+               <div className={styles.searchBar}>
+                  <Search size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar solicitud, ID o usuario..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+               </div>
+               <button 
+                 className={`${styles.filterBtn} ${isAdvancedFilterOpen ? styles.activeFilterBtn : ''}`}
+                 onClick={() => setIsAdvancedFilterOpen(!isAdvancedFilterOpen)}
+               >
+                 <Filter size={16} /> Filtros Avanzados
+               </button>
+            </div>
+
+            {isAdvancedFilterOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                style={{ 
+                  display: 'flex', 
+                  gap: '16px', 
+                  background: 'rgba(30, 41, 59, 0.5)', 
+                  border: '1px solid rgba(255, 255, 255, 0.08)', 
+                  borderRadius: '12px', 
+                  padding: '16px', 
+                  marginBottom: '16px',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '150px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>Prioridad</label>
+                  <select 
+                    style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
+                    value={filterPriority}
+                    onChange={(e) => setFilterPriority(e.target.value)}
+                  >
+                    <option value="Todos">Todos</option>
+                    <option value="Baja">Baja</option>
+                    <option value="Media">Media</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Crítica">Crítica</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '150px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>Estado de SLA</label>
+                  <select 
+                    style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
+                    value={filterSlaStatus}
+                    onChange={(e) => setFilterSlaStatus(e.target.value)}
+                  >
+                    <option value="Todos">Todos</option>
+                    <option value="Ok">Ok</option>
+                    <option value="Warning">Por Vencer</option>
+                    <option value="Overdue">Vencido</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '150px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>Responsable</label>
+                  <select 
+                    style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
+                    value={filterAssignee}
+                    onChange={(e) => setFilterAssignee(e.target.value)}
+                  >
+                    <option value="Todos">Todos</option>
+                    <option value="">-- Sin asignar --</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setFilterPriority('Todos');
+                    setFilterSlaStatus('Todos');
+                    setFilterAssignee('Todos');
+                    setSearchTerm('');
+                  }}
+                  style={{ alignSelf: 'flex-end', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, height: '36px' }}
+                >
+                  Limpiar
+                </button>
+              </motion.div>
+            )}
 
            <div className={styles.tableContainer}>
               <table className={styles.table}>
@@ -464,7 +786,32 @@ export default function Workflows() {
                             <div className={styles.reqInfo}>
                                <span className={styles.reqId}>{req.id}</span>
                                <div className={styles.reqTitle}>{req.title}</div>
-                               <div className={styles.reqUser}>Solicitante: {req.requester}</div>
+                               <div className={styles.reqUser} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                  <span>Solicitante: {req.requester}</span>
+                                  <span>•</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>Responsable:</span>
+                                    {(() => {
+                                      const assignedMember = teamMembers.find(m => m.name === req.assignee);
+                                      const avatar = assignedMember?.avatar;
+                                      if (req.assignee) {
+                                        return (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                            {avatar ? (
+                                              <img src={avatar} alt={req.assignee} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }} />
+                                            ) : (
+                                              <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
+                                                {req.assignee.charAt(0).toUpperCase()}
+                                              </div>
+                                            )}
+                                            <strong style={{ fontSize: '0.8rem', color: '#f1f5f9' }}>{req.assignee}</strong>
+                                          </div>
+                                        );
+                                      }
+                                      return <strong style={{ color: '#64748b', fontSize: '0.75rem' }}>Sin asignar</strong>;
+                                    })()}
+                                  </div>
+                               </div>
                             </div>
                          </td>
                          <td>
@@ -477,15 +824,48 @@ export default function Workflows() {
                             </div>
                          </td>
                          <td>
-                            <span className={`${styles.statusBadge} ${styles[(req.status || 'Pendiente').toLowerCase().replace(' ', '')]}`}>
-                               {req.status || 'Pendiente'}
-                            </span>
+                             <span className={styles.statusBadge} style={getStatusStyle(req.status || 'Pendiente')}>
+                                {req.status || 'Pendiente'}
+                             </span>
                          </td>
                          <td>
-                            <div className={styles.slaInfo}>
-                               <div style={{ color: getSlaColor(req.slaStatus), fontWeight: 700 }}>{req.sla}</div>
+                             <div className={styles.slaInfo}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <div style={{ color: getSlaColor(req.slaStatus), fontWeight: 700 }}>{req.sla}</div>
+                                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>({req.expirationDate || 'Sin fecha'})</span>
+                                  {req.slaStatus === 'Overdue' && (
+                                    <span style={{ 
+                                      background: '#fee2e2', 
+                                      color: '#ef4444', 
+                                      fontSize: '0.7rem', 
+                                      fontWeight: 800, 
+                                      padding: '2px 8px', 
+                                      borderRadius: '9999px',
+                                      border: '1px solid #fca5a5',
+                                      textTransform: 'uppercase',
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      Vencido
+                                    </span>
+                                  )}
+                                  {req.slaStatus === 'Warning' && (
+                                    <span style={{ 
+                                      background: '#fef3c7', 
+                                      color: '#d97706', 
+                                      fontSize: '0.7rem', 
+                                      fontWeight: 800, 
+                                      padding: '2px 8px', 
+                                      borderRadius: '9999px',
+                                      border: '1px solid #fcd34d',
+                                      textTransform: 'uppercase',
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      Por Vencer
+                                    </span>
+                                  )}
+                               </div>
                                <div style={{ color: getPriorityColor(req.priority), fontSize: '0.75rem' }}>Prioridad {req.priority}</div>
-                            </div>
+                             </div>
                          </td>
                          <td>
                             <div className={styles.tableActions}>
@@ -518,7 +898,7 @@ export default function Workflows() {
                       <span className={styles.reqId}>{selectedReq.id}</span>
                       <h2>{selectedReq.title}</h2>
                       <div className={styles.modalBadges}>
-                         <span className={`${styles.statusBadge} ${styles[(selectedReq.status || 'Pendiente').toLowerCase().replace(' ', '')]}`}>{selectedReq.status || 'Pendiente'}</span>
+                          <span className={styles.statusBadge} style={getStatusStyle(selectedReq.status || 'Pendiente')}>{selectedReq.status || 'Pendiente'}</span>
                          <span style={{ color: getPriorityColor(selectedReq.priority), fontWeight: 700 }}>• Prioridad {selectedReq.priority}</span>
                       </div>
                    </div>
@@ -568,6 +948,20 @@ export default function Workflows() {
                               </select>
                            </div>
                            <div className={styles.infoItem}>
+                              <label>Prioridad</label>
+                              <select 
+                                className={styles.modalInput}
+                                style={{ padding: '4px 8px' }}
+                                value={selectedReq.priority}
+                                onChange={(e) => setSelectedReq({...selectedReq, priority: e.target.value})}
+                              >
+                                <option value="Baja">Baja</option>
+                                <option value="Media">Media</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                              </select>
+                           </div>
+                           <div className={styles.infoItem}>
                               <label>Asignar Regla SLA</label>
                               <select 
                                 className={styles.formInput} 
@@ -595,7 +989,7 @@ export default function Workflows() {
                                 <div className={styles.timelineContent}>
                                    <div className={styles.timelineStep}>{item.step}</div>
                                    <div className={styles.timelineUser}>{item.user} • {item.date}</div>
-                                </div>
+                </div>
                                 {i < selectedReq.timeline.length - 1 && <div className={styles.timelineLine} />}
                              </div>
                            ))}
@@ -604,23 +998,69 @@ export default function Workflows() {
                    )}
 
                    {modalTab === 'evidencias' && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.detailSection}>
-                         <div className={styles.emptyState}>
-                            <Paperclip size={32} />
-                            <p>No hay documentos adjuntos aún.</p>
-                            <button className={styles.secondaryBtn}>Adjuntar Evidencia</button>
-                         </div>
-                      </motion.div>
-                   )}
+                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.detailSection}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                             <h4 style={{ margin: 0 }}>Evidencias Adjuntas ({evidences.length})</h4>
+                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'var(--primary)', color: 'white', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700, cursor: isUploadingEvidence ? 'not-allowed' : 'pointer' }}>
+                                <Paperclip size={14} />
+                                {isUploadingEvidence ? 'Subiendo...' : 'Adjuntar Evidencia'}
+                                <input type="file" style={{ display: 'none' }} onChange={handleEvidenceUpload} disabled={isUploadingEvidence} />
+                             </label>
+                          </div>
+                          
+                          {evidences.length > 0 ? (
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {evidences.map((ev, i) => (
+                                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                         <FileText size={18} color="#6366f1" />
+                                         <div>
+                                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'white' }}>{ev.filename}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Subido por: {ev.uploaded_by} • {new Date(ev.created_at).toLocaleDateString()}</div>
+                                         </div>
+                                      </div>
+                                      <a href={ev.file_url} target="_blank" rel="noreferrer" className={styles.primaryBtn} style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '4px' }}>
+                                         Ver
+                                      </a>
+                                   </div>
+                                ))}
+                             </div>
+                          ) : (
+                             <div className={styles.emptyState}>
+                                <Paperclip size={32} />
+                                <p>No hay documentos adjuntos aún.</p>
+                             </div>
+                          )}
+                       </motion.div>
+                    )}
 
-                   {modalTab === 'comentarios' && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.detailSection}>
-                         <div className={styles.commentBox}>
-                            <textarea placeholder="Escribe un comentario o aclaración..." />
-                            <button className={styles.primaryBtn}>Enviar</button>
-                         </div>
-                      </motion.div>
-                   )}
+                    {modalTab === 'comentarios' && (
+                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.detailSection} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '8px' }}>
+                             {comments.length > 0 ? (
+                                comments.map((c, i) => (
+                                   <div key={i} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', alignSelf: 'flex-start', minWidth: '200px', maxWidth: '80%' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+                                         <span>{c.author}</span>
+                                         <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                                      </div>
+                                      <div style={{ fontSize: '0.9rem', color: '#e2e8f0', lineHeight: 1.4 }}>{c.comment}</div>
+                                   </div>
+                                ))
+                             ) : (
+                                <div style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>Sin comentarios aún. Escribe el primero abajo.</div>
+                             )}
+                          </div>
+                          <div className={styles.commentBox} style={{ marginTop: 'auto' }}>
+                             <textarea 
+                               placeholder="Escribe un comentario o aclaración..." 
+                               value={newCommentText}
+                               onChange={e => setNewCommentText(e.target.value)}
+                             />
+                             <button className={styles.primaryBtn} onClick={handlePostComment}>Enviar</button>
+                          </div>
+                       </motion.div>
+                    )}
 
                    {modalTab === 'auditoria' && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.detailSection}>

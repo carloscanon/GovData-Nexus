@@ -242,13 +242,15 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
         name: importConfig.asset_name || selectedAssetToImport.name,
         table_name: selectedAssetToImport.name, // Nombre técnico REAL de la tabla física
+        schema_name: 'public', // Por defecto public, ajustable luego desde el catálogo
+        connection_id: connData?.id || null, // ← VÍNCULO DIRECTO A data_connections
         description: selectedAssetToImport.description,
         type: selectedAssetToImport.type,
         source: connData?.name || selectedSource.name,
         owner: 'Escaneo Automático',
         data_owner: importConfig.data_owner,
         sensitivity: importConfig.sensitivity,
-        quality_score: 0, 
+        quality_score: 0,
         status: importConfig.status,
         risk_level: selectedAssetToImport.risk,
         criticality: importConfig.criticality,

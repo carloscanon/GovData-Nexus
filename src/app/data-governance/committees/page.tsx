@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { usePlatform } from "@/contexts/PlatformContext";
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./committees.module.css";
-import { Users, Plus, Upload, XCircle, Shield, FileText, Trash2, Edit3, Calendar, Download } from "lucide-react";
+import { Users, Plus, Upload, XCircle, Shield, FileText, Trash2, Edit3, Calendar, Download, Award, Info, X } from "lucide-react";
 
 // Types
 interface Committee {
@@ -46,6 +46,8 @@ export default function Committees() {
   const [totalDocs, setTotalDocs] = useState(0);
   const [docTopic, setDocTopic] = useState("");
   const [docMeetingDate, setDocMeetingDate] = useState("");
+  const [selectedKPI, setSelectedKPI] = useState<any>(null);
+
 
   const fetchCommittees = useCallback(async () => {
     if (!currentTenant?.id) return;
@@ -65,7 +67,8 @@ export default function Committees() {
     if (committeeList.length > 0) {
       const { data: docsData } = await supabase
         .from("gov_committee_documents")
-        .select("committee_id");
+        .select("committee_id")
+        .in("committee_id", committeeList.map(c => c.id));
       
       const countMap: Record<number, number> = {};
       (docsData || []).forEach((d: any) => {
@@ -77,6 +80,7 @@ export default function Committees() {
       setTotalDocs(Object.values(countMap).reduce((a, b) => a + b, 0));
     } else {
       setCommittees([]);
+      setTotalDocs(0);
     }
   }, [currentTenant?.id]);
 
@@ -93,13 +97,8 @@ export default function Committees() {
         .select("id, name, avatar")
         .eq("tenant_id", currentTenant.id);
       
-      if (error || !data || data.length === 0) {
-        setTenantUsers([
-          { id: 'demo1', name: 'Ana Silva (CDO)' },
-          { id: 'demo2', name: 'Carlos Ruiz (DPO)' },
-          { id: 'demo3', name: 'María Gómez (CISO)' },
-          { id: 'demo4', name: 'Juan Pérez (CTO)' }
-        ]);
+      if (error || !data) {
+        setTenantUsers([]);
       } else {
         setTenantUsers(data);
       }
@@ -333,25 +332,104 @@ export default function Committees() {
         </div>
       </header>
 
-      {/* Stats Banner */}
-      <div className={styles.statsBanner}>
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>{committees.length}</span>
-          <span className={styles.statLabel}>Total Comités</span>
-        </div>
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>{totalDocs}</span>
-          <span className={styles.statLabel}>Actas Registradas</span>
-        </div>
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>{tenantUsers.length}</span>
-          <span className={styles.statLabel}>Miembros Activos</span>
-        </div>
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>{committees.filter(c => (c.docCount || 0) > 0).length}</span>
-          <span className={styles.statLabel}>Con Documentación</span>
-        </div>
-      </div>
+      {/* Global Banner */}
+      {(() => {
+        const documentedCount = committees.filter(c => (c.docCount || 0) > 0).length;
+        const coverageScore = committees.length > 0 ? Math.round((documentedCount / committees.length) * 100) : 0;
+        
+        let levelText = 'SIN ACTAS';
+        let levelColor = '#ef4444';
+        if (coverageScore >= 90) {
+          levelText = 'SÓLIDO';
+          levelColor = '#10b981';
+        } else if (coverageScore >= 75) {
+          levelText = 'ESTRUCTURADO';
+          levelColor = '#a855f7';
+        } else if (coverageScore > 0) {
+          levelText = 'EN PROGRESO';
+          levelColor = '#f59e0b';
+        }
+
+        const circumference = 2 * Math.PI * 52;
+        const dashOffset = circumference - (coverageScore / 100) * circumference;
+
+        const kpiExplanations: Record<string, string> = {
+          'Total Comités': 'Número total de órganos colegiados de decisión y comités de gobierno formalmente establecidos en la organización.',
+          'Actas Registradas': 'Cantidad total de actas de sesiones, minutas y resoluciones oficiales de comités que han sido cargadas y archivadas.',
+          'Miembros Activos': 'Colaboradores y roles clave de gobierno de datos asignados a la plataforma que participan en los comités.',
+          'Con Documentación': 'Porcentaje de comités que cuentan con al menos un acta o documento de sesión registrado en el repositorio.'
+        };
+
+        return (
+          <motion.div
+            className={styles.globalBanner}
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className={styles.globalLeft}>
+              <div className={styles.circleWrap}>
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+                  <circle
+                    cx="60" cy="60" r="52" fill="none"
+                    stroke={levelColor}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 60 60)"
+                    style={{ transition: 'stroke-dashoffset 1.2s ease' }}
+                  />
+                  <text x="60" y="55" textAnchor="middle" fill={levelColor} fontSize="22" fontWeight="900">
+                    {coverageScore}%
+                  </text>
+                  <text x="60" y="72" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="700">
+                    COBERTURA
+                  </text>
+                </svg>
+              </div>
+              <div className={styles.globalInfo}>
+                <div className={styles.globalLevel} style={{ color: levelColor }}>
+                  <Award size={20} /> {levelText}
+                </div>
+                <h2 className={styles.globalTitle}>Índice de Cobertura de Actas</h2>
+                <p className={styles.globalSub}>
+                  Porcentaje de comités con documentación oficial y actas formalmente registradas.
+                </p>
+              </div>
+            </div>
+
+            {/* Mini dimension pills */}
+            <div className={styles.globalRight}>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Total Comités', value: committees.length.toString(), explanation: kpiExplanations['Total Comités'], color: '#a855f7' })}>
+                <Shield size={14} color="#a855f7" />
+                <span>Comités</span>
+                <strong style={{ color: '#a855f7' }}>{committees.length}</strong>
+              </div>
+
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Actas Registradas', value: totalDocs.toString(), explanation: kpiExplanations['Actas Registradas'], color: '#3b82f6' })}>
+                <FileText size={14} color="#3b82f6" />
+                <span>Actas</span>
+                <strong style={{ color: '#3b82f6' }}>{totalDocs}</strong>
+              </div>
+
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Miembros Activos', value: tenantUsers.length.toString(), explanation: kpiExplanations['Miembros Activos'], color: '#10b981' })}>
+                <Users size={14} color="#10b981" />
+                <span>Miembros</span>
+                <strong style={{ color: '#10b981' }}>{tenantUsers.length}</strong>
+              </div>
+
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Con Documentación', value: `${documentedCount} de ${committees.length}`, explanation: kpiExplanations['Con Documentación'], color: '#f59e0b' })}>
+                <Award size={14} color="#f59e0b" />
+                <span>Documentados</span>
+                <strong style={{ color: '#f59e0b' }}>{documentedCount}</strong>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
+
 
       {/* Tabs */}
       <div className={styles.tabContainer}>
@@ -399,38 +477,38 @@ export default function Committees() {
               <motion.div 
                 key={c.id} 
                 className={styles.committeeCard}
-                whileHover={{ y: -6, boxShadow: `0 16px 30px -10px ${theme.shadow}`, borderColor: theme.from }}
-                style={{ background: 'linear-gradient(135deg, #111216 0%, #050608 100%)', border: `1px solid ${theme.border}` }}
+                whileHover={{ y: -4, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)", borderColor: theme.from }}
+                style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '32px' }}
                 transition={{ duration: 0.2 }}
               >
                 <div className={styles.cardAccent} style={{ background: `linear-gradient(90deg, ${theme.from}, ${theme.to})`, opacity: 1, height: '5px' }} />
-                <div className={styles.cardHeader}>
+                <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                   <div className={styles.cardIcon} style={{ background: theme.iconBg, color: theme.iconColor }}><Shield size={20} /></div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setEditingCommittee({ ...c }); setIsEditModalOpen(true); }}
-                      style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, color 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8'; }}
+                      style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, color 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
                       title="Editar comité"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteCommittee(c); }}
-                      style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, color 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.25)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+                      style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, color 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; }}
                       title="Eliminar comité"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <h3 className={styles.cardTitle} style={{ color: '#ffffff', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>{c.name}</h3>
-                <p className={styles.cardDesc} style={{ color: '#cbd5e1' }}>{c.description || 'Sin descripción.'}</p>
-                <div className={styles.cardFooter} style={{ borderTop: `1px solid rgba(255,255,255,0.06)` }}>
-                  <div className={styles.ownerInfo}>
+                <h3 className={styles.cardTitle} style={{ color: '#1e293b', fontSize: '1.25rem', fontWeight: 800, margin: '0 0 8px 0' }}>{c.name}</h3>
+                <p className={styles.cardDesc} style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 20px 0', flexGrow: 1 }}>{c.description || 'Sin descripción.'}</p>
+                <div className={styles.cardFooter} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className={styles.ownerInfo} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className={styles.ownerAvatar} style={{ overflow: 'hidden', background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}>
                       {ownerUser?.avatar && ownerUser.avatar.startsWith('http') ? (
                         <img src={ownerUser.avatar} alt={c.owner} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
@@ -438,12 +516,12 @@ export default function Committees() {
                         initials
                       )}
                     </div>
-                    <span className={styles.ownerName} style={{ color: theme.textTheme }}>{c.owner || 'Sin asignar'}</span>
+                    <span className={styles.ownerName} style={{ color: '#475569', fontWeight: 600 }}>{c.owner || 'Sin asignar'}</span>
                   </div>
                   <button
                     className={styles.memberCount}
                     onClick={() => openDocsModal(c)}
-                    style={{ cursor: 'pointer', background: theme.iconBg, border: `1px solid rgba(255,255,255,0.05)`, display: 'flex', alignItems: 'center', gap: '6px', color: theme.iconColor, fontWeight: 700, fontSize: '0.85rem', padding: '6px 14px', borderRadius: '9999px', transition: 'transform 0.2s, background 0.2s' }}
+                    style={{ cursor: 'pointer', background: theme.iconBg, border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: theme.iconColor, fontWeight: 700, fontSize: '0.85rem', padding: '6px 14px', borderRadius: '9999px', transition: 'transform 0.2s, background 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.background = `linear-gradient(135deg, ${theme.from}, ${theme.to})`; e.currentTarget.style.color = '#fff'; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = theme.iconBg; e.currentTarget.style.color = theme.iconColor; }}
                   >
@@ -751,6 +829,51 @@ export default function Committees() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* KPI Explainer Modal */}
+      <AnimatePresence>
+        {selectedKPI && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', padding: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '24px 32px', background: selectedKPI.color, color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
+                     <Award size={24} />
+                   </div>
+                   <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
+                </div>
+                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white', display: 'flex' }}>
+                   <X size={20} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#cbd5e1', margin: 0 }}>
+                   {selectedKPI.explanation}
+                 </p>
+                 <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <Info size={20} color="#a855f7" style={{ flexShrink: 0 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                      Este indicador refleja el estado de la documentación de comités de gobierno y es calculado en base a las actas cargadas.
+                    </p>
+                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '0 0 24px 24px' }}>
+                 <button className={styles.primaryBtn} onClick={() => setSelectedKPI(null)} style={{ marginTop: 0, padding: '10px 24px' }}>
+                   Entendido
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 }

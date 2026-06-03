@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
         const { data, error } = await supabase
           .from("tenant_users")
           .select("*")
-          .eq("email", email)
+          .ilike("email", email)
           .eq("password", password)
           .single();
 

@@ -5,12 +5,13 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import { 
   Target, Activity, ShieldCheck, Database, Zap, FileText, Users,
-  TrendingUp, Clock, AlertTriangle, CheckCircle2, AlertCircle, BarChart3, Crown, Download
+  TrendingUp, Clock, AlertTriangle, CheckCircle2, AlertCircle, BarChart3, Crown, Download,
+  X, Award, Info
 } from 'lucide-react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer 
 } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './command.module.css';
 
 export default function CommandCenter() {
@@ -23,7 +24,7 @@ export default function CommandCenter() {
   const [riskLevel, setRiskLevel] = useState('Bajo');
   const [adoption, setAdoption] = useState(0);
 
-  const [wfStats, setWfStats] = useState({ total: 0, pending: 0, sla: 0, time: 0, active: 0 });
+  const [wfStats, setWfStats] = useState({ total: 0, pending: 0, sla: 0, time: 0, active: 0, approved: 0 });
   const [assetStats, setAssetStats] = useState({ total: 0, withOwner: 0, withSteward: 0, classified: 0, lineage: 0 });
   const [secStats, setSecStats] = useState({ critical: 0, high: 0, policiesExpired: 0 });
   const [docStats, setDocStats] = useState({ total: 0, progress: 0, policies: 0, standards: 0, procedures: 0, critical: 0 });
@@ -32,6 +33,255 @@ export default function CommandCenter() {
   const [dynamicRoadmap, setDynamicRoadmap] = useState<any[]>([]);
   const [roadmapProgress, setRoadmapProgress] = useState<any[]>([]);
   const [execStats, setExecStats] = useState({ comites: 'No Evaluado', decisiones: 0, activas: 0, presupuesto: 'No Evaluado' });
+  const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [workflowsList, setWorkflowsList] = useState<any[]>([]);
+
+  const kpiDetails: Record<string, { title: string; desc: string; detail: string; recommendations: string[] }> = {
+    'Aprobados': {
+      title: 'Solicitudes Aprobadas y Completadas',
+      desc: 'Flujos de trabajo y solicitudes que han sido aprobados y cerrados satisfactoriamente.',
+      detail: 'Mide la efectividad resolutiva del programa de gobierno para otorgar accesos, validar calidad y publicar activos.',
+      recommendations: [
+        'Mantener el histórico de evidencias y actas de aprobación para auditorías.',
+        'Analizar los flujos aprobados para replicar las mejores prácticas.'
+      ]
+    },
+    'Madurez Global': {
+      title: 'Métrica de Madurez Global',
+      desc: 'Nivel promedio ponderado de la capacidad de gobierno de datos a lo largo de la organización, basado en el modelo DAMA/DCAM.',
+      detail: 'Este índice se recalcula cada vez que se completa un diagnóstico de madurez. Evalúa estrategia, organización, calidad, arquitectura, seguridad y cumplimiento normativo.',
+      recommendations: [
+        'Completar las evaluaciones pendientes en pilares con baja puntuación.',
+        'Establecer objetivos trimestrales para subir de nivel (ej. de Inicial a Repetible).'
+      ]
+    },
+    'Índice Operativo': {
+      title: 'Índice de Salud Operativa',
+      desc: 'Medida del cumplimiento de SLAs y clasificación efectiva de los activos gobernados.',
+      detail: 'Pondera el porcentaje de solicitudes a tiempo frente al total de solicitudes y la cobertura de clasificación de confidencialidad en el catálogo de metadatos.',
+      recommendations: [
+        'Atender las solicitudes con SLA vencido o por vencer de forma prioritaria.',
+        'Aumentar la tasa de asignación de owners y clasificadores en el catálogo.'
+      ]
+    },
+    'Riesgo Global': {
+      title: 'Nivel de Riesgo Global',
+      desc: 'Evaluación consolidada de la seguridad de la información y exposición de datos.',
+      detail: 'Determinado en función de los incidentes de seguridad activos, severidad de vulnerabilidades y vigencia de las políticas críticas de datos.',
+      recommendations: [
+        'Remediar inmediatamente los incidentes marcados como Críticos o Altos.',
+        'Actualizar y publicar las políticas vencidas de seguridad de datos.'
+      ]
+    },
+    'Adopción Org.': {
+      title: 'Adopción Organizacional',
+      desc: 'Nivel de participación y uso activo de la plataforma por parte de los miembros designados.',
+      detail: 'Mide la cantidad de roles del equipo de gobierno (CDOs, Stewards, Owners, Custodians) que registran actividad en el catálogo o workflows.',
+      recommendations: [
+        'Impartir talleres de capacitación sobre el uso del catálogo de datos.',
+        'Monitorear la actividad de los Data Stewards asignados a los dominios principales.'
+      ]
+    },
+    'Avance Documental': {
+      title: 'Avance de Gestión Documental',
+      desc: 'Porcentaje de progreso en la formalización, aprobación y publicación de políticas y estándares de datos.',
+      detail: 'Pondera las políticas vigentes (100%), borradores en revisión (50%) y las propuestas iniciales (25%) registradas en el sistema.',
+      recommendations: [
+        'Acelerar el proceso de revisión y firma de las políticas de datos críticos.',
+        'Alinear los estándares técnicos con los procedimientos de almacenamiento aprobados.'
+      ]
+    },
+    'Solicitudes Totales': {
+      title: 'Solicitudes Totales de Flujos de Trabajo',
+      desc: 'Total acumulado de flujos de trabajo iniciados en la plataforma (accesos, calidad, catalogación).',
+      detail: 'Indica el volumen histórico y operativo gestionado a través de los workflows automatizados.',
+      recommendations: [
+        'Identificar cuellos de botella en la aprobación de flujos frecuentes.',
+        'Promover la automatización de flujos recurrentes mediante reglas de SLA.'
+      ]
+    },
+    'Pendientes': {
+      title: 'Solicitudes Pendientes',
+      desc: 'Solicitudes activas esperando la acción de un responsable o aprobador.',
+      detail: 'Incluye tickets en estado Pendiente, En Revisión y Escalado que requieren intervención.',
+      recommendations: [
+        'Asignar dueños de datos de respaldo para cuando el principal no esté disponible.',
+        'Revisar las colas de solicitudes diarias para evitar demoras.'
+      ]
+    },
+    'SLA Cumplido': {
+      title: 'Porcentaje de Cumplimiento de SLA',
+      desc: 'Proporción de tickets completados dentro del tiempo estipulado en las reglas de SLA.',
+      detail: 'Un indicador de la eficiencia operativa del equipo de gobierno y velocidad de respuesta.',
+      recommendations: [
+        'Ajustar los plazos de las reglas de SLA si se observan desviaciones sistemáticas.',
+        'Automatizar notificaciones y escalamientos preventivos antes de la fecha límite.'
+      ]
+    },
+    'Tiempo Prom.': {
+      title: 'Tiempo Promedio de Resolución',
+      desc: 'Duración media (en días) para resolver y cerrar un ticket de flujo de trabajo.',
+      detail: 'Calculado desde la creación hasta el cierre definitivo. Permite medir el ciclo de vida del trámite.',
+      recommendations: [
+        'Simplificar las etapas de validación en flujos de bajo riesgo.',
+        'Establecer alertas a las 24 horas del vencimiento del plazo.'
+      ]
+    },
+    'Total Activos': {
+      title: 'Total de Activos Gobernados',
+      desc: 'Número de tablas, bases de datos o reportes registrados formalmente en el catálogo.',
+      detail: 'Representa el alcance del inventario y mapa de datos de la organización bajo supervisión.',
+      recommendations: [
+        'Ejecutar escaneos periódicos de bases de datos para identificar nuevos activos.',
+        'Priorizar el registro de fuentes de datos maestras y transaccionales.'
+      ]
+    },
+    'Con Owner': {
+      title: 'Activos con Propietario de Datos (Data Owner)',
+      desc: 'Porcentaje de activos del catálogo que tienen un dueño de negocio formalmente asignado.',
+      detail: 'La asignación de propietarios es el pilar de la gobernabilidad para autorizar accesos y certificar calidad.',
+      recommendations: [
+        'Asignar dueños a los activos catalogados como Críticos o de alta confidencialidad.',
+        'Vincular roles directamente en la ficha del activo desde la sección del catálogo.'
+      ]
+    },
+    'Clasificados': {
+      title: 'Activos Clasificados',
+      desc: 'Porcentaje de activos etiquetados con nivel de confidencialidad (Público, Confidencial, Restringido, PII).',
+      detail: 'Esencial para el cumplimiento regulatorio de protección de datos personales y sensibles.',
+      recommendations: [
+        'Utilizar escaneos automáticos de PII para sugerir etiquetas de confidencialidad.',
+        'Validar la clasificación de bases de datos financieras y de clientes.'
+      ]
+    },
+    'Con Linaje': {
+      title: 'Activos con Trazabilidad (Linaje de Datos)',
+      desc: 'Porcentaje de elementos que cuentan con su flujo de origen-destino documentado.',
+      detail: 'El linaje permite entender el impacto de cambios y el origen de los datos de reportería y analítica.',
+      recommendations: [
+        'Mapear el linaje de las fuentes que alimentan los dashboards ejecutivos principales.',
+        'Utilizar el editor gráfico de linaje en los activos de datos críticos.'
+      ]
+    },
+    'Riesgos Críticos': {
+      title: 'Incidentes de Riesgo Crítico',
+      desc: 'Incidentes de seguridad activos con el mayor impacto potencial o exposición de datos.',
+      detail: 'Alertas que comprometen datos confidenciales, accesos no autorizados o fallas de cumplimiento graves.',
+      recommendations: [
+        'Aplicar el protocolo de contención inmediata.',
+        'Notificar al oficial de cumplimiento y registrar las evidencias de mitigación.'
+      ]
+    },
+    'Riesgos Altos': {
+      title: 'Incidentes de Riesgo Alto',
+      desc: 'Vulnerabilidades o incidentes de seguridad que requieren mitigación a corto plazo.',
+      detail: 'Alertas de seguridad moderadas, políticas desactualizadas o configuraciones débiles.',
+      recommendations: [
+        'Programar la remediación dentro de la ventana de mantenimiento semanal.',
+        'Asignar un Steward responsable para el seguimiento de la alerta.'
+      ]
+    },
+    'Políticas Vencidas': {
+      title: 'Políticas de Datos Vencidas',
+      desc: 'Documentos normativos cuya fecha de revisión estipulada ha expirado.',
+      detail: 'Tener políticas vencidas representa un riesgo de cumplimiento legal y desactualización operativa.',
+      recommendations: [
+        'Iniciar el workflow de revisión y actualización de las políticas expiradas.',
+        'Reconvocar al comité de gobierno de datos para la ratificación o enmienda.'
+      ]
+    },
+    'Cumplimiento Norm.': {
+      title: 'Índice de Cumplimiento Normativo',
+      desc: 'Nivel de adherencia a regulaciones locales e internacionales (GDPR, HIPAA, normativas locales).',
+      detail: 'Se mide evaluando la implementación de controles obligatorios de privacidad, encriptación y acceso.',
+      recommendations: [
+        'Realizar auditorías internas trimestrales de cumplimiento.',
+        'Implementar plantillas de cumplimiento predefinidas para nuevos sistemas.'
+      ]
+    },
+    'Avance Total': {
+      title: 'Avance de Gestión Documental',
+      desc: 'Progreso promedio en la formalización de políticas, estándares y procedimientos.',
+      detail: 'Pondera borradores (25%), en revisión (50%) y publicados (100%), asegurando visibilidad del progreso.',
+      recommendations: [
+        'Fomentar la publicación de políticas en estado Borrador.',
+        'Establecer recordatorios mensuales de revisión para políticas publicadas.'
+      ]
+    },
+    'Docs Críticos': {
+      title: 'Documentos Críticos',
+      desc: 'Cantidad de políticas y estándares marcados como críticos para el negocio.',
+      detail: 'Son las normas fundamentales que rigen la protección de datos personales, acceso y calidad general.',
+      recommendations: [
+        'Priorizar la revisión anual de estos documentos.',
+        'Asegurar la validación legal de todo documento clasificado como crítico.'
+      ]
+    },
+    'Total Docs': {
+      title: 'Total de Documentos Normativos',
+      desc: 'Suma de todas las políticas, estándares y procedimientos de gobierno activos.',
+      detail: 'Refleja la madurez del marco regulatorio interno de datos de la organización.',
+      recommendations: [
+        'Mantener un repositorio consolidado y accesible para todos los colaboradores.',
+        'Digitalizar los documentos aprobados físicamente en el pasado.'
+      ]
+    },
+    'Políticas': {
+      title: 'Políticas de Datos',
+      desc: 'Directrices estratégicas de alto nivel aprobadas por el Comité de Gobierno.',
+      detail: 'Las políticas dictan el "qué" se debe hacer respecto al ciclo de vida y protección de datos.',
+      recommendations: [
+        'Publicar y difundir las políticas clave a toda la organización.',
+        'Revisar la vigencia de cada política cada 12 meses.'
+      ]
+    },
+    'Comités Creados': {
+      title: 'Comités de Gobierno Establecidos',
+      desc: 'Número de órganos colegiados de decisión activos registrados en la plataforma.',
+      detail: 'Establece la estructura jerárquica para la aprobación de políticas y resolución de conflictos de datos.',
+      recommendations: [
+        'Asegurar la representatividad de todas las áreas de negocio clave.',
+        'Mantener actualizado el rol de cada miembro del comité.'
+      ]
+    },
+    'Actas y Resoluciones': {
+      title: 'Actas y Sesiones Oficiales',
+      desc: 'Número de minutas, actas y documentos oficiales de comités archivados en el repositorio seguro.',
+      detail: 'Aporta la base probatoria e histórica de las decisiones estratégicas de gobierno tomadas por los directivos.',
+      recommendations: [
+        'Cargar el acta inmediatamente al culminar cada sesión ordinaria.',
+        'Indexar las resoluciones por tema clave para su fácil consulta posterior.'
+      ]
+    },
+    'Iniciativas Activas': {
+      title: 'Iniciativas de Gobierno Activas',
+      desc: 'Proyectos y flujos de trabajo prioritarios aprobados y supervisados por el comité.',
+      detail: 'Refleja la carga de proyectos y la ejecución de la estrategia global de datos definida para el periodo.',
+      recommendations: [
+        'Vincular los flujos de trabajo con las metas específicas del roadmap estratégico.',
+        'Realizar revisiones periódicas de avance en las sesiones del comité.'
+      ]
+    },
+    'Presupuesto Ejec.': {
+      title: 'Estado del Presupuesto de Gobierno',
+      desc: 'Disponibilidad y estado de los recursos financieros asignados al programa de gobierno.',
+      detail: 'Clave para garantizar la viabilidad de contratación de herramientas, consultoría y capacitación técnica.',
+      recommendations: [
+        'Vincular el presupuesto con el ROI demostrado en el ahorro de tiempo de los flujos.',
+        'Alinear las inversiones con el roadmap ejecutivo de 90 días.'
+      ]
+    }
+  };
+
+  const handleKpiClick = (label: string) => {
+    const details = kpiDetails[label];
+    if (details) {
+      setSelectedOption({
+        label,
+        ...details
+      });
+    }
+  };
 
   useEffect(() => {
     if (!currentTenant?.id) return;
@@ -84,16 +334,19 @@ export default function CommandCenter() {
 
         // 3. Workflows
         const wTotal = workflows ? workflows.length : 0;
-        const wPend = workflows ? workflows.filter(w => w.status === 'Pendiente' || w.status === 'En Progreso').length : 0;
+        const wPend = workflows ? workflows.filter(w => w.status === 'Pendiente' || w.status === 'En Progreso' || w.status === 'Escalado').length : 0;
         const wOk = workflows ? workflows.filter(w => w.sla_status === 'Ok').length : 0;
+        const wApp = workflows ? workflows.filter(w => w.status === 'Aprobado' || w.status === 'Cerrado' || w.status === 'Completado').length : 0;
         
         setWfStats({
           total: wTotal,
           pending: wPend,
           sla: wTotal > 0 ? Math.round((wOk / wTotal) * 100) : 100,
           time: 2.3, // Promedio estático hasta tener tracking
-          active: wPend
+          active: wPend,
+          approved: wApp
         });
+        setWorkflowsList(workflows || []);
 
         // 7. Dynamic Radar & Roadmap based on real Assessment Answers
         const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
@@ -342,7 +595,7 @@ export default function CommandCenter() {
 
       {/* SECCIÓN 1: KPIs Globales */}
       <div className={styles.kpiGrid} style={{ marginBottom: '32px' }}>
-        <div className={styles.kpiCard} style={{ '--kpi-color': '#4f46e5' } as any}>
+        <div className={styles.kpiCard} style={{ '--kpi-color': '#4f46e5', cursor: 'pointer' } as any} onClick={() => handleKpiClick('Madurez Global')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiTitle}>Madurez Global</span>
             <Target size={20} color="#4f46e5" />
@@ -350,7 +603,7 @@ export default function CommandCenter() {
           <div className={styles.kpiValue}>{maturityScore}%</div>
           <div className={styles.kpiSub}>Nivel: {maturityScore >= 80 ? 'Optimizado' : maturityScore >= 60 ? 'Gestionado' : 'Inicial'}</div>
         </div>
-        <div className={styles.kpiCard} style={{ '--kpi-color': '#10b981' } as any}>
+        <div className={styles.kpiCard} style={{ '--kpi-color': '#10b981', cursor: 'pointer' } as any} onClick={() => handleKpiClick('Índice Operativo')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiTitle}>Índice Operativo</span>
             <Activity size={20} color="#10b981" />
@@ -358,7 +611,7 @@ export default function CommandCenter() {
           <div className={styles.kpiValue}>{opIndex}%</div>
           <div className={styles.kpiSub}>Operación fluida</div>
         </div>
-        <div className={styles.kpiCard} style={{ '--kpi-color': riskLevel === 'Alto' ? '#ef4444' : riskLevel === 'Medio' ? '#f59e0b' : '#10b981' } as any}>
+        <div className={styles.kpiCard} style={{ '--kpi-color': (riskLevel === 'Alto' ? '#ef4444' : riskLevel === 'Medio' ? '#f59e0b' : '#10b981'), cursor: 'pointer' } as any} onClick={() => handleKpiClick('Riesgo Global')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiTitle}>Riesgo Global</span>
             <ShieldCheck size={20} color={riskLevel === 'Alto' ? '#ef4444' : riskLevel === 'Medio' ? '#f59e0b' : '#10b981'} />
@@ -366,7 +619,7 @@ export default function CommandCenter() {
           <div className={styles.kpiValue}>{riskLevel}</div>
           <div className={styles.kpiSub}>Incidentes críticos: {secStats.critical}</div>
         </div>
-        <div className={styles.kpiCard} style={{ '--kpi-color': '#8b5cf6' } as any}>
+        <div className={styles.kpiCard} style={{ '--kpi-color': '#8b5cf6', cursor: 'pointer' } as any} onClick={() => handleKpiClick('Adopción Org.')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiTitle}>Adopción Org.</span>
             <Users size={20} color="#8b5cf6" />
@@ -374,7 +627,7 @@ export default function CommandCenter() {
           <div className={styles.kpiValue}>{adoption}%</div>
           <div className={styles.kpiSub}>Uso activo de plataforma</div>
         </div>
-        <div className={styles.kpiCard} style={{ '--kpi-color': '#06b6d4' } as any}>
+        <div className={styles.kpiCard} style={{ '--kpi-color': '#06b6d4', cursor: 'pointer' } as any} onClick={() => handleKpiClick('Avance Documental')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiTitle}>Avance Documental</span>
             <FileText size={20} color="#06b6d4" />
@@ -394,10 +647,10 @@ export default function CommandCenter() {
               Salud Operacional (Workflows)
             </h2>
             <div className={styles.healthGrid}>
-              <div className={styles.healthItem}><span>Solicitudes Totales</span> <strong>{wfStats.total}</strong></div>
-              <div className={styles.healthItem}><span>Pendientes</span> <strong>{wfStats.pending}</strong></div>
-              <div className={styles.healthItem}><span>SLA Cumplido</span> <strong style={{ color: '#10b981' }}>{wfStats.sla}%</strong></div>
-              <div className={styles.healthItem}><span>Tiempo Prom.</span> <strong>{wfStats.time}d</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Solicitudes Totales')}><span>Solicitudes Totales</span> <strong>{wfStats.total}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Pendientes')}><span>Pendientes</span> <strong>{wfStats.pending}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('SLA Cumplido')}><span>SLA Cumplido</span> <strong style={{ color: '#10b981' }}>{wfStats.sla}%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Aprobados')}><span>Aprobados</span> <strong style={{ color: '#10b981' }}>{wfStats.approved}</strong></div>
             </div>
           </div>
 
@@ -408,10 +661,10 @@ export default function CommandCenter() {
               Activos Gobernados (Catálogo)
             </h2>
             <div className={styles.healthGrid}>
-              <div className={styles.healthItem}><span>Total Activos</span> <strong>{assetStats.total}</strong></div>
-              <div className={styles.healthItem}><span>Con Owner</span> <strong>{assetStats.withOwner}%</strong></div>
-              <div className={styles.healthItem}><span>Clasificados</span> <strong>{assetStats.classified}%</strong></div>
-              <div className={styles.healthItem}><span>Con Linaje</span> <strong>{assetStats.lineage}%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Total Activos')}><span>Total Activos</span> <strong>{assetStats.total}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Con Owner')}><span>Con Owner</span> <strong>{assetStats.withOwner}%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Clasificados')}><span>Clasificados</span> <strong>{assetStats.classified}%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Con Linaje')}><span>Con Linaje</span> <strong>{assetStats.lineage}%</strong></div>
             </div>
           </div>
         </div>
@@ -424,10 +677,10 @@ export default function CommandCenter() {
               Riesgos y Cumplimiento
             </h2>
             <div className={styles.healthGrid}>
-              <div className={styles.healthItem}><span>Riesgos Críticos</span> <strong style={{ color: '#ef4444' }}>{secStats.critical}</strong></div>
-              <div className={styles.healthItem}><span>Riesgos Altos</span> <strong style={{ color: '#f59e0b' }}>{secStats.high}</strong></div>
-              <div className={styles.healthItem}><span>Políticas Vencidas</span> <strong>{secStats.policiesExpired}</strong></div>
-              <div className={styles.healthItem}><span>Cumplimiento Norm.</span> <strong style={{ color: '#10b981' }}>89%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Riesgos Críticos')}><span>Riesgos Críticos</span> <strong style={{ color: '#ef4444' }}>{secStats.critical}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Riesgos Altos')}><span>Riesgos Altos</span> <strong style={{ color: '#f59e0b' }}>{secStats.high}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Políticas Vencidas')}><span>Políticas Vencidas</span> <strong>{secStats.policiesExpired}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Cumplimiento Norm.')}><span>Cumplimiento Norm.</span> <strong style={{ color: '#10b981' }}>89%</strong></div>
             </div>
           </div>
 
@@ -437,10 +690,10 @@ export default function CommandCenter() {
               Gestión Documental Normativa
             </h2>
             <div className={styles.healthGrid}>
-              <div className={styles.healthItem}><span>Avance Total</span> <strong style={{ color: '#06b6d4' }}>{docStats.progress}%</strong></div>
-              <div className={styles.healthItem}><span>Docs Críticos</span> <strong style={{ color: '#ef4444' }}>{docStats.critical}</strong></div>
-              <div className={styles.healthItem}><span>Total Docs</span> <strong>{docStats.total}</strong></div>
-              <div className={styles.healthItem}><span>Políticas</span> <strong>{docStats.policies}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Avance Total')}><span>Avance Total</span> <strong style={{ color: '#06b6d4' }}>{docStats.progress}%</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Docs Críticos')}><span>Docs Críticos</span> <strong style={{ color: '#ef4444' }}>{docStats.critical}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Total Docs')}><span>Total Docs</span> <strong>{docStats.total}</strong></div>
+              <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Políticas')}><span>Políticas</span> <strong>{docStats.policies}</strong></div>
             </div>
             <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '12px', lineHeight: 1.4 }}>El avance pondera borradores (25%), en revisión (50%) y publicados (100%), asegurando visibilidad de progreso incluso si faltan aprobaciones.</p>
           </div>
@@ -632,14 +885,139 @@ export default function CommandCenter() {
             Panel Directivo (Comité de Gobierno)
           </h2>
           <div className={styles.healthGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <div className={styles.healthItem}><span>Comités Creados</span> <strong style={{ fontSize: '0.9rem' }}>{execStats.comites}</strong></div>
-            <div className={styles.healthItem}><span>Actas y Resoluciones</span> <strong>{execStats.decisiones}</strong></div>
-            <div className={styles.healthItem}><span>Iniciativas Activas</span> <strong>{execStats.activas}</strong></div>
-            <div className={styles.healthItem}><span>Presupuesto Ejec.</span> <strong style={{ fontSize: '0.9rem', color: execStats.presupuesto.includes('Asignado') ? '#10b981' : '#f59e0b' }}>{execStats.presupuesto}</strong></div>
+            <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Comités Creados')}><span>Comités Creados</span> <strong style={{ fontSize: '0.9rem' }}>{execStats.comites}</strong></div>
+            <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Actas y Resoluciones')}><span>Actas y Resoluciones</span> <strong>{execStats.decisiones}</strong></div>
+            <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Iniciativas Activas')}><span>Iniciativas Activas</span> <strong>{execStats.activas}</strong></div>
+            <div className={styles.healthItem} style={{ cursor: 'pointer' }} onClick={() => handleKpiClick('Presupuesto Ejec.')}><span>Presupuesto Ejec.</span> <strong style={{ fontSize: '0.9rem', color: execStats.presupuesto.includes('Asignado') ? '#10b981' : '#f59e0b' }}>{execStats.presupuesto}</strong></div>
           </div>
         </div>
 
       </div>
+
+      {/* KPI/Option Explainer Modal */}
+      <AnimatePresence>
+        {selectedOption && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedOption(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '550px', padding: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '24px 32px', background: '#4f46e5', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
+                     <Award size={24} />
+                   </div>
+                   <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: 800 }}>{selectedOption.label}</h3>
+                </div>
+                <button onClick={() => setSelectedOption(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white', display: 'flex' }}>
+                   <X size={20} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#1e293b', margin: 0, fontWeight: 700 }}>
+                   {selectedOption.title}
+                 </p>
+                 <p style={{ fontSize: '0.95rem', lineHeight: 1.5, color: '#64748b', marginTop: '8px', marginBottom: 0 }}>
+                   {selectedOption.desc}
+                 </p>
+                 
+                 <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Detalle Técnico</span>
+                   <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem', color: '#334155', lineHeight: 1.4 }}>
+                     {selectedOption.detail}
+                   </p>
+                 </div>
+
+                 <div style={{ marginTop: '20px' }}>
+                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recomendaciones de Mejora</span>
+                   <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '0.88rem', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                     {selectedOption.recommendations.map((rec: string, idx: number) => (
+                       <li key={idx} style={{ lineHeight: 1.4 }}>{rec}</li>
+                     ))}
+                   </ul>
+                 </div>
+                  {/* Real production records list table */}
+                  {(selectedOption.label === 'Pendientes' || selectedOption.label === 'SLA Cumplido' || selectedOption.label === 'SLA' || selectedOption.label === 'Aprobados') && (
+                    <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '10px' }}>
+                        Registros Reales de Producción ({
+                          selectedOption.label === 'Pendientes' 
+                            ? workflowsList.filter(w => w.status === 'Pendiente' || w.status === 'En Revisión' || w.status === 'Escalado').length
+                            : (selectedOption.label === 'SLA Cumplido' || selectedOption.label === 'SLA')
+                              ? workflowsList.filter(w => w.sla_status === 'Ok').length
+                              : workflowsList.filter(w => w.status === 'Aprobado' || w.status === 'Cerrado' || w.status === 'Completado').length
+                        })
+                      </span>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                          <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                            <tr>
+                              <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>ID / Título</th>
+                              <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>Estado</th>
+                              <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>SLA</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(selectedOption.label === 'Pendientes' 
+                              ? workflowsList.filter(w => w.status === 'Pendiente' || w.status === 'En Revisión' || w.status === 'Escalado')
+                              : (selectedOption.label === 'SLA Cumplido' || selectedOption.label === 'SLA')
+                                ? workflowsList.filter(w => w.sla_status === 'Ok')
+                                : workflowsList.filter(w => w.status === 'Aprobado' || w.status === 'Cerrado' || w.status === 'Completado')
+                             ).map((w, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '8px 12px', fontWeight: 600 }}>
+                                  <div style={{ color: '#1e293b' }}>{w.id}</div>
+                                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 400 }}>{w.title}</div>
+                                </td>
+                                <td style={{ padding: '8px 12px' }}>
+                                  <span style={{ 
+                                    padding: '2px 8px', 
+                                    borderRadius: '4px', 
+                                    fontSize: '0.7rem', 
+                                    fontWeight: 700,
+                                    background: w.status === 'Escalado' ? '#fef2f2' : w.status === 'En Progreso' ? '#eff6ff' : '#f0fdf4',
+                                    color: w.status === 'Escalado' ? '#ef4444' : w.status === 'En Progreso' ? '#3b82f6' : '#10b981'
+                                  }}>
+                                    {w.status}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '8px 12px', fontWeight: 700, color: w.sla_status === 'Overdue' ? '#ef4444' : w.sla_status === 'Warning' ? '#f59e0b' : '#10b981' }}>
+                                  {w.sla_status === 'Overdue' ? 'Vencido' : w.sla_status === 'Warning' ? 'Por Vencer' : 'A tiempo'}
+                                </td>
+                              </tr>
+                            ))}
+                            {(selectedOption.label === 'Pendientes' 
+                              ? workflowsList.filter(w => w.status === 'Pendiente' || w.status === 'En Revisión' || w.status === 'Escalado')
+                              : (selectedOption.label === 'SLA Cumplido' || selectedOption.label === 'SLA')
+                                ? workflowsList.filter(w => w.sla_status === 'Ok')
+                                : workflowsList.filter(w => w.status === 'Aprobado' || w.status === 'Cerrado' || w.status === 'Completado')
+                            ).length === 0 && (
+                              <tr>
+                                <td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+                                  No hay registros asociados.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
+                 <button className={styles.primaryBtn} onClick={() => setSelectedOption(null)} style={{ marginTop: 0 }}>
+                   Entendido
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 }

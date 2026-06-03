@@ -54,9 +54,9 @@
 }
 
 .secondaryBtn {
-  background: white;
-  border: 1px solid var(--border);
-  color: #475569;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
   padding: 12px 24px;
   border-radius: 12px;
   font-weight: 700;
@@ -64,6 +64,28 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: background 0.2s;
+}
+
+.secondaryBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #e2e8f0;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modalInput::placeholder {
+  color: #475569;
 }
 
 .addBtn {
@@ -734,12 +756,14 @@
 
 /* Modals Operativos */
 .assignModal, .orgChartModal {
-  background: white;
+  background: linear-gradient(135deg, #111216 0%, #0a0b0d 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   width: 550px;
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   margin: auto;
+  color: #e2e8f0;
 }
 
 .orgChartModal {

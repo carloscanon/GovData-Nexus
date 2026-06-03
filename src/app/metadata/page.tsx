@@ -71,10 +71,18 @@ export default function MetadataPage() {
         const assetIds = assetsData.map(a => a.id);
         const { data: fieldsData, error: fieldsError } = await supabase
           .from('asset_fields')
-          .select('*, asset:data_assets(name)')
+          .select('*')
           .in('asset_id', assetIds);
         if (fieldsError) throw fieldsError;
-        setFields(fieldsData || []);
+        
+        const enrichedFields = (fieldsData || []).map(f => {
+          const associatedAsset = assetsData.find(a => a.id === f.asset_id);
+          return {
+            ...f,
+            asset: associatedAsset ? { name: associatedAsset.name } : null
+          };
+        });
+        setFields(enrichedFields);
       } else {
         setFields([]);
       }
