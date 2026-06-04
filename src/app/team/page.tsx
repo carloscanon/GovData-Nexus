@@ -403,7 +403,7 @@ export default function Team() {
         supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
-        supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status').eq('tenant_id', currentTenant.id).eq('status', 'Abierto'),
+        supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).eq('status', 'Abierto'),
         supabase.from('data_policies').select('id, title, owner').eq('tenant_id', currentTenant.id),
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id)
       ]);
@@ -437,7 +437,7 @@ export default function Team() {
           const assetIds = memberAssets.map(a => a.id);
           
           const openIncidentsList = freshIncidents
-            .filter(i => assetIds.includes(i.asset_id))
+            .filter(i => assetIds.includes(i.asset_id) || (i.assigned_to && i.assigned_to.toLowerCase().includes(mNameLower)))
             .map(i => {
               const asset = freshAssets.find(a => a.id === i.asset_id);
               return {
