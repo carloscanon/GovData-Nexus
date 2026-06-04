@@ -65,8 +65,10 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const [userName, setUserName] = React.useState<string | null>(null);
   const [userAvatar, setUserAvatar] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setIsMounted(true);
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('govdata_role'));
       setUserName(localStorage.getItem('govdata_user_name'));
@@ -125,7 +127,11 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
 
       {/* Selector de Empresa (SaaS / Multi-Tenant Context Switcher) */}
       <div className={styles.tenantContainer}>
-        {!isCollapsed ? (
+        {!isMounted ? (
+          <div className={styles.tenantDisplay}>
+            <span className={styles.tenantName}>Cargando...</span>
+          </div>
+        ) : !isCollapsed ? (
           <div className="flex flex-col space-y-1">
             <span className={styles.tenantLabel}>Empresa Activa</span>
             

@@ -262,13 +262,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [modalBlur, setModalBlurState] = useState<string>('24px');
 
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
-  const [currentTenant, setCurrentTenantState] = useState<Tenant>(() => {
-    if (typeof window !== 'undefined') {
-      const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
-      if (savedCurrentTenantId) {
-        const found = defaultTenants.find(t => t.id === savedCurrentTenantId);
-        if (found) return found;
-        return {
+  const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
+  const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
+
+  // Load persisted state from localStorage
+  useEffect(() => {
+    const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
+    if (savedCurrentTenantId) {
+      const found = defaultTenants.find(t => t.id === savedCurrentTenantId);
+      if (found) {
+        setCurrentTenantState(found);
+      } else {
+        setCurrentTenantState({
           id: savedCurrentTenantId,
           name: localStorage.getItem('govdata_user_name') || 'Mi Empresa',
           domain: '',
@@ -276,15 +281,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           modules: ['catalog', 'quality', 'workflows'],
           monthlyCost: '0',
           status: 'active'
-        };
+        });
       }
     }
-    return defaultTenants[0];
-  });
-  const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
-
-  // Load persisted state from localStorage
-  useEffect(() => {
     const savedMode = localStorage.getItem('govdata_mode') as PlatformMode;
     if (savedMode) {
       setMode(savedMode);
