@@ -124,7 +124,7 @@ const standardsData = [
 ];
 
 // --- Roles y Equipos (Sincronizado) ---
-const teamMembers = [
+const DEFAULT_TEAM_MEMBERS = [
   { name: 'Carlos Director', role: 'CDO' },
   { name: 'Ana Garcia', role: 'Data Steward' },
   { name: 'Luis Martinez', role: 'Data Owner' },
@@ -164,6 +164,7 @@ export default function PoliciesModule() {
   const [procedures, setProcedures] = useState<any[]>([]);
   const [controls, setControls] = useState<any[]>([]);
   const [evidences, setEvidences] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>(DEFAULT_TEAM_MEMBERS);
 
   // Load All Data from DB
   useEffect(() => {
@@ -178,14 +179,16 @@ export default function PoliciesModule() {
           { data: stdData },
           { data: procData },
           { data: ctrlData },
-          { data: evData }
+          { data: evData },
+          { data: membersData }
         ] = await Promise.all([
           supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
           supabase.from('policy_workflows').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_standards').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_controls').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('policy_evidences').select('*').eq('tenant_id', currentTenant.id)
+          supabase.from('policy_evidences').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('team_members').select('name, role').eq('tenant_id', currentTenant.id)
         ]);
 
         if (polData) {
@@ -205,6 +208,11 @@ export default function PoliciesModule() {
         if (procData) setProcedures(procData);
         if (ctrlData) setControls(ctrlData);
         if (evData) setEvidences(evData);
+        if (membersData && membersData.length > 0) {
+          setTeamMembers(membersData);
+        } else {
+          setTeamMembers(DEFAULT_TEAM_MEMBERS);
+        }
         
       } catch (e: any) {
         console.error('Error fetching policies data:', e);
