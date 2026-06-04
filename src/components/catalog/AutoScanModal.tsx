@@ -48,10 +48,15 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
   const [importConfig, setImportConfig] = useState({
     asset_name: '',
     data_owner: '',
+    data_steward: '',
+    data_custodian: '',
+    source: '',
+    owner: '',
     sensitivity: 'Uso Interno',
     criticality: 'Media',
     status: 'Borrador'
   });
+  const [members, setMembers] = useState<any[]>([]);
   const [selectedSource, setSelectedSource] = useState<any>(null);
   const [progress, setProgress] = useState(0);
   const [importedIds, setImportedIds] = useState<string[]>([]);
@@ -201,13 +206,46 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
 
   const startImportFlow = (asset: any) => {
     setSelectedAssetToImport(asset);
-    setImportConfig(prev => ({ ...prev, asset_name: asset.name }));
+    const initialSource = connData?.name || selectedSource?.name || '';
+    const activeMembers = members.length > 0 ? members : [
+      { id: 'fb-1', name: 'Carlos Director', role: 'CDO' },
+      { id: 'fb-2', name: 'Ana García', role: 'Data Steward' },
+      { id: 'fb-3', name: 'Luis Martínez', role: 'Data Owner' },
+      { id: 'fb-4', name: 'Sofía Rodriguez', role: 'Data Custodian' }
+    ];
+    setImportConfig({
+      asset_name: asset.name || '',
+      data_owner: activeMembers[0]?.name || '',
+      data_steward: activeMembers.find(m => m.role?.toLowerCase().includes('steward'))?.name || activeMembers[1]?.name || activeMembers[0]?.name || '',
+      data_custodian: activeMembers.find(m => m.role?.toLowerCase().includes('custodian'))?.name || activeMembers[2]?.name || activeMembers[0]?.name || '',
+      source: initialSource,
+      owner: 'Gobernanza',
+      sensitivity: 'Uso Interno',
+      criticality: 'Media',
+      status: 'Borrador'
+    });
     setStep('configure_import');
   };
 
   const handleImport = async () => {
     if (!importConfig.data_owner) {
-      alert("Por favor, asigne un responsable para este activo.");
+      alert("Por favor, asigne un Data Owner.");
+      return;
+    }
+    if (!importConfig.data_steward) {
+      alert("Por favor, asigne un Data Steward.");
+      return;
+    }
+    if (!importConfig.data_custodian) {
+      alert("Por favor, asigne un Custodian.");
+      return;
+    }
+    if (!importConfig.source) {
+      alert("Por favor, indique el Sistema de Información.");
+      return;
+    }
+    if (!importConfig.owner) {
+      alert("Por favor, indique el Área Dueña.");
       return;
     }
 
@@ -217,9 +255,11 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         code_id: `AS-${Date.now().toString().slice(-6)}`,
         name: importConfig.asset_name || selectedAssetToImport.name,
         type: selectedAssetToImport.type || 'Tabla SQL',
-        source: connData?.name || selectedSource.name,
-        owner: 'Escaneo Automático',
+        source: importConfig.source,
+        owner: importConfig.owner,
         data_owner: importConfig.data_owner,
+        data_steward: importConfig.data_steward,
+        data_custodian: importConfig.data_custodian,
         sensitivity: importConfig.sensitivity,
         quality_score: 95, // Simulado
         status: importConfig.status,
@@ -246,9 +286,11 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         connection_id: connData?.id || null, // ← VÍNCULO DIRECTO A data_connections
         description: selectedAssetToImport.description,
         type: selectedAssetToImport.type,
-        source: connData?.name || selectedSource.name,
-        owner: 'Escaneo Automático',
+        source: importConfig.source,
+        owner: importConfig.owner,
         data_owner: importConfig.data_owner,
+        data_steward: importConfig.data_steward,
+        data_custodian: importConfig.data_custodian,
         sensitivity: importConfig.sensitivity,
         quality_score: 0,
         status: importConfig.status,
@@ -267,9 +309,11 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
           code_id: `AS-${Date.now().toString().slice(-6)}`,
           name: importConfig.asset_name || selectedAssetToImport.name,
           type: selectedAssetToImport.type || 'Tabla SQL',
-          source: connData?.name || selectedSource.name,
-          owner: 'Escaneo Automático',
+          source: importConfig.source,
+          owner: importConfig.owner,
           data_owner: importConfig.data_owner,
+          data_steward: importConfig.data_steward,
+          data_custodian: importConfig.data_custodian,
           sensitivity: importConfig.sensitivity,
           quality_score: 95, 
           status: importConfig.status,
@@ -318,9 +362,11 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
         code_id: `AS-${Date.now().toString().slice(-6)}`,
         name: importConfig.asset_name || selectedAssetToImport.name,
         type: selectedAssetToImport.type || 'Tabla SQL',
-        source: selectedSource.name,
-        owner: 'Escaneo Automático',
+        source: importConfig.source,
+        owner: importConfig.owner,
         data_owner: importConfig.data_owner,
+        data_steward: importConfig.data_steward,
+        data_custodian: importConfig.data_custodian,
         sensitivity: importConfig.sensitivity,
         quality_score: 95, 
         status: importConfig.status,
@@ -336,6 +382,25 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
       if (onSuccess) onSuccess(newAsset);
     }
   };
+
+  useEffect(() => {
+    if (!isOpen || !currentTenant?.id) return;
+    const fetchMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('team_members')
+          .select('id, name, role')
+          .eq('tenant_id', currentTenant.id)
+          .order('name');
+        if (!error && data) {
+          setMembers(data);
+        }
+      } catch (err) {
+        console.error("Error fetching team members for scan:", err);
+      }
+    };
+    fetchMembers();
+  }, [isOpen, currentTenant?.id]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -612,72 +677,131 @@ export default function AutoScanModal({ isOpen, onClose, onSuccess }: AutoScanMo
                 </div>
               )}
 
-              {step === 'configure_import' && (
-                <div className={styles.configureView}>
-                  <div className={styles.configHeader}>
-                    <h3>Configurar Metadatos: {selectedAssetToImport.name}</h3>
-                    <p>Defina la gobernanza inicial antes de incorporar el activo al catálogo.</p>
-                  </div>
+              {step === 'configure_import' && (() => {
+                const activeMembers = members.length > 0 ? members : [
+                  { id: 'fb-1', name: 'Carlos Director', role: 'CDO' },
+                  { id: 'fb-2', name: 'Ana García', role: 'Data Steward' },
+                  { id: 'fb-3', name: 'Luis Martínez', role: 'Data Owner' },
+                  { id: 'fb-4', name: 'Sofía Rodriguez', role: 'Data Custodian' }
+                ];
+                return (
+                  <div className={styles.configureView}>
+                    <div className={styles.configHeader}>
+                      <h3>Configurar Metadatos: {selectedAssetToImport.name}</h3>
+                      <p>Defina la gobernanza inicial antes de incorporar el activo al catálogo.</p>
+                    </div>
 
-                  <div className={styles.form}>
-                    <div className={styles.formGroup}>
-                      <label>Nombre del Activo</label>
-                      <input 
-                        type="text" 
-                        value={importConfig.asset_name} 
-                        onChange={e => setImportConfig({...importConfig, asset_name: e.target.value})} 
-                      />
-                    </div>
-                    
-                    <div className={styles.formGroup}>
-                      <label>Responsable del Activo (Data Owner)</label>
-                      <input 
-                        type="text" 
-                        placeholder="Nombre del cargo o persona responsable" 
-                        value={importConfig.data_owner} 
-                        onChange={e => setImportConfig({...importConfig, data_owner: e.target.value})} 
-                      />
-                    </div>
-                    
-                    <div className={styles.row}>
+                    <div className={styles.form}>
                       <div className={styles.formGroup}>
-                        <label>Sensibilidad</label>
-                        <select value={importConfig.sensitivity} onChange={e => setImportConfig({...importConfig, sensitivity: e.target.value})}>
-                          <option value="Público">Público</option>
-                          <option value="Uso Interno">Uso Interno</option>
-                          <option value="Confidencial">Confidencial</option>
-                          <option value="Secreto">Secreto</option>
+                        <label>Nombre del Activo</label>
+                        <input 
+                          type="text" 
+                          value={importConfig.asset_name} 
+                          onChange={e => setImportConfig({...importConfig, asset_name: e.target.value})} 
+                        />
+                      </div>
+
+                      <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                          <label>Sistema de Información</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ej: SAP ERP, Oracle"
+                            value={importConfig.source} 
+                            onChange={e => setImportConfig({...importConfig, source: e.target.value})} 
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label>Área Dueña</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ej: Ventas, Finanzas"
+                            value={importConfig.owner} 
+                            onChange={e => setImportConfig({...importConfig, owner: e.target.value})} 
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className={styles.formGroup}>
+                        <label>Responsable del Activo (Data Owner)</label>
+                        <select 
+                          value={importConfig.data_owner} 
+                          onChange={e => setImportConfig({...importConfig, data_owner: e.target.value})}
+                          style={{ background: 'white' }}
+                        >
+                          {activeMembers.map(m => (
+                            <option key={m.id} value={m.name}>{m.name} ({m.role || 'Miembro'})</option>
+                          ))}
                         </select>
                       </div>
+
+                      <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                          <label>Data Steward</label>
+                          <select 
+                            value={importConfig.data_steward} 
+                            onChange={e => setImportConfig({...importConfig, data_steward: e.target.value})}
+                            style={{ background: 'white' }}
+                          >
+                            {activeMembers.map(m => (
+                              <option key={m.id} value={m.name}>{m.name} ({m.role || 'Miembro'})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label>TI Custodian</label>
+                          <select 
+                            value={importConfig.data_custodian} 
+                            onChange={e => setImportConfig({...importConfig, data_custodian: e.target.value})}
+                            style={{ background: 'white' }}
+                          >
+                            {activeMembers.map(m => (
+                              <option key={m.id} value={m.name}>{m.name} ({m.role || 'Miembro'})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                          <label>Sensibilidad</label>
+                          <select value={importConfig.sensitivity} onChange={e => setImportConfig({...importConfig, sensitivity: e.target.value})}>
+                            <option value="Público">Público</option>
+                            <option value="Uso Interno">Uso Interno</option>
+                            <option value="Confidencial">Confidencial</option>
+                            <option value="Secreto">Secreto</option>
+                          </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label>Criticalidad</label>
+                          <select value={importConfig.criticality} onChange={e => setImportConfig({...importConfig, criticality: e.target.value})}>
+                            <option value="Baja">Baja</option>
+                            <option value="Media">Media</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Muy Alta">Muy Alta</option>
+                          </select>
+                        </div>
+                      </div>
+
                       <div className={styles.formGroup}>
-                        <label>Criticalidad</label>
-                        <select value={importConfig.criticality} onChange={e => setImportConfig({...importConfig, criticality: e.target.value})}>
-                          <option value="Baja">Baja</option>
-                          <option value="Media">Media</option>
-                          <option value="Alta">Alta</option>
-                          <option value="Muy Alta">Muy Alta</option>
+                        <label>Estado Inicial</label>
+                        <select value={importConfig.status} onChange={e => setImportConfig({...importConfig, status: e.target.value})}>
+                          <option value="Borrador">Borrador</option>
+                          <option value="En revisión">En revisión</option>
+                          <option value="Certificado">Certificado</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label>Estado Inicial</label>
-                      <select value={importConfig.status} onChange={e => setImportConfig({...importConfig, status: e.target.value})}>
-                        <option value="Borrador">Borrador</option>
-                        <option value="En revisión">En revisión</option>
-                        <option value="Certificado">Certificado</option>
-                      </select>
+                    <div className={styles.actions}>
+                      <button className={styles.backBtn} onClick={() => setStep('results')}>Volver</button>
+                      <button className={styles.scanNowBtn} onClick={handleImport}>
+                        Confirmar e Importar al Catálogo
+                      </button>
                     </div>
                   </div>
-
-                  <div className={styles.actions}>
-                    <button className={styles.backBtn} onClick={() => setStep('results')}>Volver</button>
-                    <button className={styles.scanNowBtn} onClick={handleImport}>
-                      Confirmar e Importar al Catálogo
-                    </button>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </motion.div>
         </div>

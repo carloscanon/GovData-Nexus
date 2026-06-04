@@ -184,11 +184,11 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose, onEdit }: As
                     </div>
                     <div className={styles.infoGroup}>
                       <label>Data Steward</label>
-                      <p>Maria Garcia</p>
+                      <p>{asset.data_steward || 'No Asignado'}</p>
                     </div>
                     <div className={styles.infoGroup}>
                       <label>TI Custodian</label>
-                      <p>Soporte SAP</p>
+                      <p>{asset.data_custodian || 'No Asignado'}</p>
                     </div>
                   </div>
                 </div>
