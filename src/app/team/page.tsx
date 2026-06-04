@@ -337,6 +337,8 @@ export default function Team() {
 
   const [newDomain, setNewDomain] = useState<Partial<GovernanceDomain>>({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
 
+  const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
   const { getItem, setItem } = useTenantStorage();
@@ -508,13 +510,15 @@ export default function Team() {
       if (domainsRes.data) {
         const mappedDomains = domainsRes.data.map(d => {
           const domainOwner = membersRes.data?.find(m => m.id === d.owner_id);
+          const domainSteward = membersRes.data?.find(m => m.id === d.steward_id);
+          const domainCustodian = membersRes.data?.find(m => m.id === d.custodian_id);
           return {
             ...d,
             owner: domainOwner ? domainOwner.name : 'Por definir',
-            steward: 'Por definir',
-            custodian: 'Por definir',
-            coverage: 50,
-            status: 'Parcial'
+            steward: domainSteward ? domainSteward.name : 'Por definir',
+            custodian: domainCustodian ? domainCustodian.name : 'Por definir',
+            coverage: d.coverage || 50,
+            status: d.status || 'Parcial'
           };
         });
         setDomains(mappedDomains as any);
@@ -665,72 +669,103 @@ export default function Team() {
 
 
 
+  const closeDomainModal = () => {
+    setIsDomainModalOpen(false);
+    setEditingDomainId(null);
+    setNewDomain({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
+  };
+
   const handleAddDomain = async () => {
-
     if (!newDomain.name || !newDomain.description || !currentTenant?.id) {
-
       alert("Por favor completa el nombre y descripción del dominio.");
-
       return;
-
     }
 
-    
+    try {
+      const ownerMember = members.find(m => m.name === newDomain.owner);
+      const stewardMember = members.find(m => m.name === newDomain.steward);
+      const custodianMember = members.find(m => m.name === newDomain.custodian);
+
+      const payload: any = {
+        tenant_id: currentTenant.id,
+        name: newDomain.name,
+        description: newDomain.description,
+        owner_id: ownerMember ? ownerMember.id : null,
+        steward_id: stewardMember ? stewardMember.id : null,
+        custodian_id: custodianMember ? custodianMember.id : null
+      };
+
+      if (editingDomainId) {
+        // Mode: EDIT
+        const { error } = await supabase
+          .from('team_domains')
+          .update(payload)
+          .eq('id', editingDomainId);
+
+        if (error) throw error;
+
+        setDomains(prev => prev.map(d => d.id === editingDomainId ? {
+          ...d,
+          name: newDomain.name!,
+          description: newDomain.description!,
+          owner: newDomain.owner || 'Por definir',
+          steward: newDomain.steward || 'Por definir',
+          custodian: newDomain.custodian || 'Por definir',
+          owner_id: ownerMember ? ownerMember.id : null,
+          steward_id: stewardMember ? stewardMember.id : null,
+          custodian_id: custodianMember ? custodianMember.id : null
+        } : d));
+
+        alert("Dominio de datos actualizado exitosamente.");
+      } else {
+        // Mode: CREATE
+        payload.status = 'Parcial';
+        const { data, error } = await supabase
+          .from('team_domains')
+          .insert([payload])
+          .select();
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const d = data[0];
+          const domainToAdd: GovernanceDomain = {
+            ...d,
+            owner: newDomain.owner || 'Por definir',
+            steward: newDomain.steward || 'Por definir',
+            custodian: newDomain.custodian || 'Por definir',
+            coverage: 50,
+            status: 'Parcial'
+          };
+          setDomains([...domains, domainToAdd]);
+          alert("Dominio de datos creado exitosamente.");
+        }
+      }
+
+      closeDomainModal();
+    } catch (e) {
+      console.error(e);
+      alert('Error guardando el dominio en base de datos.');
+    }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este dominio de datos? Esta acción no se puede deshacer.')) return;
 
     try {
-
-      const { data, error } = await supabase.from('team_domains').insert([{
-
-        tenant_id: currentTenant.id,
-
-        name: newDomain.name,
-
-        description: newDomain.description
-
-      }]).select();
-
-
+      const { error } = await supabase
+        .from('team_domains')
+        .delete()
+        .eq('id', id);
 
       if (error) throw error;
 
-
-
-      if (data && data.length > 0) {
-
-        const d = data[0];
-
-        const domainToAdd: GovernanceDomain = {
-
-          ...d,
-
-          owner: newDomain.owner || 'Por definir',
-
-          steward: newDomain.steward || 'Por definir',
-
-          custodian: newDomain.custodian || 'Por definir',
-
-          coverage: 50,
-
-          status: 'Parcial'
-
-        };
-
-        setDomains([...domains, domainToAdd]);
-
-      }
-
-      setIsDomainModalOpen(false);
-
-      setNewDomain({ name: '', description: '', owner: 'Por definir', steward: 'Por definir', custodian: 'Por definir' });
-
+      setDomains(prev => prev.filter(d => d.id !== id));
+      alert('Dominio eliminado exitosamente.');
     } catch (e) {
-
       console.error(e);
-
-      alert('Error guardando el dominio en base de datos.');
-
+      alert('Error al eliminar el dominio.');
     }
-
   };
 
 
@@ -1315,7 +1350,35 @@ export default function Team() {
 
                       <td><span className={styles.statusBadge} data-status={domain.status.toLowerCase()}>{domain.status}</span></td>
 
-                      <td><button className={styles.actionBtn}><ArrowUpRight size={16} /></button></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            className={styles.actionBtn} 
+                            onClick={() => {
+                              setEditingDomainId(domain.id);
+                              setNewDomain({
+                                name: domain.name,
+                                description: domain.description || '',
+                                owner: domain.owner,
+                                steward: domain.steward,
+                                custodian: domain.custodian
+                              });
+                              setIsDomainModalOpen(true);
+                            }}
+                            title="Editar Dominio"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button 
+                            className={styles.actionBtn}
+                            style={{ color: '#ef4444' }} 
+                            onClick={() => handleDeleteDomain(domain.id)}
+                            title="Eliminar Dominio"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
 
                     </tr>
 
@@ -2157,159 +2220,161 @@ export default function Team() {
 
                  exit={{ opacity: 0, scale: 0.9 }}
 
-                 onClick={e => e.stopPropagation()}
-
                >
 
-                  <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
+                   <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
 
-                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--modal-text-color, white)' }}>Crear Nuevo Dominio de Datos</h2>
+                      <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--modal-text-color, white)' }}>
 
-                     <button onClick={() => setIsDomainModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+                        {editingDomainId ? 'Editar Dominio de Datos' : 'Crear Nuevo Dominio de Datos'}
+
+                      </h2>
+
+                      <button onClick={closeDomainModal} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={18} /></button>
+
+                   </div>
+
+                   <div style={{ padding: '32px', overflowY: 'auto' }}>
+
+                     <div style={{ marginBottom: '16px' }}>
+
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre del Dominio</label>
+
+                        <input 
+
+                          type="text" 
+
+                          className={styles.modalInput} 
+
+                          value={newDomain.name}
+
+                          onChange={e => setNewDomain({...newDomain, name: e.target.value})}
+
+                          placeholder="Ej: Logística, Operaciones"
+
+                        />
+
+                     </div>
+
+                     <div style={{ marginBottom: '16px' }}>
+
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Descripción</label>
+
+                        <input 
+
+                          type="text" 
+
+                          className={styles.modalInput} 
+
+                          value={newDomain.description}
+
+                          onChange={e => setNewDomain({...newDomain, description: e.target.value})}
+
+                          placeholder="Descripción de los datos que abarca"
+
+                        />
+
+                     </div>
+
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+
+                        <div>
+
+                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Owner</label>
+
+                           <select 
+
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+
+                             value={newDomain.owner}
+
+                             onChange={e => setNewDomain({...newDomain, owner: e.target.value})}
+
+                           >
+
+                              <option value="Por definir">Por definir</option>
+
+                              {tenantUsers.map(u => (
+
+                                <option key={u.id} value={u.name}>{u.name}</option>
+
+                              ))}
+
+                           </select>
+
+                        </div>
+
+                        <div>
+
+                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Steward</label>
+
+                           <select 
+
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+
+                             value={newDomain.steward}
+
+                             onChange={e => setNewDomain({...newDomain, steward: e.target.value})}
+
+                           >
+
+                              <option value="Por definir">Por definir</option>
+
+                              {tenantUsers.map(u => (
+
+                                <option key={u.id} value={u.name}>{u.name}</option>
+
+                              ))}
+
+                           </select>
+
+                        </div>
+
+                        <div>
+
+                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Custodian</label>
+
+                           <select 
+
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+
+                             value={newDomain.custodian}
+
+                             onChange={e => setNewDomain({...newDomain, custodian: e.target.value})}
+
+                           >
+
+                              <option value="Por definir">Por definir</option>
+
+                              {tenantUsers.map(u => (
+
+                                <option key={u.id} value={u.name}>{u.name}</option>
+
+                              ))}
+
+                           </select>
+
+                        </div>
+
+                     </div>
+
+                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+
+                        <button className={styles.secondaryBtn} onClick={closeDomainModal}>Cancelar</button>
+
+                        <button className={styles.primaryBtn} onClick={handleAddDomain}>Guardar Dominio</button>
+
+                     </div>
 
                   </div>
 
-                  <div style={{ padding: '32px', overflowY: 'auto' }}>
+               </motion.div>
 
-                    <div style={{ marginBottom: '16px' }}>
+            </div>
 
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre del Dominio</label>
+          )}
 
-                       <input 
-
-                         type="text" 
-
-                         className={styles.modalInput} 
-
-                         value={newDomain.name}
-
-                         onChange={e => setNewDomain({...newDomain, name: e.target.value})}
-
-                         placeholder="Ej: Logística, Operaciones"
-
-                       />
-
-                    </div>
-
-                    <div style={{ marginBottom: '16px' }}>
-
-                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Descripción</label>
-
-                       <input 
-
-                         type="text" 
-
-                         className={styles.modalInput} 
-
-                         value={newDomain.description}
-
-                         onChange={e => setNewDomain({...newDomain, description: e.target.value})}
-
-                         placeholder="Descripción de los datos que abarca"
-
-                       />
-
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-
-                       <div>
-
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Owner</label>
-
-                          <select 
-
-                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
-
-                            value={newDomain.owner}
-
-                            onChange={e => setNewDomain({...newDomain, owner: e.target.value})}
-
-                          >
-
-                             <option value="Por definir">Por definir</option>
-
-                             {tenantUsers.map(u => (
-
-                               <option key={u.id} value={u.name}>{u.name}</option>
-
-                             ))}
-
-                          </select>
-
-                       </div>
-
-                       <div>
-
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Steward</label>
-
-                          <select 
-
-                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
-
-                            value={newDomain.steward}
-
-                            onChange={e => setNewDomain({...newDomain, steward: e.target.value})}
-
-                          >
-
-                             <option value="Por definir">Por definir</option>
-
-                             {tenantUsers.map(u => (
-
-                               <option key={u.id} value={u.name}>{u.name}</option>
-
-                             ))}
-
-                          </select>
-
-                       </div>
-
-                       <div>
-
-                          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Data Custodian</label>
-
-                          <select 
-
-                            style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
-
-                            value={newDomain.custodian}
-
-                            onChange={e => setNewDomain({...newDomain, custodian: e.target.value})}
-
-                          >
-
-                             <option value="Por definir">Por definir</option>
-
-                             {tenantUsers.map(u => (
-
-                               <option key={u.id} value={u.name}>{u.name}</option>
-
-                             ))}
-
-                          </select>
-
-                       </div>
-
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-
-                       <button className={styles.secondaryBtn} onClick={() => setIsDomainModalOpen(false)}>Cancelar</button>
-
-                       <button className={styles.primaryBtn} onClick={handleAddDomain}>Guardar Dominio</button>
-
-                    </div>
-
-                 </div>
-
-              </motion.div>
-
-           </div>
-
-         )}
-
-       </AnimatePresence>
+        </AnimatePresence>
 
 
 

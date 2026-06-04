@@ -12,6 +12,7 @@ import {
   Activity, 
   Settings, 
   HelpCircle,
+  X,
   Menu,
   ChevronLeft,
   Search,
@@ -34,7 +35,6 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
   { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
@@ -104,6 +104,12 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
           {!isCollapsed && <span className={styles.logoText}>GovData Nexus</span>}
         </div>
         <button 
+          className={styles.closeMobileBtn} 
+          onClick={onCloseMobile}
+        >
+          <X size={20} />
+        </button>
+        <button 
           className={styles.collapseBtn} 
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
@@ -170,13 +176,7 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
         </div>
       )}
 
-      <div className={styles.searchContainer}>
-        <div className={styles.searchWrapper}>
-          <Search size={18} className={styles.searchIcon} />
-          {!isCollapsed && <input type="text" placeholder="Buscar activos..." className={styles.searchInput} />}
-        </div>
-      </div>
-
+      
       <nav className={styles.nav}>
         {filteredMenuItems.map((item) => {
           const isActive = pathname === item.href;
@@ -200,10 +200,18 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
           <Settings size={22} />
           {!isCollapsed && <span>Configuración</span>}
         </Link>
-        <Link href="/help" className={styles.footerLink} onClick={handleLinkClick}>
+        <button 
+          className={styles.footerLink} 
+          onClick={(e) => {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('open-ai-assistant'));
+            handleLinkClick();
+          }}
+          style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+        >
           <HelpCircle size={22} />
           {!isCollapsed && <span>Ayuda</span>}
-        </Link>
+        </button>
 
         {/* Link directo a SuperAdministrador si es admin - Abajo, llamativo y adaptado */}
         {userRole === 'superadmin' && (

@@ -2098,58 +2098,48 @@ export default function PoliciesModule() {
         {isProcModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsProcModalOpen(false)}>
             <motion.div 
-              className={styles.modalContent}
-              style={{ 
-                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              className={styles.modalContentLight}
+              style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Crear Procedimiento</h2>
-                <button onClick={() => setIsProcModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeaderLight}>
+                <h2>Crear Procedimiento</h2>
+                <button onClick={() => setIsProcModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código</label>
-                    <input type="text" value={newProcedure.code} onChange={e => setNewProcedure({...newProcedure, code: e.target.value})} placeholder="PRC-010" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Código</label>
+                    <input type="text" value={newProcedure.code} onChange={e => setNewProcedure({...newProcedure, code: e.target.value})} placeholder="PRC-010" className={styles.modalInput} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Versión</label>
-                    <input type="text" value={newProcedure.version} onChange={e => setNewProcedure({...newProcedure, version: e.target.value})} placeholder="1.0" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Versión</label>
+                    <input type="text" value={newProcedure.version} onChange={e => setNewProcedure({...newProcedure, version: e.target.value})} placeholder="1.0" className={styles.modalInput} />
                   </div>
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Título del Procedimiento</label>
-                  <input type="text" value={newProcedure.title} onChange={e => setNewProcedure({...newProcedure, title: e.target.value})} placeholder="Ej: Manual de anonimización" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup} style={{ marginBottom: '16px' }}>
+                  <label className={styles.modalLabel}>Título del Procedimiento</label>
+                  <input type="text" value={newProcedure.title} onChange={e => setNewProcedure({...newProcedure, title: e.target.value})} placeholder="Ej: Manual de anonimización" className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Contenido / Resumen</label>
-                  <textarea value={newProcedure.content} onChange={e => setNewProcedure({...newProcedure, content: e.target.value})} placeholder="Describe el procedimiento brevemente..." rows={4} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none', resize: 'vertical' }} />
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Contenido / Resumen</label>
+                  <textarea value={newProcedure.content} onChange={e => setNewProcedure({...newProcedure, content: e.target.value})} placeholder="Describe el procedimiento brevemente..." rows={4} className={styles.modalInput} style={{ resize: 'vertical' }} />
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Enlace al Documento o Subir Archivo</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="text" value={newProcedure.document_url || ''} onChange={e => setNewProcedure({...newProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    <input type="text" value={newProcedure.document_url || ''} onChange={e => setNewProcedure({...newProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" className={styles.modalInput} style={{ flex: 1 }} />
                     {newProcedure.document_url && (
-                      <a href={newProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                      <a href={newProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', textDecoration: 'none', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Abrir enlace">
                         <ExternalLink size={16} />
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
                       <input type="file" id="proc-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewProcedure({...newProcedure, document_url: url}), 'procedimientos')} />
-                      <label htmlFor="proc-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                      <label htmlFor="proc-create-upload" className={styles.secondaryBtn} style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
                     </div>
@@ -2160,12 +2150,12 @@ export default function PoliciesModule() {
                     className={styles.secondaryBtn} 
                     onClick={() => simulateProcedureAiGeneration('new')}
                     disabled={isAiGenerating}
-                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#d8b4fe', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                      <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
                   </button>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => setIsProcModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.secondaryBtn} onClick={() => setIsProcModalOpen(false)}>Cancelar</button>
                     <button className={styles.primaryBtn} onClick={handleAddProcedure}>Crear Procedimiento</button>
                   </div>
                 </div>
@@ -2180,66 +2170,56 @@ export default function PoliciesModule() {
         {isStdDetailModalOpen && selectedStandard && (
           <div className={styles.modalOverlay} onClick={() => setIsStdDetailModalOpen(false)}>
             <motion.div 
-              className={styles.modalContent}
-              style={{ 
-                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              className={styles.modalContentLight}
+              style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Gestionar Estándar Técnico</h2>
-                <button onClick={() => setIsStdDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeaderLight}>
+                <h2>Gestionar Estándar Técnico</h2>
+                <button onClick={() => setIsStdDetailModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código del Estándar</label>
-                  <input type="text" value={selectedStandard.code} onChange={e => setSelectedStandard({...selectedStandard, code: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Código del Estándar</label>
+                  <input type="text" value={selectedStandard.code} onChange={e => setSelectedStandard({...selectedStandard, code: e.target.value})} className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Estándar</label>
-                  <input type="text" value={selectedStandard.name} onChange={e => setSelectedStandard({...selectedStandard, name: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Nombre del Estándar</label>
+                  <input type="text" value={selectedStandard.name} onChange={e => setSelectedStandard({...selectedStandard, name: e.target.value})} className={styles.modalInput} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Categoría</label>
-                    <select value={selectedStandard.category} onChange={e => setSelectedStandard({...selectedStandard, category: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
-                      <option value="Arquitectura" style={{ color: 'black' }}>Arquitectura</option>
-                      <option value="Seguridad" style={{ color: 'black' }}>Seguridad</option>
-                      <option value="Interoperabilidad" style={{ color: 'black' }}>Interoperabilidad</option>
-                      <option value="Accesos" style={{ color: 'black' }}>Accesos</option>
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Categoría</label>
+                    <select value={selectedStandard.category} onChange={e => setSelectedStandard({...selectedStandard, category: e.target.value})} className={styles.modalInput}>
+                      <option value="Arquitectura">Arquitectura</option>
+                      <option value="Seguridad">Seguridad</option>
+                      <option value="Interoperabilidad">Interoperabilidad</option>
+                      <option value="Accesos">Accesos</option>
                     </select>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Estado</label>
-                    <select value={selectedStandard.status} onChange={e => setSelectedStandard({...selectedStandard, status: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
-                      <option value="Activo" style={{ color: 'black' }}>Activo</option>
-                      <option value="Crítico" style={{ color: 'black' }}>Crítico</option>
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Estado</label>
+                    <select value={selectedStandard.status} onChange={e => setSelectedStandard({...selectedStandard, status: e.target.value})} className={styles.modalInput}>
+                      <option value="Activo">Activo</option>
+                      <option value="Crítico">Crítico</option>
                     </select>
                   </div>
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Enlace al Documento o Subir Archivo</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="text" value={selectedStandard.document_url || ''} onChange={e => setSelectedStandard({...selectedStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    <input type="text" value={selectedStandard.document_url || ''} onChange={e => setSelectedStandard({...selectedStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" className={styles.modalInput} style={{ flex: 1 }} />
                     {selectedStandard.document_url && (
-                      <a href={selectedStandard.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                      <a href={selectedStandard.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', textDecoration: 'none', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Abrir enlace">
                         <ExternalLink size={16} />
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
                       <input type="file" id="std-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedStandard({...selectedStandard, document_url: url}), 'estandares')} />
-                      <label htmlFor="std-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                      <label htmlFor="std-edit-upload" className={styles.secondaryBtn} style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
                     </div>
@@ -2247,20 +2227,20 @@ export default function PoliciesModule() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => handleDeleteStandard(selectedStandard.id)} style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}>
+                    <button className={styles.secondaryBtn} onClick={() => handleDeleteStandard(selectedStandard.id)} style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444' }}>
                       <Trash2 size={16} style={{ marginRight: '8px' }} /> Eliminar
                     </button>
                     <button 
                       className={styles.secondaryBtn} 
                       onClick={() => simulateStandardAiGeneration('edit')}
                       disabled={isAiGenerating}
-                      style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#d8b4fe', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
-                       <Cpu size={14} /> {isAiGenerating ? 'Mejorar con IA' : 'Mejorar con IA'}
+                       <Cpu size={14} /> Mejorar con IA
                     </button>
                   </div>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => setIsStdDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.secondaryBtn} onClick={() => setIsStdDetailModalOpen(false)}>Cancelar</button>
                     <button className={styles.primaryBtn} onClick={handleUpdateStandard}>Guardar Cambios</button>
                   </div>
                 </div>
@@ -2275,58 +2255,48 @@ export default function PoliciesModule() {
         {isProcDetailModalOpen && selectedProcedure && (
           <div className={styles.modalOverlay} onClick={() => setIsProcDetailModalOpen(false)}>
             <motion.div 
-              className={styles.modalContent}
-              style={{ 
-                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              className={styles.modalContentLight}
+              style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Gestionar Procedimiento</h2>
-                <button onClick={() => setIsProcDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeaderLight}>
+                <h2>Gestionar Procedimiento</h2>
+                <button onClick={() => setIsProcDetailModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código</label>
-                    <input type="text" value={selectedProcedure.code} onChange={e => setSelectedProcedure({...selectedProcedure, code: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Código</label>
+                    <input type="text" value={selectedProcedure.code} onChange={e => setSelectedProcedure({...selectedProcedure, code: e.target.value})} className={styles.modalInput} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Versión</label>
-                    <input type="text" value={selectedProcedure.version} onChange={e => setSelectedProcedure({...selectedProcedure, version: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Versión</label>
+                    <input type="text" value={selectedProcedure.version} onChange={e => setSelectedProcedure({...selectedProcedure, version: e.target.value})} className={styles.modalInput} />
                   </div>
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Título del Procedimiento</label>
-                  <input type="text" value={selectedProcedure.title} onChange={e => setSelectedProcedure({...selectedProcedure, title: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Título del Procedimiento</label>
+                  <input type="text" value={selectedProcedure.title} onChange={e => setSelectedProcedure({...selectedProcedure, title: e.target.value})} className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Contenido / Resumen</label>
-                  <textarea value={selectedProcedure.content} onChange={e => setSelectedProcedure({...selectedProcedure, content: e.target.value})} rows={4} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none', resize: 'vertical' }} />
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Contenido / Resumen</label>
+                  <textarea value={selectedProcedure.content} onChange={e => setSelectedProcedure({...selectedProcedure, content: e.target.value})} rows={4} className={styles.modalInput} style={{ resize: 'vertical' }} />
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Enlace al Documento o Subir Archivo</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="text" value={selectedProcedure.document_url || ''} onChange={e => setSelectedProcedure({...selectedProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    <input type="text" value={selectedProcedure.document_url || ''} onChange={e => setSelectedProcedure({...selectedProcedure, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" className={styles.modalInput} style={{ flex: 1 }} />
                     {selectedProcedure.document_url && (
-                      <a href={selectedProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                      <a href={selectedProcedure.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', textDecoration: 'none', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Abrir enlace">
                         <ExternalLink size={16} />
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
                       <input type="file" id="proc-edit-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setSelectedProcedure({...selectedProcedure, document_url: url}), 'procedimientos')} />
-                      <label htmlFor="proc-edit-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                      <label htmlFor="proc-edit-upload" className={styles.secondaryBtn} style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
                     </div>
@@ -2334,20 +2304,20 @@ export default function PoliciesModule() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => handleDeleteProcedure(selectedProcedure.id)} style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}>
+                    <button className={styles.secondaryBtn} onClick={() => handleDeleteProcedure(selectedProcedure.id)} style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444' }}>
                       <Trash2 size={16} style={{ marginRight: '8px' }} /> Eliminar
                     </button>
                     <button 
                       className={styles.secondaryBtn} 
                       onClick={() => simulateProcedureAiGeneration('edit')}
                       disabled={isAiGenerating}
-                      style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#d8b4fe', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
-                       <Cpu size={14} /> {isAiGenerating ? 'Mejorar con IA' : 'Mejorar con IA'}
+                       <Cpu size={14} /> Mejorar con IA
                     </button>
                   </div>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => setIsProcDetailModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.secondaryBtn} onClick={() => setIsProcDetailModalOpen(false)}>Cancelar</button>
                     <button className={styles.primaryBtn} onClick={handleUpdateProcedure}>Guardar Cambios</button>
                   </div>
                 </div>
@@ -2361,55 +2331,45 @@ export default function PoliciesModule() {
         {isEvidenceModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsEvidenceModalOpen(false)}>
             <motion.div 
-              className={styles.modalContent}
-              style={{ 
-                maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              className={styles.modalContentLight}
+              style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Subir Evidencia</h2>
-                <button onClick={() => setIsEvidenceModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeaderLight}>
+                <h2>Subir Evidencia</h2>
+                <button onClick={() => setIsEvidenceModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Documento</label>
-                  <input type="text" value={newEvidence.filename} onChange={e => setNewEvidence({...newEvidence, filename: e.target.value})} placeholder="Ej: Certificado ISO 27001" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Nombre del Documento</label>
+                  <input type="text" value={newEvidence.filename} onChange={e => setNewEvidence({...newEvidence, filename: e.target.value})} placeholder="Ej: Certificado ISO 27001" className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Descripción / Notas</label>
-                  <input type="text" value={newEvidence.description} onChange={e => setNewEvidence({...newEvidence, description: e.target.value})} placeholder="Notas sobre la evidencia" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Descripción / Notas</label>
+                  <input type="text" value={newEvidence.description} onChange={e => setNewEvidence({...newEvidence, description: e.target.value})} placeholder="Notas sobre la evidencia" className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Evidencia</label>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Enlace al Documento o Subir Evidencia</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="text" value={newEvidence.file_url || ''} onChange={e => setNewEvidence({...newEvidence, file_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
+                    <input type="text" value={newEvidence.file_url || ''} onChange={e => setNewEvidence({...newEvidence, file_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" className={styles.modalInput} style={{ flex: 1 }} />
                     {newEvidence.file_url && (
-                      <a href={newEvidence.file_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
+                      <a href={newEvidence.file_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', textDecoration: 'none', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Abrir enlace">
                         <ExternalLink size={16} />
                       </a>
                     )}
                     <div style={{ position: 'relative' }}>
                       <input type="file" id="ev-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewEvidence({...newEvidence, file_url: url}), 'evidencias')} />
-                      <label htmlFor="ev-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                      <label htmlFor="ev-create-upload" className={styles.secondaryBtn} style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className={styles.secondaryBtn} onClick={() => setIsEvidenceModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                  <button className={styles.secondaryBtn} onClick={() => setIsEvidenceModalOpen(false)}>Cancelar</button>
                   <button className={styles.primaryBtn} onClick={handleAddEvidence}>Guardar Evidencia</button>
                 </div>
               </div>
@@ -2423,49 +2383,39 @@ export default function PoliciesModule() {
         {isApproveModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsApproveModalOpen(false)}>
             <motion.div 
-              className={styles.modalContent}
-              style={{ 
-                maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              className={styles.modalContentLight}
+              style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Asignar y Aprobar Paso</h2>
-                <button onClick={() => setIsApproveModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeaderLight}>
+                <h2>Asignar y Aprobar Paso</h2>
+                <button onClick={() => setIsApproveModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Responsable de Aprobación</label>
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Responsable de Aprobación</label>
                   <select 
                     value={approveAssignee}
                     onChange={e => setApproveAssignee(e.target.value)}
-                    style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                    className={styles.modalInput}
                   >
-                    <option value="" disabled style={{ color: 'black' }}>Seleccione el responsable asignado...</option>
+                    <option value="" disabled>Seleccione el responsable asignado...</option>
                     {teamMembers.map((m, i) => (
-                      <option key={i} value={m.name} style={{ color: 'black' }}>{m.name} ({m.role})</option>
+                      <option key={i} value={m.name}>{m.name} ({m.role})</option>
                     ))}
                   </select>
                 </div>
-                <div style={{ padding: '16px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px', marginBottom: '24px' }}>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#60a5fa', lineHeight: 1.5 }}>
-                    <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                <div style={{ padding: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', marginBottom: '24px' }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e40af', lineHeight: 1.5 }}>
+                    <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px', display: 'inline-block' }} />
                     Al firmar y avanzar, el documento pasará al siguiente estado del ciclo de vida y la fecha quedará registrada en la pista de auditoría.
                   </p>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className={styles.secondaryBtn} onClick={() => setIsApproveModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                  <button className={styles.secondaryBtn} onClick={() => setIsApproveModalOpen(false)}>Cancelar</button>
                   <button 
                     className={styles.primaryBtn} 
                     onClick={executeAdvanceWorkflow}

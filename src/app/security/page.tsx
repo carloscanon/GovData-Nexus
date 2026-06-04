@@ -52,7 +52,7 @@ const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   Activo:        { bg: '#eff6ff', text: '#3b82f6' },
   Revocado:      { bg: '#f0fdf4', text: '#10b981' },
 };
-const FRAMEWORKS = ['ISO 27001', 'Habeas Data (Ley 1581)', 'GDPR', 'NIST Framework'];
+const FRAMEWORKS = ['ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework'];
 
 function SevBadge({ value, map }: { value: string; map: Record<string, { bg: string; text: string }> }) {
   const c = map[value] || { bg: '#f1f5f9', text: '#64748b' };
@@ -92,6 +92,8 @@ export default function SecurityModule() {
   const [newRisk, setNewRisk] = useState({ name: '', description: '', asset: '', severity: 'Medio', impact: 'Medio', probability: 'Media', owner: '', action_plan: '' });
   const [newIncident, setNewIncident] = useState({ type: '', description: '', severity: 'Medio', assigned_to: '' });
   const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
+  const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '' });
+  const [isControlModalOpen, setIsControlModalOpen] = useState(false);
 
   // ── Fetch Data ──────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -198,6 +200,47 @@ export default function SecurityModule() {
     }]);
     if (!error) { fetchData(); setIsAccessModalOpen(false); setNewAccess({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' }); }
     else alert('Error: ' + error.message);
+  };
+
+  const handleAddControl = async () => {
+    if (!newControl.name || !newControl.control_id || !currentTenant?.id) return;
+    const { error } = await supabase.from('security_controls').insert([{
+      ...newControl,
+      tenant_id: currentTenant.id,
+      last_evaluated: new Date().toISOString().split('T')[0]
+    }]);
+    if (!error) {
+      fetchData();
+      setIsControlModalOpen(false);
+      setNewControl({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '' });
+    } else {
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const handleLoadStandardControls = async () => {
+    if (!currentTenant?.id) return;
+    const standardControls = [
+      { control_id: 'A.8.2.1', name: 'Clasificación de información confidencial', framework: 'ISO 27001', status: 'OK', evidence: 'Política de Clasificación v2', notes: 'Gobernado en el Catálogo' },
+      { control_id: 'A.8.2.3', name: 'Etiquetado de activos de información', framework: 'ISO 27001', status: 'Parcial', evidence: 'Clasificación automática DB', notes: 'En proceso de automatización' },
+      { control_id: 'A.9.1.1', name: 'Política de Control de Acceso', framework: 'ISO 27001', status: 'OK', evidence: 'Matriz de Roles y Perfiles', notes: 'Revisión semestral' },
+      { control_id: 'L1581-01', name: 'Obtención de Autorización y Consentimiento', framework: 'Ley 1581 de 2012 (Habeas Data)', status: 'OK', evidence: 'Términos y condiciones web', notes: 'Auditoría legal conforme' },
+      { control_id: 'L1581-02', name: 'Registro Nacional de Bases de Datos (RNBD)', framework: 'Ley 1581 de 2012 (Habeas Data)', status: 'Parcial', evidence: 'Radicado SIC-98821', notes: 'Pendiente subir base transaccional' },
+      { control_id: 'L1712-01', name: 'Esquema de Publicación de Información Pública', framework: 'Ley 1712 de 2014 (Transparencia)', status: 'OK', evidence: 'Sección Transparencia Sitio Web', notes: 'Actualización mensual' },
+      { control_id: 'L1712-02', name: 'Registro de Activos de Información (ITA)', framework: 'Ley 1712 de 2014 (Transparencia)', status: 'Parcial', evidence: 'Inventario de activos en catálogo', notes: 'Se integra con el catálogo de datos' },
+      { control_id: 'GDPR.32', name: 'Cifrado de datos personales', framework: 'GDPR', status: 'OK', evidence: 'Configuración SSL/TLS y TDE en PostgreSQL', notes: 'Cifrado en tránsito y reposo activo' },
+      { control_id: 'GDPR.35', name: 'Evaluaciones de Impacto (DPIA)', framework: 'GDPR', status: 'Falla', evidence: '', notes: 'Falta formalizar la DPIA para el módulo de workflows' },
+      { control_id: 'PR.AC-1', name: 'Identidades y Accesos Privilegiados', framework: 'NIST Framework', status: 'OK', evidence: 'Consola IAM AWS / GCP', notes: 'MFA activo obligatorio' },
+      { control_id: 'DE.AE-2', name: 'Monitoreo de Anomalías y Eventos', framework: 'NIST Framework', status: 'Parcial', evidence: 'Logs de auditoría Supabase', notes: 'Pendiente configurar alertas en Slack' }
+    ].map(c => ({ ...c, tenant_id: currentTenant.id }));
+
+    const { error } = await supabase.from('security_controls').insert(standardControls);
+    if (!error) {
+      fetchData();
+      alert('Controles estándar cargados correctamente.');
+    } else {
+      alert('Error cargando controles estándar: ' + error.message);
+    }
   };
 
   const handleRevokeAccess = async (id: string) => {
@@ -320,6 +363,20 @@ export default function SecurityModule() {
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
             <Plus size={16} /> Registrar Acceso
           </button>
+        )}
+        {activeTab === 'cumplimiento' && (
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {controls.length === 0 && (
+              <button onClick={handleLoadStandardControls}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '12px', background: '#ecfdf5', color: '#10b981', border: '1px solid #a7f3d0', cursor: 'pointer', fontWeight: 700 }}>
+                Cargar Controles Estándar
+              </button>
+            )}
+            <button onClick={() => setIsControlModalOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+              <Plus size={16} /> Nuevo Control
+            </button>
+          </div>
         )}
       </div>
 
@@ -780,6 +837,58 @@ export default function SecurityModule() {
                   <button onClick={() => setIsAccessModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
                   <button onClick={handleAddAccess} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Save size={15} /> Guardar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Control Modal */}
+      <AnimatePresence>
+        {isControlModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsControlModalOpen(false)}>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #10b981, #6366f1)' }}>
+                <h2 style={{ margin: 0, color: 'white' }}>Registrar Nuevo Control</h2>
+                <button onClick={() => setIsControlModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
+              </div>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Control ID *</label>
+                    <input value={newControl.control_id} onChange={e => setNewControl({ ...newControl, control_id: e.target.value })} placeholder="Ej: A.8.2.1"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Normativa / Framework *</label>
+                    <select value={newControl.framework} onChange={e => setNewControl({ ...newControl, framework: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      {FRAMEWORKS.map(fw => <option key={fw} value={fw}>{fw}</option>)}
+                    </select></div>
+                </div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nombre del Control *</label>
+                  <input value={newControl.name} onChange={e => setNewControl({ ...newControl, name: e.target.value })} placeholder="Ej: Clasificación de información"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Estado Inicial</label>
+                    <select value={newControl.status} onChange={e => setNewControl({ ...newControl, status: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                      <option value="OK">OK (Cumple)</option>
+                      <option value="Parcial">Parcial</option>
+                      <option value="Falla">Falla (No cumple)</option>
+                    </select></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Evidencia / Enlace</label>
+                    <input value={newControl.evidence} onChange={e => setNewControl({ ...newControl, evidence: e.target.value })} placeholder="Ej: Matriz de Roles v2"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                </div>
+                <div style={{ marginBottom: '24px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Notas / Hallazgos</label>
+                  <textarea value={newControl.notes} onChange={e => setNewControl({ ...newControl, notes: e.target.value })} rows={2} placeholder="Comentarios adicionales..."
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button onClick={() => setIsControlModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                  <button onClick={handleAddControl} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Save size={15} /> Guardar Control
                   </button>
                 </div>
               </div>

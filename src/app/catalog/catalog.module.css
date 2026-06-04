@@ -390,6 +390,8 @@
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .iconBtn {

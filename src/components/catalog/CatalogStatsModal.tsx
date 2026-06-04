@@ -28,6 +28,7 @@ interface DataAsset {
   status: string;
   risk_level?: string;
   description?: string;
+  criticality?: string;
 }
 
 interface CatalogStatsModalProps {
@@ -71,7 +72,16 @@ export default function CatalogStatsModal({ isOpen, onClose, type, assets }: Cat
       case 'quality':
         return [...assets].sort((a, b) => a.quality_score - b.quality_score);
       case 'critical':
-        return assets.filter(a => a.risk_level === 'Alto' || a.risk_level === 'Crítico');
+        return assets.filter(a => 
+          a.risk_level === 'Alto' || 
+          a.risk_level === 'Crítico' || 
+          a.criticality === 'Alta' || 
+          a.criticality === 'Muy Alta' ||
+          a.risk_level === 'alto' || 
+          a.risk_level === 'critico' || 
+          a.criticality === 'alta' || 
+          a.criticality === 'muy alta'
+        );
       default:
         return assets;
     }

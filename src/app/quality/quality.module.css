@@ -466,6 +466,25 @@
 @media (max-width: 768px) {
   .mainGrid { grid-template-columns: 1fr; }
   .kpiGrid { grid-template-columns: repeat(2, 1fr); }
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .assetSelector {
+    max-width: 100%;
+    width: 100%;
+  }
+  .headerActions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .headerActions button {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
 }
 
 .execOverlay {

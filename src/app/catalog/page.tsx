@@ -55,6 +55,8 @@ interface DataAsset {
   tenant_id?: string;
   tags?: string[];
   updated_at?: string;
+  description?: string;
+  criticality?: string;
 }
 
 const demoAssets: DataAsset[] = [
@@ -73,6 +75,7 @@ export default function Catalog() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [documenting, setDocumenting] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<DataAsset | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<DataAsset | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
@@ -151,6 +154,10 @@ export default function Catalog() {
         });
       }
     }
+
+    if (mode !== 'DEMO') {
+      fetchAssets();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -175,6 +182,69 @@ export default function Catalog() {
       console.warn('Error al eliminar de base de datos. Aplicando fallback en memoria:', error);
       setAssets(prev => prev.filter(a => a.id !== id));
       alert('Activo eliminado exitosamente (Modo local - Base de datos desconectada).');
+    }
+  };
+
+  // ── NEXUS AI INSIGHTS GENERATOR ──
+  const assetsWithoutDesc = assets.filter(a => !a.description || a.description.trim() === '');
+  const securityInconsistencies = assets.filter(a => 
+    (a.sensitivity === 'Confidencial' || a.sensitivity === 'Altamente Sensible' || a.sensitivity === 'Restringido' || a.sensitivity === 'Interno') && 
+    (a.risk_level === 'Bajo' || !a.risk_level)
+  );
+
+  // ── DYNAMIC SOURCE DISTRIBUTION ──
+  const sourceCounts: Record<string, number> = {};
+  assets.forEach(asset => {
+    const src = asset.source || 'Otros';
+    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+  });
+
+  const totalSourceAssets = assets.length;
+  const sourceColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4'];
+  const sourceDistribution = Object.entries(sourceCounts)
+    .map(([label, count], index) => {
+      const val = totalSourceAssets > 0 ? Math.round((count / totalSourceAssets) * 100) : 0;
+      return {
+        label,
+        val,
+        color: sourceColors[index % sourceColors.length]
+      };
+    })
+    .sort((a, b) => b.val - a.val);
+
+  const handleAiDocumentation = async () => {
+    if (assetsWithoutDesc.length === 0) {
+      alert("Todos los activos ya se encuentran documentados.");
+      return;
+    }
+    
+    try {
+      setDocumenting(true);
+      const targetAssets = assetsWithoutDesc.slice(0, 5);
+      
+      for (const asset of targetAssets) {
+        const generatedDesc = `Autogenerado por Nexus AI: Activo del tipo ${asset.type || 'Tabla'} del sistema de origen ${asset.source || 'Desconocido'}. Contiene información del negocio relacionada a ${asset.name || 'operaciones generales'}.`;
+        
+        if (mode === 'DEMO') {
+          setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, description: generatedDesc } : a));
+        } else {
+          const { error } = await supabase
+            .from('data_assets')
+            .update({ description: generatedDesc })
+            .eq('id', asset.id);
+          if (error) throw error;
+        }
+      }
+      
+      alert(`¡Nexus AI ha documentado exitosamente ${targetAssets.length} activo(s) de datos!`);
+      if (mode !== 'DEMO') {
+        fetchAssets();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Hubo un error al generar la documentación con IA.");
+    } finally {
+      setDocumenting(false);
     }
   };
 
@@ -362,7 +432,18 @@ export default function Catalog() {
           <div className={styles.miniPill} onClick={() => openStatsModal('critical')}>
             <AlertOctagon size={14} />
             <span>Activos Críticos</span>
-            <strong style={{ color: '#ef4444' }}>{assets.filter(a => a.risk_level === 'Alto').length}</strong>
+            <strong style={{ color: '#ef4444' }}>
+              {assets.filter(a => 
+                a.risk_level === 'Alto' || 
+                a.risk_level === 'Crítico' || 
+                a.criticality === 'Alta' || 
+                a.criticality === 'Muy Alta' ||
+                a.risk_level === 'alto' || 
+                a.risk_level === 'critico' || 
+                a.criticality === 'alta' || 
+                a.criticality === 'muy alta'
+              ).length}
+            </strong>
           </div>
         </div>
       </motion.div>
@@ -488,7 +569,7 @@ export default function Catalog() {
                     <th>Calidad %</th>
                     <th>Estado</th>
                     <th>Riesgo</th>
-                    <th>Acciones</th>
+                    <th style={{ width: '140px', minWidth: '140px' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -552,7 +633,7 @@ export default function Catalog() {
                           {asset.risk_level || 'Bajo'}
                         </span>
                       </td>
-                      <td>
+                      <td style={{ width: '140px', minWidth: '140px' }}>
                         <div className={styles.actions}>
                           <button className={styles.iconBtn} onClick={() => openDetail(asset)} title="Ver Detalle">
                             <Eye size={16} />
@@ -584,50 +665,72 @@ export default function Catalog() {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', zIndex: 1 }}>
-              <div className={styles.aiAlertItem}>
-                <div className={styles.aiAlertBadge}>
-                  <ShieldCheck size={14} color="#10b981" />
-                  <span className={styles.aiBadgeText}>RECOMENDACIÓN</span>
+              {assetsWithoutDesc.length > 0 && (
+                <div className={styles.aiAlertItem}>
+                  <div className={styles.aiAlertBadge}>
+                    <ShieldCheck size={14} color="#10b981" />
+                    <span className={styles.aiBadgeText}>DOCUMENTACIÓN CON IA</span>
+                  </div>
+                  <p className={styles.aiAlertText}>
+                    Se detectaron <strong>{assetsWithoutDesc.length} activo(s)</strong> sin descripción. Nexus AI puede autogenerar la documentación.
+                  </p>
+                  <button 
+                    className={styles.aiActionBtn} 
+                    onClick={handleAiDocumentation}
+                    disabled={documenting}
+                  >
+                    {documenting ? <Loader2 size={14} className={styles.spin} /> : <Zap size={14} />}
+                    Documentar Ahora
+                  </button>
                 </div>
-                <p className={styles.aiAlertText}>
-                  Se detectaron 4 tablas de <strong>Ventas</strong> sin descripción. Nexus AI puede autogenerar la documentación.
-                </p>
-                <button className={styles.aiActionBtn}>
-                  Documentar Ahora
-                </button>
-              </div>
+              )}
 
-              <div className={styles.aiRiskItem}>
-                <div className={styles.aiAlertBadge}>
-                  <AlertOctagon size={14} color="#f59e0b" />
-                  <span className={styles.aiRiskBadgeText}>RIESGO DETECTADO</span>
+              {securityInconsistencies.length > 0 && (
+                <div className={styles.aiRiskItem}>
+                  <div className={styles.aiAlertBadge}>
+                    <AlertOctagon size={14} color="#f59e0b" />
+                    <span className={styles.aiRiskBadgeText}>RIESGO DE CLASIFICACIÓN</span>
+                  </div>
+                  <p className={styles.aiAlertText}>
+                    El activo <strong>"{securityInconsistencies[0].name}"</strong> tiene sensibilidad <strong>"{securityInconsistencies[0].sensitivity}"</strong> pero nivel de riesgo <strong>"Bajo"</strong>. Se sugiere auditar.
+                  </p>
                 </div>
-                <p className={styles.aiAlertText}>
-                  El contenedor <strong>"Sales_Archive_2023"</strong> tiene sensibilidad inconsistente con sus hijos.
-                </p>
-              </div>
+              )}
+
+              {assetsWithoutDesc.length === 0 && securityInconsistencies.length === 0 && (
+                <div className={styles.aiAlertItem} style={{ borderLeftColor: '#10b981', background: 'rgba(16, 185, 129, 0.02)' }}>
+                  <div className={styles.aiAlertBadge}>
+                    <ShieldCheck size={14} color="#10b981" />
+                    <span className={styles.aiBadgeText}>TODO AL DÍA</span>
+                  </div>
+                  <p className={styles.aiAlertText}>
+                    ¡Excelente! No se detectaron vacíos de documentación ni inconsistencias de clasificación en los activos del catálogo.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           <div className={styles.sideCard}>
              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', fontWeight: 700 }}>Distribución por Fuente</h3>
              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               {[
-                 { label: 'SAP ERP', val: 45, color: '#6366f1' },
-                 { label: 'Salesforce', val: 30, color: '#10b981' },
-                 { label: 'Oracle DB', val: 15, color: '#f59e0b' },
-                 { label: 'S3 Buckets', val: 10, color: '#ec4899' }
-               ].map((item, i) => (
-                 <div key={i}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
-                     <span style={{ fontWeight: 600, color: '#64748b' }}>{item.label}</span>
-                     <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.val}%</span>
-                   </div>
-                   <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
-                     <div style={{ width: `${item.val}%`, height: '100%', background: item.color }}></div>
-                   </div>
-                 </div>
-               ))}
+              {sourceDistribution.length === 0 ? (
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>
+                  No se encontraron activos para calcular la distribución.
+                </div>
+              ) : (
+                sourceDistribution.map((item, i) => (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
+                      <span style={{ fontWeight: 600, color: '#64748b' }}>{item.label}</span>
+                      <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.val}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ width: `${item.val}%`, height: '100%', background: item.color }}></div>
+                    </div>
+                  </div>
+                ))
+              )}
              </div>
           </div>
         </div>
@@ -644,6 +747,7 @@ export default function Catalog() {
         asset={selectedAsset}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
+        onEdit={openEditModal}
       />
 
       <AutoScanModal 

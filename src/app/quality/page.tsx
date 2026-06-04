@@ -124,11 +124,14 @@ export default function QualityModule() {
   const [tableAnalysisResult, setTableAnalysisResult] = useState<any>(null);
   const [assetFields, setAssetFields] = useState<any[]>([]);
 
-  // Conciliación de Sistemas
+  // Conciliación de Activos
   const [reconciliationResult, setReconciliationResult] = useState<any>(null);
   const [isReconciling, setIsReconciling] = useState(false);
-  const [sysA, setSysA] = useState('SAP ERP');
-  const [sysB, setSysB] = useState('Salesforce CRM');
+  const [assetIdA, setAssetIdA] = useState('');
+  const [assetIdB, setAssetIdB] = useState('');
+  const [fieldsA, setFieldsA] = useState<any[]>([]);
+  const [fieldsB, setFieldsB] = useState<any[]>([]);
+  const [activeReconTab, setActiveReconTab] = useState<'schema'|'quality'|'detail'>('schema');
 
   // Detalle de incidente & workflow de remediación
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -657,16 +660,142 @@ export default function QualityModule() {
     }
   };
 
-  // Conciliación de sistemas
+  // Cargar campos de un activo para conciliación
+  const loadFieldsForAsset = async (assetId: string, side: 'A' | 'B') => {
+    if (!assetId) { side === 'A' ? setFieldsA([]) : setFieldsB([]); return; }
+    try {
+      if (mode === 'DEMO') {
+        const demoMap: any = {
+          '1': [
+            { field_name: 'id', data_type: 'INTEGER', nullable: false },
+            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
+            { field_name: 'email', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'rut', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'telefono', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'fecha_alta', data_type: 'DATE', nullable: true }
+          ],
+          '2': [
+            { field_name: 'id_transaccion', data_type: 'INTEGER', nullable: false },
+            { field_name: 'cliente_id', data_type: 'INTEGER', nullable: false },
+            { field_name: 'nombre_cliente', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'email_contacto', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'monto', data_type: 'NUMERIC', nullable: false },
+            { field_name: 'estado', data_type: 'VARCHAR', nullable: true }
+          ],
+          '3': [
+            { field_name: 'lead_id', data_type: 'INTEGER', nullable: false },
+            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
+            { field_name: 'correo', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'telefono', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'origen', data_type: 'VARCHAR', nullable: true },
+            { field_name: 'calificacion', data_type: 'NUMERIC', nullable: true }
+          ],
+          '4': [
+            { field_name: 'reporte_id', data_type: 'INTEGER', nullable: false },
+            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
+            { field_name: 'periodo', data_type: 'DATE', nullable: false },
+            { field_name: 'total', data_type: 'NUMERIC', nullable: true },
+            { field_name: 'estado', data_type: 'VARCHAR', nullable: true }
+          ]
+        };
+        const fields = demoMap[assetId] || [];
+        side === 'A' ? setFieldsA(fields) : setFieldsB(fields);
+        return;
+      }
+      const { data } = await supabase.from('asset_fields').select('field_name, data_type, nullable').eq('asset_id', assetId);
+      side === 'A' ? setFieldsA(data || []) : setFieldsB(data || []);
+    } catch (e) {
+      console.warn('Error loading fields for reconciliation:', e);
+    }
+  };
+
+  // Conciliación de Activos
   const handleReconcile = async () => {
+    if (!assetIdA || !assetIdB) { alert('Seleccione ambos activos para conciliar.'); return; }
+    if (assetIdA === assetIdB) { alert('Seleccione dos activos diferentes.'); return; }
     setIsReconciling(true);
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1800));
+
+    const assetA = assets.find(a => a.id === assetIdA);
+    const assetB = assets.find(a => a.id === assetIdB);
+
+    // Comparar campos por nombre normalizado
+    const normalize = (s: string) => s.toLowerCase().replace(/[_\s-]/g, '');
+    const mapA = new Map(fieldsA.map(f => [normalize(f.field_name), f]));
+    const mapB = new Map(fieldsB.map(f => [normalize(f.field_name), f]));
+
+    // Sinónimos semánticos para matching parcial
+    const synonyms: Record<string, string[]> = {
+      'nombre': ['nombre_cliente', 'name', 'full_name'],
+      'email': ['email_contacto', 'correo', 'mail'],
+      'telefono': ['phone', 'celular', 'tel'],
+      'id': ['id_transaccion', 'lead_id', 'reporte_id', 'cliente_id'],
+      'estado': ['status', 'calificacion']
+    };
+
+    const matchedPairs: any[] = [];
+    const onlyA: any[] = [];
+    const onlyB: any[] = [];
+    const usedB = new Set<string>();
+
+    fieldsA.forEach(fA => {
+      const normA = normalize(fA.field_name);
+      // Exact match
+      if (mapB.has(normA)) {
+        const fB = mapB.get(normA);
+        const typeMatch = fA.data_type === fB.data_type;
+        matchedPairs.push({ fieldA: fA, fieldB: fB, typeMatch, matchType: 'exact',
+          qualityA: Math.floor(72 + Math.random() * 28),
+          qualityB: Math.floor(72 + Math.random() * 28) });
+        usedB.add(normA);
+      } else {
+        // Synonym match
+        const synKey = Object.keys(synonyms).find(k => normalize(k) === normA || synonyms[k].some(s => normalize(s) === normA));
+        let synMatch = null;
+        if (synKey) {
+          const candidates = [normalize(synKey), ...synonyms[synKey].map(normalize)];
+          const candidate = candidates.find(c => mapB.has(c) && !usedB.has(c));
+          if (candidate) { synMatch = mapB.get(candidate); usedB.add(candidate); }
+        }
+        if (synMatch) {
+          const typeMatch = fA.data_type === synMatch.data_type;
+          matchedPairs.push({ fieldA: fA, fieldB: synMatch, typeMatch, matchType: 'semantic',
+            qualityA: Math.floor(65 + Math.random() * 30),
+            qualityB: Math.floor(65 + Math.random() * 30) });
+        } else {
+          onlyA.push(fA);
+        }
+      }
+    });
+
+    fieldsB.forEach(fB => {
+      if (!usedB.has(normalize(fB.field_name))) onlyB.push(fB);
+    });
+
+    const compatRate = matchedPairs.length / Math.max(fieldsA.length, fieldsB.length, 1) * 100;
+    const typeCompatRate = matchedPairs.filter(p => p.typeMatch).length / Math.max(matchedPairs.length, 1) * 100;
+    const avgQualityA = matchedPairs.length > 0 ? Math.round(matchedPairs.reduce((s, p) => s + p.qualityA, 0) / matchedPairs.length) : 0;
+    const avgQualityB = matchedPairs.length > 0 ? Math.round(matchedPairs.reduce((s, p) => s + p.qualityB, 0) / matchedPairs.length) : 0;
+
     setReconciliationResult({
-      totalSource: 10000,
-      totalTarget: 9850,
-      missing: 150,
-      mismatch: 45,
-      desync: 1.95 // %
+      assetA, assetB,
+      matchedPairs,
+      onlyA, onlyB,
+      compatRate: Math.round(compatRate),
+      typeCompatRate: Math.round(typeCompatRate),
+      avgQualityA, avgQualityB,
+      radarData: [
+        { subject: 'Completitud', A: Math.floor(80 + Math.random() * 18), B: Math.floor(75 + Math.random() * 20) },
+        { subject: 'Unicidad', A: Math.floor(85 + Math.random() * 14), B: Math.floor(80 + Math.random() * 16) },
+        { subject: 'Consistencia', A: Math.floor(78 + Math.random() * 18), B: Math.floor(72 + Math.random() * 22) },
+        { subject: 'Validez', A: Math.floor(82 + Math.random() * 15), B: Math.floor(76 + Math.random() * 18) },
+        { subject: 'Exactitud', A: Math.floor(75 + Math.random() * 20), B: Math.floor(70 + Math.random() * 22) }
+      ],
+      barData: matchedPairs.slice(0, 8).map(p => ({
+        field: p.fieldA.field_name.length > 12 ? p.fieldA.field_name.slice(0, 12) + '…' : p.fieldA.field_name,
+        [assetA?.name?.slice(0,10) || 'A']: p.qualityA,
+        [assetB?.name?.slice(0,10) || 'B']: p.qualityB
+      }))
     });
     setIsReconciling(false);
   };
@@ -758,7 +887,7 @@ export default function QualityModule() {
           { id: 'table_quality', label: 'Calidad de Tabla', icon: <Grid size={16} /> },
           { id: 'field_analysis', label: 'Análisis por Campo', icon: <Layers size={16} /> },
           { id: 'rules', label: 'Reglas de Calidad', icon: <ShieldCheck size={16} /> },
-          { id: 'reconciliation', label: 'Conciliación SAP vs CRM', icon: <Activity size={16} /> },
+          { id: 'reconciliation', label: 'Conciliación Activos', icon: <Activity size={16} /> },
           { id: 'incidents', label: 'Remediación & Incidentes', icon: <AlertCircle size={16} /> }
         ].map(t => (
           <button
@@ -893,7 +1022,27 @@ export default function QualityModule() {
 
         {activeTab === 'profiling' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+            {!selectedAssetId ? (
+              <div style={{ background: 'white', padding: '40px 24px', borderRadius: '24px', border: '1px solid #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <Database size={48} color="#6366f1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ margin: '0 0 8px', color: '#1e293b' }}>Selecciona un Activo de Datos</h3>
+                <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
+                  Para realizar el Perfilamiento Automático (Data Profiling), primero debes elegir un activo de información del catálogo:
+                </p>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                  className={styles.select}
+                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
+                >
+                  <option value="">— Elegir Activo de Información —</option>
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                   <h3 style={{ margin: 0 }}>Perfilamiento Automático (Data Profiling)</h3>
@@ -1072,13 +1221,33 @@ export default function QualityModule() {
                 </div>
               )}
             </div>
+          )}
           </motion.div>
         )}
 
         {activeTab === 'table_quality' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Calidad de Tabla Completa */}
-            <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+            {!selectedAssetId ? (
+              <div style={{ background: 'white', padding: '40px 24px', borderRadius: '24px', border: '1px solid #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <Database size={48} color="#6366f1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ margin: '0 0 8px', color: '#1e293b' }}>Selecciona un Activo de Datos</h3>
+                <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
+                  Para analizar la calidad de la tabla completa y diagnosticar sus dimensiones, primero debes elegir un activo de información del catálogo:
+                </p>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                  className={styles.select}
+                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
+                >
+                  <option value="">— Elegir Activo de Información —</option>
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                   <h3 style={{ margin: 0 }}>Calidad de Tabla Completa / Activo</h3>
@@ -1243,13 +1412,33 @@ export default function QualityModule() {
                 </div>
               )}
             </div>
+          )}
           </motion.div>
         )}
 
         {activeTab === 'field_analysis' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Análisis Granular por Campo */}
-            <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+            {!selectedAssetId ? (
+              <div style={{ background: 'white', padding: '40px 24px', borderRadius: '24px', border: '1px solid #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <Layers size={48} color="#6366f1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ margin: '0 0 8px', color: '#1e293b' }}>Selecciona un Activo de Datos</h3>
+                <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
+                  Para visualizar el análisis granular por campo (columna), primero debes elegir un activo de información del catálogo:
+                </p>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                  className={styles.select}
+                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
+                >
+                  <option value="">— Elegir Activo de Información —</option>
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                   <h3 style={{ margin: 0 }}>Análisis Granular por Campo (Columna)</h3>
@@ -1333,13 +1522,35 @@ export default function QualityModule() {
                 </div>
               )}
             </div>
+          )}
           </motion.div>
         )}
 
         {activeTab === 'rules' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Listado de reglas de calidad */}
-            <section className={styles.rulesSection}>
+            {!selectedAssetId ? (
+              <div style={{ background: 'white', padding: '40px 24px', borderRadius: '24px', border: '1px solid #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={48} color="#6366f1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ margin: '0 0 8px', color: '#1e293b' }}>Selecciona un Activo de Datos</h3>
+                <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
+                  Para gestionar y ejecutar reglas de calidad sobre un activo de información, primero debes elegir un activo de información del catálogo:
+                </p>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                  className={styles.select}
+                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
+                >
+                  <option value="">— Elegir Activo de Información —</option>
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                {/* Listado de reglas de calidad */}
+                <section className={styles.rulesSection}>
               <div className={styles.sectionHeader}>
                 <h3>Reglas de Calidad Configuradas ({rules.length})</h3>
                 <button className={styles.primaryBtnSmall} onClick={() => setIsRuleModalOpen(true)}>Crear Regla</button>
@@ -1398,65 +1609,298 @@ export default function QualityModule() {
                 ))}
               </div>
             </div>
+          </>
+          )}
           </motion.div>
         )}
 
         {activeTab === 'reconciliation' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 4px' }}>Conciliación de Datos (Calidad entre Sistemas)</h3>
-              <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '0.9rem' }}>Compara registros entre tu ERP (SAP) y tu CRM (Salesforce) para identificar discrepancias o desincronización.</p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '20px', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                  <Database size={32} color="#6366f1" style={{ marginBottom: '8px' }} />
-                  <strong>Sistema A</strong>
-                  <select value={sysA} onChange={e => setSysA(e.target.value)} className={styles.select} style={{ marginTop: '8px', border: '1px solid #cbd5e1' }}>
-                    <option>SAP ERP</option>
-                    <option>Oracle DB</option>
-                  </select>
+            {/* Header */}
+            <div style={{ background: 'white', padding: '24px 28px', borderRadius: '20px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                  <Activity size={22} />
                 </div>
-                <div style={{ fontWeight: 900, color: '#64748b' }}>VS</div>
-                <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                  <Database size={32} color="#a855f7" style={{ marginBottom: '8px' }} />
-                  <strong>Sistema B</strong>
-                  <select value={sysB} onChange={e => setSysB(e.target.value)} className={styles.select} style={{ marginTop: '8px', border: '1px solid #cbd5e1' }}>
-                    <option>Salesforce CRM</option>
-                    <option>Data Lake</option>
-                  </select>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Conciliación de Activos de Datos</h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>Compara esquemas y calidad entre dos activos: detecta brechas, incompatibilidades y divergencias de calidad.</p>
                 </div>
               </div>
 
-              <div style={{ textAlign: 'center' }}>
-                <button onClick={handleReconcile} disabled={isReconciling} className={styles.primaryBtn} style={{ margin: '0 auto' }}>
-                  {isReconciling ? <RefreshCw className={styles.spin} /> : <Play />} Ejecutar Conciliación
+              {/* Selector de activos */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: '16px', alignItems: 'center', marginTop: '20px' }}>
+                <div style={{ padding: '16px', background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderRadius: '16px', border: '2px solid #c7d2fe' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Database size={16} /></div>
+                    <span style={{ fontWeight: 700, color: '#4338ca', fontSize: '0.9rem' }}>Activo A</span>
+                  </div>
+                  <select
+                    value={assetIdA}
+                    onChange={e => { setAssetIdA(e.target.value); loadFieldsForAsset(e.target.value, 'A'); setReconciliationResult(null); }}
+                    className={styles.select}
+                    style={{ border: '1px solid #c7d2fe', background: 'white' }}
+                  >
+                    <option value="">Seleccionar activo A…</option>
+                    {assets.filter(a => a.id !== assetIdB).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
+                  </select>
+                  {assetIdA && <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{fieldsA.length} campos detectados</div>}
+                </div>
+
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#f1f5f9', border: '2px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 900, color: '#475569', fontSize: '0.85rem' }}>VS</div>
+                </div>
+
+                <div style={{ padding: '16px', background: 'linear-gradient(135deg,#fdf4ff,#fce7f3)', borderRadius: '16px', border: '2px solid #e9d5ff' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Database size={16} /></div>
+                    <span style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.9rem' }}>Activo B</span>
+                  </div>
+                  <select
+                    value={assetIdB}
+                    onChange={e => { setAssetIdB(e.target.value); loadFieldsForAsset(e.target.value, 'B'); setReconciliationResult(null); }}
+                    className={styles.select}
+                    style={{ border: '1px solid #e9d5ff', background: 'white' }}
+                  >
+                    <option value="">Seleccionar activo B…</option>
+                    {assets.filter(a => a.id !== assetIdA).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
+                  </select>
+                  {assetIdB && <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#a855f7', fontWeight: 600 }}>{fieldsB.length} campos detectados</div>}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                <button
+                  onClick={handleReconcile}
+                  disabled={isReconciling || !assetIdA || !assetIdB}
+                  className={styles.primaryBtn}
+                  style={{ minWidth: '220px', justifyContent: 'center', opacity: (!assetIdA || !assetIdB) ? 0.5 : 1 }}
+                >
+                  {isReconciling ? <><RefreshCw className={styles.spin} /> Analizando…</> : <><Play size={16} /> Ejecutar Conciliación</>}
                 </button>
               </div>
+            </div>
 
-              {reconciliationResult && (
-                <div style={{ marginTop: '24px', background: '#f0fdf4', padding: '24px', borderRadius: '16px', border: '1px solid #bbf7d0' }}>
-                  <h4 style={{ margin: '0 0 12px', color: '#166534' }}>Resultados de la última conciliación</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: '#166534' }}>Registros SAP ERP</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{reconciliationResult.totalSource.toLocaleString()}</div>
+            {/* Resultados */}
+            {reconciliationResult && (() => {
+              const r = reconciliationResult;
+              const nameA = r.assetA?.name || 'Activo A';
+              const nameB = r.assetB?.name || 'Activo B';
+              return (
+                <>
+                  {/* KPI Strip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                    {[
+                      { label: 'Campos Activo A', value: fieldsA.length, color: '#6366f1', bg: '#eef2ff' },
+                      { label: 'Campos Activo B', value: fieldsB.length, color: '#a855f7', bg: '#fdf4ff' },
+                      { label: 'Campos Homólogos', value: r.matchedPairs.length, color: '#10b981', bg: '#f0fdf4' },
+                      { label: 'Solo en A', value: r.onlyA.length, color: '#f59e0b', bg: '#fffbeb' },
+                      { label: 'Solo en B', value: r.onlyB.length, color: '#ef4444', bg: '#fef2f2' }
+                    ].map((k,i) => (
+                      <div key={i} style={{ background: k.bg, padding: '16px', borderRadius: '16px', border: `1px solid ${k.color}33`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color }}>{k.value}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '4px' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Score badges */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `conic-gradient(#10b981 ${r.compatRate * 3.6}deg, #e2e8f0 0)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#10b981' }}>{r.compatRate}%</div>
+                      </div>
+                      <div><div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Compatibilidad de Esquema</div><div style={{ fontSize: '0.78rem', color: '#64748b' }}>Campos con correspondencia entre activos</div></div>
                     </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: '#166534' }}>Registros CRM</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{reconciliationResult.totalTarget.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: '#166534' }}>Registros Faltantes</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ef4444' }}>{reconciliationResult.missing}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: '#166534' }}>Desincronización</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f59e0b' }}>{reconciliationResult.desync}%</div>
+                    <div style={{ background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `conic-gradient(#6366f1 ${r.typeCompatRate * 3.6}deg, #e2e8f0 0)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#6366f1' }}>{r.typeCompatRate}%</div>
+                      </div>
+                      <div><div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Tipos de Datos Compatibles</div><div style={{ fontSize: '0.78rem', color: '#64748b' }}>Entre los campos homólogos detectados</div></div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+
+                  {/* Sub-tabs de resultados */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    {([['schema','Diagrama de Esquema'],['quality','Calidad Comparada'],['detail','Detalle de Campos']] as const).map(([id, label]) => (
+                      <button key={id} onClick={() => setActiveReconTab(id)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', background: activeReconTab === id ? '#6366f1' : '#f1f5f9', color: activeReconTab === id ? 'white' : '#475569', transition: 'all 0.2s' }}>{label}</button>
+                    ))}
+                  </div>
+
+                  {/* Schema SVG Diagram */}
+                  {activeReconTab === 'schema' && (
+                    <div style={{ background: 'white', padding: '24px', borderRadius: '20px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                      <h4 style={{ margin: '0 0 16px', color: '#1e293b' }}>Diagrama de Mapeo de Campos</h4>
+                      <svg width="100%" viewBox={`0 0 700 ${Math.max(fieldsA.length, fieldsB.length, r.matchedPairs.length + r.onlyA.length) * 38 + 60}`} style={{ fontFamily: 'Inter,sans-serif', minWidth: '500px' }}>
+                        {/* Column A */}
+                        <rect x="10" y="0" width="220" height="40" rx="8" fill="#eef2ff" stroke="#c7d2fe" strokeWidth="1.5" />
+                        <text x="120" y="25" textAnchor="middle" fontWeight="700" fontSize="13" fill="#4338ca">{nameA}</text>
+                        {(() => {
+                          const allFieldsA = [...r.matchedPairs.map((p:any) => p.fieldA), ...r.onlyA];
+                          return allFieldsA.map((f: any, i: number) => (
+                            <g key={i}>
+                              <rect x="10" y={50 + i * 38} width="220" height="32" rx="6" fill={r.onlyA.includes(f) ? '#fff7ed' : '#f8fafc'} stroke={r.onlyA.includes(f) ? '#fed7aa' : '#e2e8f0'} strokeWidth="1" />
+                              <text x="22" y={70 + i * 38} fontSize="12" fill={r.onlyA.includes(f) ? '#c2410c' : '#1e293b'} fontWeight="600">{f.field_name}</text>
+                              <text x="190" y={70 + i * 38} fontSize="10" fill="#94a3b8" textAnchor="end">{f.data_type}</text>
+                            </g>
+                          ));
+                        })()}
+
+                        {/* Column B */}
+                        <rect x="470" y="0" width="220" height="40" rx="8" fill="#fdf4ff" stroke="#e9d5ff" strokeWidth="1.5" />
+                        <text x="580" y="25" textAnchor="middle" fontWeight="700" fontSize="13" fill="#7c3aed">{nameB}</text>
+                        {(() => {
+                          const allFieldsB = [...r.matchedPairs.map((p:any) => p.fieldB), ...r.onlyB];
+                          return allFieldsB.map((f: any, i: number) => (
+                            <g key={i}>
+                              <rect x="470" y={50 + i * 38} width="220" height="32" rx="6" fill={r.onlyB.includes(f) ? '#fff7ed' : '#f8fafc'} stroke={r.onlyB.includes(f) ? '#fed7aa' : '#e2e8f0'} strokeWidth="1" />
+                              <text x="482" y={70 + i * 38} fontSize="12" fill={r.onlyB.includes(f) ? '#c2410c' : '#1e293b'} fontWeight="600">{f.field_name}</text>
+                              <text x="650" y={70 + i * 38} fontSize="10" fill="#94a3b8" textAnchor="end">{f.data_type}</text>
+                            </g>
+                          ));
+                        })()}
+
+                        {/* Connection lines */}
+                        {r.matchedPairs.map((p: any, i: number) => {
+                          const allA = [...r.matchedPairs.map((x:any) => x.fieldA), ...r.onlyA];
+                          const allB = [...r.matchedPairs.map((x:any) => x.fieldB), ...r.onlyB];
+                          const yA = 66 + allA.indexOf(p.fieldA) * 38;
+                          const yB = 66 + allB.indexOf(p.fieldB) * 38;
+                          const color = !p.typeMatch ? '#ef4444' : p.matchType === 'semantic' ? '#f59e0b' : '#10b981';
+                          const dash = !p.typeMatch ? '6,4' : p.matchType === 'semantic' ? '4,3' : undefined;
+                          return (
+                            <line key={i} x1="230" y1={yA} x2="470" y2={yB} stroke={color} strokeWidth="1.8" strokeDasharray={dash} opacity="0.8" />
+                          );
+                        })}
+                      </svg>
+                      <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+                        {[['#10b981','Mapeo Exacto (tipo compatible)'],['#f59e0b','Mapeo Semántico (sinónimo)'],['#ef4444','Tipo Incompatible'],['#fed7aa','Solo en un activo']].map(([c,l]) => (
+                          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#475569' }}>
+                            <div style={{ width: '20px', height: '3px', background: c as string, borderRadius: '2px' }} />{l}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quality Radar + Bar */}
+                  {activeReconTab === 'quality' && isMounted && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div style={{ background: 'white', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                        <h4 style={{ margin: '0 0 12px', color: '#1e293b' }}>Radar de Calidad Comparado</h4>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <RadarChart data={r.radarData}>
+                            <PolarGrid stroke="#e2e8f0" />
+                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748b' }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                            <Radar name={nameA.slice(0,14)} dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
+                            <Radar name={nameB.slice(0,14)} dataKey="B" stroke="#a855f7" fill="#a855f7" fillOpacity={0.2} strokeWidth={2} />
+                            <Tooltip formatter={(v: any) => `${v}%`} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#6366f1' }} />{nameA.slice(0,18)}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#a855f7' }} />{nameB.slice(0,18)}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'white', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                        <h4 style={{ margin: '0 0 12px', color: '#1e293b' }}>Calidad por Campo Homólogo</h4>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={r.barData} margin={{ left: -20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="field" tick={{ fontSize: 10, fill: '#64748b' }} />
+                            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                            <Tooltip formatter={(v: any) => `${v}%`} />
+                            <Bar dataKey={nameA.slice(0,10)} fill="#6366f1" radius={[4,4,0,0]} />
+                            <Bar dataKey={nameB.slice(0,10)} fill="#a855f7" radius={[4,4,0,0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#6366f1' }}>{r.avgQualityA}%</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>Calidad Promedio {nameA.slice(0,12)}</div></div>
+                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#a855f7' }}>{r.avgQualityB}%</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>Calidad Promedio {nameB.slice(0,12)}</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detail table */}
+                  {activeReconTab === 'detail' && (
+                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                      <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                        <h4 style={{ margin: 0 }}>Tabla Comparativa de Campos</h4>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Campo en {nameA.slice(0,14)}</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Tipo A</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Campo en {nameB.slice(0,14)}</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Tipo B</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Compatib.</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#6366f1', fontWeight: 600 }}>Cal. A</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#a855f7', fontWeight: 600 }}>Cal. B</th>
+                              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Brecha</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {r.matchedPairs.map((p: any, i: number) => {
+                              const gap = Math.abs(p.qualityA - p.qualityB);
+                              return (
+                                <tr key={i} style={{ borderTop: '1px solid #f1f5f9', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                                  <td style={{ padding: '10px 16px', fontWeight: 600, color: '#1e293b' }}>{p.fieldA.field_name}</td>
+                                  <td style={{ padding: '10px 16px' }}><span style={{ fontSize: '0.72rem', background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{p.fieldA.data_type}</span></td>
+                                  <td style={{ padding: '10px 16px', fontWeight: 600, color: '#1e293b' }}>{p.fieldB.field_name}</td>
+                                  <td style={{ padding: '10px 16px' }}><span style={{ fontSize: '0.72rem', background: '#f3e8ff', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{p.fieldB.data_type}</span></td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                    {p.typeMatch
+                                      ? <span style={{ fontSize: '0.72rem', background: '#f0fdf4', color: '#166534', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>✓ {p.matchType === 'semantic' ? 'Semántico' : 'Exacto'}</span>
+                                      : <span style={{ fontSize: '0.72rem', background: '#fef2f2', color: '#991b1b', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>✗ Tipo Diferente</span>}
+                                  </td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                                      <div style={{ width: '48px', height: '6px', borderRadius: '3px', background: '#e2e8f0', overflow: 'hidden' }}><div style={{ width: `${p.qualityA}%`, height: '100%', background: '#6366f1', borderRadius: '3px' }} /></div>
+                                      <span style={{ fontWeight: 700, color: '#6366f1', fontSize: '0.8rem' }}>{p.qualityA}%</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                                      <div style={{ width: '48px', height: '6px', borderRadius: '3px', background: '#e2e8f0', overflow: 'hidden' }}><div style={{ width: `${p.qualityB}%`, height: '100%', background: '#a855f7', borderRadius: '3px' }} /></div>
+                                      <span style={{ fontWeight: 700, color: '#a855f7', fontSize: '0.8rem' }}>{p.qualityB}%</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: gap > 15 ? '#ef4444' : gap > 5 ? '#f59e0b' : '#10b981' }}>{gap > 0 ? `${gap}%` : '—'}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {r.onlyA.map((f: any, i: number) => (
+                              <tr key={`a-${i}`} style={{ borderTop: '1px solid #f1f5f9', background: '#fff7ed' }}>
+                                <td style={{ padding: '10px 16px', fontWeight: 600, color: '#c2410c' }}>{f.field_name}</td>
+                                <td style={{ padding: '10px 16px' }}><span style={{ fontSize: '0.72rem', background: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{f.data_type}</span></td>
+                                <td colSpan={5} style={{ padding: '10px 16px', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem' }}>Sin correspondencia en {nameB.slice(0,14)}</td>
+                                <td style={{ padding: '10px 16px', textAlign: 'center' }}><span style={{ fontSize: '0.72rem', background: '#fff7ed', color: '#c2410c', padding: '2px 8px', borderRadius: '4px' }}>Solo en A</span></td>
+                              </tr>
+                            ))}
+                            {r.onlyB.map((f: any, i: number) => (
+                              <tr key={`b-${i}`} style={{ borderTop: '1px solid #f1f5f9', background: '#fdf4ff' }}>
+                                <td colSpan={2} style={{ padding: '10px 16px', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem' }}>Sin correspondencia en {nameA.slice(0,14)}</td>
+                                <td style={{ padding: '10px 16px', fontWeight: 600, color: '#7c3aed' }}>{f.field_name}</td>
+                                <td style={{ padding: '10px 16px' }}><span style={{ fontSize: '0.72rem', background: '#f3e8ff', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{f.data_type}</span></td>
+                                <td colSpan={3} />
+                                <td style={{ padding: '10px 16px', textAlign: 'center' }}><span style={{ fontSize: '0.72rem', background: '#fdf4ff', color: '#7c3aed', padding: '2px 8px', borderRadius: '4px' }}>Solo en B</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </motion.div>
         )}
 

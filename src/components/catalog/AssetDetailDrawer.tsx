@@ -25,6 +25,7 @@ interface AssetDetailDrawerProps {
   asset: any;
   isOpen: boolean;
   onClose: () => void;
+  onEdit: (asset: any) => void;
 }
 
 const TABS = [
@@ -38,7 +39,7 @@ const TABS = [
   { id: 'documentos', label: 'Documentos', icon: FileText },
 ];
 
-export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetailDrawerProps) {
+export default function AssetDetailDrawer({ asset, isOpen, onClose, onEdit }: AssetDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState('general');
   const [fields, setFields] = useState<any[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
@@ -288,7 +289,15 @@ export default function AssetDetailDrawer({ asset, isOpen, onClose }: AssetDetai
             </div>
 
             <footer className={styles.footer}>
-              <button className={styles.editBtn}>Editar Metadatos</button>
+              <button 
+                className={styles.editBtn} 
+                onClick={() => {
+                  onEdit(asset);
+                  onClose();
+                }}
+              >
+                Editar Metadatos
+              </button>
               <button className={styles.requestBtn}>Solicitar Acceso</button>
             </footer>
           </motion.div>

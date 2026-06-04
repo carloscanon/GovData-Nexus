@@ -362,6 +362,24 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
     const savedModalBlur = getVar('govdata_modal_blur');
     if (savedModalBlur) setModalBlurState(savedModalBlur);
+
+    const savedBrandColors = getVar('brandColors');
+    if (savedBrandColors) {
+      try {
+        const parsed = JSON.parse(savedBrandColors);
+        if (parsed && parsed.primary) {
+          setBrandColors(parsed);
+        }
+      } catch (e) {}
+    } else if (currentTenant?.brandColors) {
+      setBrandColors(currentTenant.brandColors);
+    } else {
+      setBrandColors({
+        primary: '#1e3a8a',
+        secondary: '#10b981',
+        theme: 'light'
+      });
+    }
     };
     
     loadSettings();
@@ -465,20 +483,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Update brand colors when current tenant changes
-  useEffect(() => {
-    if (currentTenant) {
-      if (currentTenant.brandColors) {
-        setBrandColors(currentTenant.brandColors);
-      } else {
-        setBrandColors({
-          primary: '#1e3a8a',
-          secondary: '#10b981',
-          theme: 'light'
-        });
-      }
-    }
-  }, [currentTenant?.id]);
+
 
   useEffect(() => {
     document.documentElement.style.setProperty('--primary-brand', brandColors.primary);

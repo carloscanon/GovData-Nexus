@@ -147,6 +147,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
             .select();
           if (error) throw error;
           onSuccess(data?.[0]);
+          alert('Metadatos del activo actualizados exitosamente en la base de datos empresarial.');
         } else {
           const { data, error } = await supabase
             .from('data_assets')
@@ -154,6 +155,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
             .select();
           if (error) throw error;
           onSuccess(data?.[0]);
+          alert('Activo registrado exitosamente en la base de datos empresarial.');
         }
         onClose();
       } catch (dbErr) {
