@@ -252,7 +252,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal} style={{ maxWidth: '700px' }}>
+      <div className={styles.modal}>
         <header className={styles.header}>
           <div className={styles.titleIcon}>
             <Zap size={20} color="white" />
@@ -275,6 +275,12 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
               <option value="">Seleccione un activo...</option>
               {(propAssets && propAssets.length > 0 ? propAssets : assets).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
+            {(propAssets && propAssets.length > 0 ? propAssets : assets).length === 0 && (
+              <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle size={16} />
+                No se encontraron activos. Registre un activo en el catálogo primero.
+              </p>
+            )}
           </div>
 
           <div className={styles.formGrid}>
