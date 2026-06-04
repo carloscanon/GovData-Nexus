@@ -1335,13 +1335,13 @@ export default function PoliciesModule() {
             >
               <div className={styles.modalHeader}>
                 <div className={styles.headerInfo}>
-                  <span style={{ color: '#4f46e5', fontWeight: 800, fontSize: '0.85rem' }}>{selectedPolicy.id}</span>
+                  <span style={{ color: '#a855f7', fontWeight: 800, fontSize: '0.85rem' }}>{selectedPolicy.id}</span>
                   <h2>{selectedPolicy.title}</h2>
                   <div className={styles.headerBadges}>
-                    <span className={styles.statusBadge} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+                    <span className={styles.statusBadge} style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                       Versión {selectedPolicy.version}
                     </span>
-                    <span className={styles.statusBadge} style={{ background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}>
+                    <span className={styles.statusBadge} style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
                       {selectedPolicy.status}
                     </span>
                   </div>
@@ -1401,9 +1401,9 @@ export default function PoliciesModule() {
                   {modalTab === 'ciclo' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                        <h3 className={styles.sectionTitle}>Gestión del Ciclo de Vida</h3>
-                       <div style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                       <div style={{ padding: '24px', background: '#111827', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
                           <div style={{ marginBottom: '32px' }}>
-                             <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
+                             <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '16px' }}>
                                 Flujo aplicado: <strong>{getPolicyWorkflow(selectedPolicy.workflowId)?.name}</strong>
                              </div>
                              <div className={styles.horizontalStepper}>
@@ -1425,9 +1425,9 @@ export default function PoliciesModule() {
                              </div>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '12px' }}>
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
+                                <div style={{ fontWeight: 700, color: '#f8fafc' }}>Paso Actual: {selectedPolicy.status}</div>
                                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
                                    {selectedPolicy.currentStep === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 
                                      ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
@@ -1500,93 +1500,88 @@ export default function PoliciesModule() {
                             <p style={{ marginTop: '24px' }}><strong>Alcance:</strong> {selectedPolicy.scope}</p>
                           </>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Título de la Política</label>
-                                <input 
-                                  type="text" 
-                                  className={styles.actionBtn} 
-                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
-                                  value={editForm.title}
-                                  onChange={e => setEditForm({...editForm, title: e.target.value})}
-                                />
-                             </div>
-                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                               <div>
-                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
-                                  <select 
-                                    className={styles.actionBtn} 
-                                    style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
-                                    value={editForm.owner}
-                                    onChange={e => setEditForm({...editForm, owner: e.target.value})}
-                                  >
-                                     {teamMembers.map((m, i) => (
-                                       <option key={i}>{m.name} ({m.role})</option>
-                                     ))}
-                                  </select>
-                               </div>
-                               <div>
-                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Tipo</label>
-                                  <select 
-                                    className={styles.actionBtn} 
-                                    style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
-                                    value={editForm.type}
-                                    onChange={e => setEditForm({...editForm, type: e.target.value})}
-                                  >
-                                     <option>Gobierno de Datos</option>
-                                     <option>Seguridad / Privacidad</option>
-                                     <option>Cumplimiento / Legal</option>
-                                     <option>Tecnología / IA</option>
-                                  </select>
-                               </div>
-                             </div>
-                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              <div>
+                                 <label className={styles.modalLabel}>Título de la Política</label>
+                                 <input 
+                                   type="text" 
+                                   className={styles.modalInput} 
+                                   value={editForm.title}
+                                   onChange={e => setEditForm({...editForm, title: e.target.value})}
+                                 />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                 <div>
-                                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Versión</label>
-                                   <input 
-                                     type="text" 
-                                     className={styles.actionBtn} 
-                                     style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
-                                     value={editForm.version}
-                                     onChange={e => setEditForm({...editForm, version: e.target.value})}
-                                   />
+                                   <label className={styles.modalLabel}>Propietario (Owner)</label>
+                                   <select 
+                                     className={styles.modalInput} 
+                                     value={editForm.owner}
+                                     onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                   >
+                                      {teamMembers.map((m, i) => (
+                                        <option key={i} style={{ color: 'black' }}>{m.name} ({m.role})</option>
+                                      ))}
+                                   </select>
                                 </div>
                                 <div>
-                                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Vigencia (Año)</label>
-                                   <input 
-                                     type="number" 
-                                     className={styles.actionBtn} 
-                                     style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left' }}
-                                     value={editForm.expiry}
-                                     onChange={e => setEditForm({...editForm, expiry: e.target.value})}
-                                   />
+                                   <label className={styles.modalLabel}>Tipo</label>
+                                   <select 
+                                     className={styles.modalInput} 
+                                     value={editForm.type}
+                                     onChange={e => setEditForm({...editForm, type: e.target.value})}
+                                   >
+                                      <option style={{ color: 'black' }}>Gobierno de Datos</option>
+                                      <option style={{ color: 'black' }}>Seguridad / Privacidad</option>
+                                      <option style={{ color: 'black' }}>Cumplimiento / Legal</option>
+                                      <option style={{ color: 'black' }}>Tecnología / IA</option>
+                                   </select>
                                 </div>
-                             </div>
-                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo</label>
-                                <textarea 
-                                  rows={4}
-                                  className={styles.actionBtn} 
-                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left', minHeight: '100px' }}
-                                  value={editForm.objective}
-                                  onChange={e => setEditForm({...editForm, objective: e.target.value})}
-                                />
-                             </div>
-                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Alcance (Scope)</label>
-                                <textarea 
-                                  rows={4}
-                                  className={styles.actionBtn} 
-                                  style={{ width: '100%', background: 'white', border: '1px solid #e2e8f0', textAlign: 'left', minHeight: '100px' }}
-                                  value={editForm.scope}
-                                  onChange={e => setEditForm({...editForm, scope: e.target.value})}
-                                />
-                             </div>
-                          </div>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                 <div>
+                                    <label className={styles.modalLabel}>Versión</label>
+                                    <input 
+                                      type="text" 
+                                      className={styles.modalInput} 
+                                      value={editForm.version}
+                                      onChange={e => setEditForm({...editForm, version: e.target.value})}
+                                    />
+                                 </div>
+                                 <div>
+                                    <label className={styles.modalLabel}>Vigencia (Año)</label>
+                                    <input 
+                                      type="number" 
+                                      className={styles.modalInput} 
+                                      value={editForm.expiry}
+                                      onChange={e => setEditForm({...editForm, expiry: e.target.value})}
+                                    />
+                                 </div>
+                              </div>
+                              <div>
+                                 <label className={styles.modalLabel}>Objetivo</label>
+                                 <textarea 
+                                   rows={4}
+                                   className={styles.modalInput} 
+                                   style={{ minHeight: '100px' }}
+                                   value={editForm.objective}
+                                   onChange={e => setEditForm({...editForm, objective: e.target.value})}
+                                 />
+                              </div>
+                              <div>
+                                 <label className={styles.modalLabel}>Alcance (Scope)</label>
+                                 <textarea 
+                                   rows={4}
+                                   className={styles.modalInput} 
+                                   style={{ minHeight: '100px' }}
+                                   value={editForm.scope}
+                                   onChange={e => setEditForm({...editForm, scope: e.target.value})}
+                                 />
+                              </div>
+                           </div>
                         )}
-                        <div style={{ marginTop: '32px', padding: '20px', background: '#f8fafc', borderRadius: '16px' }}>
-                           <h5 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Definiciones Clave</h5>
-                           <ul style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                        <div style={{ marginTop: '32px', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                           <h5 style={{ margin: '0 0 12px 0', color: '#f8fafc' }}>Definiciones Clave</h5>
+                           <ul style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
                               <li><strong>Dato Sensible:</strong> Aquel que afecta la intimidad del titular.</li>
                               <li><strong>PII:</strong> Personally Identifiable Information.</li>
                            </ul>
@@ -1712,17 +1707,17 @@ export default function PoliciesModule() {
                             </button>
                          )}
                       </div>
-                      <div style={{ marginTop: '32px', padding: '20px', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca' }}>
-                         <h5 style={{ margin: '0 0 8px 0', color: '#991b1b' }}>Sanciones por Incumplimiento</h5>
+                      <div style={{ marginTop: '32px', padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                         <h5 style={{ margin: '0 0 8px 0', color: '#f87171' }}>Sanciones por Incumplimiento</h5>
                          {isEditing ? (
                              <textarea 
                                rows={3}
-                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca', marginTop: '8px' }}
+                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)', color: '#f8fafc', marginTop: '8px', outline: 'none' }}
                                value={editForm.sancions}
                                onChange={e => setEditForm({...editForm, sancions: e.target.value})}
                              />
                           ) : (
-                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#b91c1c' }}>{selectedPolicy.sancions}</p>
+                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#fca5a5' }}>{selectedPolicy.sancions}</p>
                           )}
                       </div>
                     </motion.div>
