@@ -376,51 +376,6 @@ export default function Login() {
                   Google Workspace
                 </button>
               </div>
-
-              {/* Sección de Acceso Rápido para Demostración */}
-              <div className={styles.demoSection}>
-                <div className={styles.demoTitle}>
-                  <ShieldCheck size={16} style={{ color: '#3b82f6' }} />
-                  <span>Acceso Rápido de Demostración</span>
-                </div>
-                <div className={styles.demoGrid}>
-                  <button 
-                    type="button"
-                    onClick={() => handleQuickLogin('carlos@demo.govdata.com', 'admin123')}
-                    className={styles.demoBtn}
-                  >
-                    <span>Carlos Admin</span>
-                    <span className={styles.demoRole}>Empresa Demo (Admin)</span>
-                  </button>
-                  
-                  <button 
-                    type="button"
-                    onClick={() => handleQuickLogin('admin@govdata.io', 'admin123')}
-                    className={styles.demoBtn}
-                  >
-                    <span>Global Admin</span>
-                    <span className={styles.demoRole}>Superadministrador</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => handleQuickLogin('info@consultoresexpertos.com.co', 'Consultores2026*')}
-                    className={styles.demoBtn}
-                  >
-                    <span>Pepito Perez</span>
-                    <span className={styles.demoRole}>Consultores (Admin)</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => handleQuickLogin('bancoldex@banco.gov.co', 'Consultores20216')}
-                    className={styles.demoBtn}
-                  >
-                    <span>Bancoldex</span>
-                    <span className={styles.demoRole}>Bancoldex (Admin)</span>
-                  </button>
-                </div>
-              </div>
             </>
           ) : (
             <>
