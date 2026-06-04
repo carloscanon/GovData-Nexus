@@ -101,8 +101,11 @@ export default function Catalog() {
 
     // ── MODO DEMO: En memoria ──
     if (mode === 'DEMO' || !currentTenant?.id) {
-      const filteredDemo = demoAssets.filter(a => !currentTenant?.id || a.tenant_id === currentTenant.id);
-      setAssets(filteredDemo);
+      const mappedDemo = demoAssets.map(a => ({
+        ...a,
+        tenant_id: currentTenant?.id || a.tenant_id
+      }));
+      setAssets(mappedDemo);
       setLoading(false);
       return;
     }
