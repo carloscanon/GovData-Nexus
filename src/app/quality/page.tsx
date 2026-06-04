@@ -2111,6 +2111,56 @@ export default function QualityModule() {
         )}
       </AnimatePresence>
 
+      {/* Modal de Progreso de Ejecución de Reglas (Estilo Launchpad / Premium) */}
+      <AnimatePresence>
+        {isExecuting && (
+          <div className={styles.execOverlay}>
+            <motion.div 
+              className={styles.execModal}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+            >
+              <div className={`${styles.execIcon} ${styles.zapPulse}`}>
+                <Zap size={32} />
+              </div>
+              <h3>Ejecución de Motores de Calidad</h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: '#64748b' }}>
+                Escaneando activo de datos y validando el ecosistema de reglas en tiempo real...
+              </p>
+              
+              <div className={styles.execProgress}>
+                <div 
+                  className={styles.execProgressFill} 
+                  style={{ width: `${executionProgress}%` }}
+                />
+              </div>
+              
+              <div className={styles.progressText}>
+                {executionProgress}% Completado
+              </div>
+
+              <div className={styles.execLog}>
+                {executionProgress >= 20 && <p>✔ Conexión a origen de datos establecida.</p>}
+                {executionProgress >= 40 && <p>✔ Campos cargados del activo con éxito.</p>}
+                {executionProgress >= 60 && <p>✔ Compilando reglas de calidad y consultas de escaneo...</p>}
+                {executionProgress >= 90 && <p>✔ Consultas SQL ejecutadas. Generando métricas...</p>}
+                {executionProgress === 100 && <p>✔ Sincronización de incidentes y Service Desk completa.</p>}
+                <p style={{ color: '#6366f1', fontWeight: 600, animation: 'pulse 1.5s infinite', margin: 0 }}>
+                  {executionProgress < 20 && "Conectando al motor de base de datos..."}
+                  {executionProgress >= 20 && executionProgress < 40 && "Cargando metadatos de columnas..."}
+                  {executionProgress >= 40 && executionProgress < 60 && "Preparando reglas sintácticas y semánticas..."}
+                  {executionProgress >= 60 && executionProgress < 90 && "Escaneando registros y calculando DQI..."}
+                  {executionProgress >= 90 && executionProgress < 100 && "Evaluando incidentes y SLA de gobierno..."}
+                  {executionProgress === 100 && "¡Finalizado!"}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <CreateRuleModal
         isOpen={isRuleModalOpen}
         ruleToEdit={editingRule}
