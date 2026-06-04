@@ -1553,7 +1553,17 @@ export default function QualityModule() {
                 <section className={styles.rulesSection}>
               <div className={styles.sectionHeader}>
                 <h3>Reglas de Calidad Configuradas ({rules.length})</h3>
-                <button className={styles.primaryBtnSmall} onClick={() => setIsRuleModalOpen(true)}>Crear Regla</button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className={styles.secondaryBtnSmall} 
+                    onClick={handleExecuteRules}
+                    disabled={isExecuting || rules.length === 0}
+                    style={{ opacity: rules.length === 0 ? 0.6 : 1 }}
+                  >
+                    {isExecuting ? `Ejecutando (${executionProgress}%)` : 'Ejecutar Reglas'}
+                  </button>
+                  <button className={styles.primaryBtnSmall} onClick={() => setIsRuleModalOpen(true)}>Crear Regla</button>
+                </div>
               </div>
               <div className={styles.rulesGrid}>
                 {rules.length === 0 ? (
