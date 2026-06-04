@@ -125,30 +125,38 @@ export default function Login() {
     let name = 'Usuario';
     let tenantId = '';
 
-    // Solo superadmin es hardcodeado (no existe en tenant_users)
+    // Solo superadmin es hardcodeado
     if (normalizedEmail === 'admin@govdata.io') {
       role = 'superadmin';
       name = 'Super Admin';
       tenantId = 'global';
     } else {
-      // Todos los demás usuarios: consultar tenant_users en Supabase
       try {
-        const { data, error } = await supabase
-          .from('tenant_users')
-          .select('name, role, tenant_id, avatar_url')
-          .ilike('email', normalizedEmail)
-          .single();
-
-        if (data && !error) {
-          role = data.role || 'user';
-          name = data.name || 'Usuario';
-          tenantId = data.tenant_id || '';
-          if (data.avatar_url) localStorage.setItem('govdata_avatar_url', data.avatar_url);
+        // Intentar obtener metadatos seguros de la sesión servidor/NextAuth
+        const response = await fetch("/api/user-metadata");
+        if (response.ok) {
+          const meta = await response.json();
+          role = meta.role || 'user';
+          name = meta.name || 'Usuario';
+          tenantId = meta.tenantId || '';
+          if (meta.avatarUrl) localStorage.setItem('govdata_avatar_url', meta.avatarUrl);
         } else {
-          console.warn('[Login] Usuario no encontrado en tenant_users:', normalizedEmail, error?.message);
+          // Fallback clásico directo a Supabase
+          const { data, error } = await supabase
+            .from('tenant_users')
+            .select('name, role, tenant_id, avatar_url')
+            .ilike('email', normalizedEmail)
+            .single();
+
+          if (data && !error) {
+            role = data.role || 'user';
+            name = data.name || 'Usuario';
+            tenantId = data.tenant_id || '';
+            if (data.avatar_url) localStorage.setItem('govdata_avatar_url', data.avatar_url);
+          }
         }
       } catch (err) {
-        console.error('[Login] Error fetching user metadata:', err);
+        console.error('[Login] Error fetching user metadata from API:', err);
       }
     }
 
