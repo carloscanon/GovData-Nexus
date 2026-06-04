@@ -29,34 +29,14 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // Hardcoded demo admin
-        if (email === "carlos@demo.govdata.com" && password === "admin123") {
+        // Hardcoded global superadmin
+        if (email === "admin@govdata.io" && password === "admin123") {
           return {
-            id: "demo-admin-id",
-            name: "Carlos Admin",
+            id: "superadmin-id",
+            name: "Super Admin",
             email: email,
-            role: "admin",
-            tenant_id: "00000000-0000-0000-0000-000000000001"
-          };
-        }
-        
-        if (email === "info@consultoresexpertos.com.co" && password === "Consultores2026*") {
-          return {
-            id: "pepito-id",
-            name: "Pepito Perez",
-            email: email,
-            role: "admin",
-            tenant_id: "4dfc332c-5a5d-431f-85c8-749c4b4e096e"
-          };
-        }
-
-        if (email === "bancoldex@banco.gov.co" && password === "Consultores20216") {
-          return {
-            id: "bancoldex-id",
-            name: "Bancoldex Admin",
-            email: email,
-            role: "admin",
-            tenant_id: "aec4f0dd-e8f8-482e-984a-aaad504aa61a"
+            role: "superadmin",
+            tenant_id: "global"
           };
         }
 
@@ -69,16 +49,6 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (error || !data) {
-          // Dynamic fallback for offline/database issues for demo domains
-          if (email.includes("demo.govdata.com") || email.includes("carlos")) {
-             return {
-                id: "fallback-demo-id",
-                name: "Carlos Admin (Fallback)",
-                email: email,
-                role: "admin",
-                tenant_id: "00000000-0000-0000-0000-000000000001"
-             };
-          }
           return null; // authentication failed
         }
 

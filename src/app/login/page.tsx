@@ -130,10 +130,6 @@ export default function Login() {
       role = 'superadmin';
       name = 'Super Admin';
       tenantId = 'global';
-    } else if (normalizedEmail === 'carlos@demo.govdata.com') {
-      role = 'admin';
-      name = 'Carlos Admin';
-      tenantId = '00000000-0000-0000-0000-000000000001';
     } else {
       // Todos los demás usuarios: consultar tenant_users en Supabase
       try {
