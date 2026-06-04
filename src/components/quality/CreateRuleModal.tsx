@@ -75,9 +75,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
 
   useEffect(() => {
     if (isOpen) {
-      if (assetId) {
-        setRuleData((prev: any) => ({ ...prev, asset_id: assetId }));
-      } else if (propAssets && propAssets.length > 0) {
+      if (propAssets && propAssets.length > 0) {
         setAssets(propAssets.map(a => ({ id: a.id, name: a.name })));
       } else {
         fetchAssets();
@@ -98,19 +96,23 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
         });
         fetchFields(ruleToEdit.asset_id);
       } else {
-        // Reiniciar estado al abrir para nueva regla
+        // Reiniciar estado al abrir para nueva regla, preservando el assetId si se pasa por prop
         setRuleData({
-          asset_id: '',
+          asset_id: assetId || '',
           field_id: '',
           name: '',
           type: 'Nulos',
           severity: 'Media',
           config: {}
         });
-        setFields([]);
+        if (assetId) {
+          fetchFields(assetId);
+        } else {
+          setFields([]);
+        }
       }
     }
-  }, [isOpen, ruleToEdit]);
+  }, [isOpen, ruleToEdit, assetId, propAssets, propFields]);
 
   async function fetchAssets() {
     if (mode === 'DEMO') {
