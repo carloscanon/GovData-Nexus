@@ -410,20 +410,68 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           
           setTenants(parsed);
           const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
+          const userRole = localStorage.getItem('govdata_role');
+
+          // Superadmin siempre empieza en el primer tenant disponible
+          if (userRole === 'superadmin') {
+            setCurrentTenantState(parsed[0]);
+            return;
+          }
+
           let active = parsed.find(t => t.id === savedCurrentTenantId);
-          if (!active && savedCurrentTenantId) {
-            active = {
-              id: savedCurrentTenantId,
-              name: localStorage.getItem('govdata_user_name') || 'Empresa ' + savedCurrentTenantId.substring(0,4),
-              domain: '',
-              plan: 'Enterprise',
-              modules: ['catalog', 'quality', 'workflows'],
-              monthlyCost: '0',
-              status: 'active'
-            };
+
+          if (!active && savedCurrentTenantId && savedCurrentTenantId !== 'global') {
+            // El tenant del usuario no está en la lista precargada,
+            // buscar directamente en Supabase para obtener su nombre y módulos reales
+            try {
+              const { data: tenantRow } = await supabase
+                .from('tenants')
+                .select('id, name, domain, subscription_plan, status')
+                .eq('id', savedCurrentTenantId)
+                .single();
+              const { data: moduleRows } = await supabase
+                .from('tenant_modules')
+                .select('module_name')
+                .eq('tenant_id', savedCurrentTenantId)
+                .eq('is_active', true);
+              if (tenantRow) {
+                active = {
+                  id: tenantRow.id,
+                  name: tenantRow.name,
+                  domain: tenantRow.domain || '',
+                  plan: (tenantRow.subscription_plan === 'starter' ? 'Starter' : tenantRow.subscription_plan === 'professional' ? 'Professional' : 'Enterprise') as 'Starter' | 'Professional' | 'Enterprise',
+                  modules: moduleRows?.map((m: any) => m.module_name) || ['catalog', 'quality', 'workflows'],
+                  monthlyCost: '0',
+                  status: tenantRow.status as 'active' | 'suspended'
+                };
+              } else {
+                // Fallback genérico con el ID correcto (nunca usar parsed[0])
+                active = {
+                  id: savedCurrentTenantId,
+                  name: localStorage.getItem('govdata_user_name') || 'Mi Empresa',
+                  domain: '',
+                  plan: 'Enterprise',
+                  modules: ['catalog', 'quality', 'workflows'],
+                  monthlyCost: '0',
+                  status: 'active'
+                };
+              }
+            } catch {
+              active = {
+                id: savedCurrentTenantId,
+                name: localStorage.getItem('govdata_user_name') || 'Mi Empresa',
+                domain: '',
+                plan: 'Enterprise',
+                modules: ['catalog', 'quality', 'workflows'],
+                monthlyCost: '0',
+                status: 'active'
+              };
+            }
           } else if (!active) {
+            // Sin tenant guardado: usar el primero
             active = parsed[0];
           }
+
           setCurrentTenantState(active);
         } else {
           // Fallback to initial if DB is empty
@@ -452,12 +500,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setTenants(activeTenants);
       
       const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
+      const userRole = localStorage.getItem('govdata_role');
       let active = activeTenants.find(t => t.id === savedCurrentTenantId);
-      
-      if (!active && savedCurrentTenantId) {
+
+      if (!active && savedCurrentTenantId && savedCurrentTenantId !== 'global' && userRole !== 'superadmin') {
+        // Crear fallback con el ID real del usuario (nunca caer en Demo Corp)
         active = {
           id: savedCurrentTenantId,
-          name: localStorage.getItem('govdata_user_name') || 'Empresa ' + savedCurrentTenantId.substring(0,4),
+          name: localStorage.getItem('govdata_user_name') || 'Mi Empresa',
           domain: '',
           plan: 'Enterprise',
           modules: ['catalog', 'quality', 'workflows'],
@@ -467,7 +517,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       } else if (!active) {
         active = activeTenants[0];
       }
-      
+
       setCurrentTenantState(active);
     };
 
