@@ -123,8 +123,9 @@ export default function Login() {
   const storeUserMetadata = async (normalizedEmail: string) => {
     let role = 'user';
     let name = 'Usuario';
-    let tenantId = '00000000-0000-0000-0000-000000000001'; // Default fallback
-    
+    let tenantId = '';
+
+    // Solo superadmin es hardcodeado (no existe en tenant_users)
     if (normalizedEmail === 'admin@govdata.io') {
       role = 'superadmin';
       name = 'Super Admin';
@@ -133,32 +134,31 @@ export default function Login() {
       role = 'admin';
       name = 'Carlos Admin';
       tenantId = '00000000-0000-0000-0000-000000000001';
-    } else if (normalizedEmail === 'info@consultoresexpertos.com.co') {
-      role = 'admin';
-      name = 'Pepito Perez';
-      tenantId = '4dfc332c-5a5d-431f-85c8-749c4b4e096e';
-    } else if (normalizedEmail === 'bancoldex@banco.gov.co') {
-      role = 'admin';
-      name = 'Bancoldex Admin';
-      tenantId = 'aec4f0dd-e8f8-482e-984a-aaad504aa61a';
     } else {
+      // Todos los demás usuarios: consultar tenant_users en Supabase
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('tenant_users')
           .select('name, role, tenant_id, avatar_url')
           .ilike('email', normalizedEmail)
           .single();
-        if (data) {
+
+        if (data && !error) {
           role = data.role || 'user';
           name = data.name || 'Usuario';
-          tenantId = data.tenant_id || tenantId;
+          tenantId = data.tenant_id || '';
           if (data.avatar_url) localStorage.setItem('govdata_avatar_url', data.avatar_url);
+        } else {
+          console.warn('[Login] Usuario no encontrado en tenant_users:', normalizedEmail, error?.message);
         }
       } catch (err) {
-        console.error("Error fetching user metadata:", err);
+        console.error('[Login] Error fetching user metadata:', err);
       }
     }
-    
+
+    // Limpiar cache de tenants para forzar recarga fresca desde Supabase
+    localStorage.removeItem('govdata_tenants');
+
     localStorage.setItem('govdata_role', role);
     localStorage.setItem('govdata_user_name', name);
     localStorage.setItem('govdata_current_tenant_id', tenantId);
