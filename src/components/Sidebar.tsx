@@ -63,11 +63,15 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const { mode, setMode, currentTenant, tenants, setCurrentTenant } = usePlatform();
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = React.useState<string | null>(null);
+  const [userEmail, setUserEmail] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('govdata_role'));
       setUserName(localStorage.getItem('govdata_user_name'));
+      setUserAvatar(localStorage.getItem('govdata_avatar_url'));
+      setUserEmail(localStorage.getItem('govdata_user_email'));
     }
   }, []);
 
@@ -76,6 +80,8 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     localStorage.removeItem('govdata_role');
     localStorage.removeItem('govdata_user_name');
     localStorage.removeItem('govdata_current_tenant_id');
+    localStorage.removeItem('govdata_avatar_url');
+    localStorage.removeItem('govdata_user_email');
     window.location.href = '/login';
   };
 
@@ -228,24 +234,69 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
         )}
 
         {/* User Card */}
-        {!isCollapsed && (
-          <div className={styles.userProfile}>
-            <div className={styles.userMain}>
-              <div className={styles.avatar}>
-                {userName ? userName.charAt(0).toUpperCase() : 'U'}
+        {!isCollapsed && (() => {
+          const roleConfig: Record<string, { label: string; color: string; bg: string; gradient: string }> = {
+            superadmin: { label: 'Super Admin', color: '#d97706', bg: 'rgba(217,119,6,0.15)', gradient: 'linear-gradient(135deg,#f59e0b,#d97706)' },
+            admin:      { label: 'Administrador', color: '#6366f1', bg: 'rgba(99,102,241,0.15)', gradient: 'linear-gradient(135deg,#6366f1,#8b5cf6)' },
+            user:       { label: 'Miembro', color: '#10b981', bg: 'rgba(16,185,129,0.15)', gradient: 'linear-gradient(135deg,#10b981,#059669)' },
+          };
+          const rc = roleConfig[userRole || 'user'] || roleConfig['user'];
+          const initials = userName ? userName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : 'U';
+          return (
+            <div className={styles.userProfile}>
+              <div className={styles.userMain}>
+                {/* Avatar */}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {userAvatar ? (
+                    <img
+                      src={userAvatar}
+                      alt={userName || 'avatar'}
+                      style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', border: `2px solid ${rc.color}`, display: 'block' }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '44px', height: '44px', borderRadius: '12px',
+                      background: rc.gradient,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 800, fontSize: '1rem', color: 'white',
+                      letterSpacing: '-0.02em',
+                      boxShadow: `0 4px 14px ${rc.color}55`
+                    }}>
+                      {initials}
+                    </div>
+                  )}
+                  {/* Online dot */}
+                  <div style={{
+                    position: 'absolute', bottom: '-2px', right: '-2px',
+                    width: '12px', height: '12px', borderRadius: '50%',
+                    background: '#10b981', border: '2px solid #1e293b'
+                  }} />
+                </div>
+
+                <div className={styles.userInfo}>
+                  <span className={styles.userName}>{userName || 'Usuario'}</span>
+                  {/* Role badge */}
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    marginTop: '3px',
+                    fontSize: '0.68rem', fontWeight: 700,
+                    padding: '2px 8px', borderRadius: '6px',
+                    background: rc.bg, color: rc.color,
+                    border: `1px solid ${rc.color}44`,
+                    letterSpacing: '0.02em',
+                    textTransform: 'uppercase' as const
+                  }}>
+                    {rc.label}
+                  </span>
+                </div>
               </div>
-              <div className={styles.userInfo}>
-                <span className={styles.userName}>{userName || 'Usuario'}</span>
-                <span className={styles.userRole}>
-                  {userRole === 'superadmin' ? 'Superadmin' : userRole === 'admin' ? 'Administrador' : 'Miembro'}
-                </span>
-              </div>
+              <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar Sesión">
+                <LogOut size={16} />
+              </button>
             </div>
-            <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar Sesión">
-              <LogOut size={16} />
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </aside>
     </>

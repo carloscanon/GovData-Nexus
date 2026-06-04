@@ -145,13 +145,14 @@ export default function Login() {
       try {
         const { data } = await supabase
           .from('tenant_users')
-          .select('name, role, tenant_id')
+          .select('name, role, tenant_id, avatar_url')
           .ilike('email', normalizedEmail)
           .single();
         if (data) {
           role = data.role || 'user';
           name = data.name || 'Usuario';
           tenantId = data.tenant_id || tenantId;
+          if (data.avatar_url) localStorage.setItem('govdata_avatar_url', data.avatar_url);
         }
       } catch (err) {
         console.error("Error fetching user metadata:", err);
@@ -161,6 +162,7 @@ export default function Login() {
     localStorage.setItem('govdata_role', role);
     localStorage.setItem('govdata_user_name', name);
     localStorage.setItem('govdata_current_tenant_id', tenantId);
+    localStorage.setItem('govdata_user_email', normalizedEmail);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
