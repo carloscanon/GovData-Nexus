@@ -95,6 +95,7 @@ export default function QualityModule() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
   const [lastExecutionResults, setLastExecutionResults] = useState<any[]>([]);
+  const [reconcileProgress, setReconcileProgress] = useState(0);
 
   // Pesos Inteligentes DQI
   const [showDqiConfig, setShowDqiConfig] = useState(false);
@@ -749,7 +750,13 @@ export default function QualityModule() {
     if (!assetIdA || !assetIdB) { alert('Seleccione ambos activos para conciliar.'); return; }
     if (assetIdA === assetIdB) { alert('Seleccione dos activos diferentes.'); return; }
     setIsReconciling(true);
-    await new Promise(r => setTimeout(r, 1800));
+    setReconcileProgress(0);
+
+    const steps = [20, 50, 75, 90, 100];
+    for (const p of steps) {
+      await new Promise(r => setTimeout(r, 400));
+      setReconcileProgress(p);
+    }
 
     const assetA = assets.find(a => a.id === assetIdA);
     const assetB = assets.find(a => a.id === assetIdB);
@@ -1064,17 +1071,18 @@ export default function QualityModule() {
                 <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
                   Para realizar el Perfilamiento Automático (Data Profiling), primero debes elegir un activo de información del catálogo:
                 </p>
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                  className={styles.select}
-                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
-                >
-                  <option value="">— Elegir Activo de Información —</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
-                  ))}
-                </select>
+                <div className={styles.assetSelector} style={{ maxWidth: '360px', width: '100%' }}>
+                  <Database size={18} className={styles.selectorIcon} />
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => setSelectedAssetId(e.target.value)}
+                  >
+                    <option value="">— Elegir Activo de Información —</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ) : (
               <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
@@ -1269,17 +1277,18 @@ export default function QualityModule() {
                 <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
                   Para analizar la calidad de la tabla completa y diagnosticar sus dimensiones, primero debes elegir un activo de información del catálogo:
                 </p>
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                  className={styles.select}
-                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
-                >
-                  <option value="">— Elegir Activo de Información —</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
-                  ))}
-                </select>
+                <div className={styles.assetSelector} style={{ maxWidth: '360px', width: '100%' }}>
+                  <Database size={18} className={styles.selectorIcon} />
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => setSelectedAssetId(e.target.value)}
+                  >
+                    <option value="">— Elegir Activo de Información —</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ) : (
               <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
@@ -1460,17 +1469,18 @@ export default function QualityModule() {
                 <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
                   Para visualizar el análisis granular por campo (columna), primero debes elegir un activo de información del catálogo:
                 </p>
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                  className={styles.select}
-                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
-                >
-                  <option value="">— Elegir Activo de Información —</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
-                  ))}
-                </select>
+                <div className={styles.assetSelector} style={{ maxWidth: '360px', width: '100%' }}>
+                  <Database size={18} className={styles.selectorIcon} />
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => setSelectedAssetId(e.target.value)}
+                  >
+                    <option value="">— Elegir Activo de Información —</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ) : (
               <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
@@ -1570,17 +1580,18 @@ export default function QualityModule() {
                 <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '0.95rem', maxWidth: '450px' }}>
                   Para gestionar y ejecutar reglas de calidad sobre un activo de información, primero debes elegir un activo de información del catálogo:
                 </p>
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                  className={styles.select}
-                  style={{ maxWidth: '360px', width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, fontSize: '0.95rem', color: '#1e293b', outline: 'none' }}
-                >
-                  <option value="">— Elegir Activo de Información —</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
-                  ))}
-                </select>
+                <div className={styles.assetSelector} style={{ maxWidth: '360px', width: '100%' }}>
+                  <Database size={18} className={styles.selectorIcon} />
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => setSelectedAssetId(e.target.value)}
+                  >
+                    <option value="">— Elegir Activo de Información —</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name} ({a.source})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ) : (
               <>
@@ -2265,6 +2276,56 @@ export default function QualityModule() {
                   {executionProgress >= 60 && executionProgress < 90 && "Escaneando registros y calculando DQI..."}
                   {executionProgress >= 90 && executionProgress < 100 && "Evaluando incidentes y SLA de gobierno..."}
                   {executionProgress === 100 && "¡Finalizado!"}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Progreso de Conciliación (Estilo Launchpad / Premium) */}
+      <AnimatePresence>
+        {isReconciling && (
+          <div className={styles.execOverlay}>
+            <motion.div 
+              className={styles.execModal}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+            >
+              <div className={`${styles.execIcon} ${styles.zapPulse}`} style={{ background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)' }}>
+                <Activity size={32} />
+              </div>
+              <h3>Conciliación de Esquemas</h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: '#64748b' }}>
+                Cruzando estructuras de datos y evaluando consistencia semántica side-by-side...
+              </p>
+              
+              <div className={styles.execProgress}>
+                <div 
+                  className={styles.execProgressFill} 
+                  style={{ width: `${reconcileProgress}%`, background: 'linear-gradient(90deg, #a855f7, #6366f1)' }}
+                />
+              </div>
+              
+              <div className={styles.progressText} style={{ color: '#a855f7' }}>
+                {reconcileProgress}% Completado
+              </div>
+
+              <div className={styles.execLog}>
+                {reconcileProgress >= 20 && <p>✔ Esquemas de Activo A y Activo B cargados.</p>}
+                {reconcileProgress >= 50 && <p>✔ Normalización y emparejamiento físico de columnas completo.</p>}
+                {reconcileProgress >= 75 && <p>✔ Mapeo semántico de campos y sinónimos procesado.</p>}
+                {reconcileProgress >= 90 && <p>✔ Tasa de homología y DQI comparativo estimado.</p>}
+                {reconcileProgress === 100 && <p>✔ Diagrama de homología y radar finalizados.</p>}
+                <p style={{ color: '#a855f7', fontWeight: 600, animation: 'pulse 1.5s infinite', margin: 0 }}>
+                  {reconcileProgress < 20 && "Descargando esquemas de datos..."}
+                  {reconcileProgress >= 20 && reconcileProgress < 50 && "Normalizando nombres físicos de columnas..."}
+                  {reconcileProgress >= 50 && reconcileProgress < 75 && "Ejecutando mapeo semántico de campos..."}
+                  {reconcileProgress >= 75 && reconcileProgress < 90 && "Comparando tipos de datos y DQI side-by-side..."}
+                  {reconcileProgress >= 90 && reconcileProgress < 100 && "Generando diagramas de homología y Recharts..."}
+                  {reconcileProgress === 100 && "¡Homologación Completada!"}
                 </p>
               </div>
             </motion.div>
