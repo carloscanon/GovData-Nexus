@@ -155,6 +155,9 @@ export default function Login() {
     // Limpiar cache de tenants para forzar recarga fresca desde Supabase
     localStorage.removeItem('govdata_tenants');
 
+    const mode = role === 'superadmin' ? 'DEMO' : 'ENTERPRISE';
+    localStorage.setItem('govdata_mode', mode);
+
     localStorage.setItem('govdata_role', role);
     localStorage.setItem('govdata_user_name', name);
     localStorage.setItem('govdata_current_tenant_id', tenantId);

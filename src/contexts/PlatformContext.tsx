@@ -226,7 +226,7 @@ const defaultTenants: Tenant[] = [
 const PlatformContext = createContext<PlatformContextType | undefined>(undefined);
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<PlatformMode>('DEMO');
+  const [mode, setMode] = useState<PlatformMode>('ENTERPRISE');
   const [brandColors, setBrandColors] = useState<BrandColors>({
     primary: '#1e3a8a',
     secondary: '#10b981',
@@ -268,7 +268,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   // Load persisted state from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem('govdata_mode') as PlatformMode;
-    if (savedMode) setMode(savedMode);
+    if (savedMode) {
+      setMode(savedMode);
+    } else {
+      const userRole = localStorage.getItem('govdata_role');
+      if (userRole && userRole !== 'superadmin') {
+        setMode('ENTERPRISE');
+        localStorage.setItem('govdata_mode', 'ENTERPRISE');
+      }
+    }
 
     const savedSaTheme = localStorage.getItem('govdata_satheme');
     if (savedSaTheme) {
