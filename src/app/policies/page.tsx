@@ -1195,10 +1195,10 @@ export default function PoliciesModule() {
               <div className={styles.modalHeader}>
                 <div className={styles.headerInfo}>
                   <h2>Nueva Política Corporativa</h2>
-                  <p style={{ color: '#94a3b8' }}>Complete los campos para iniciar el flujo de aprobación.</p>
+                  <p style={{ color: '#64748b' }}>Complete los campos para iniciar el flujo de aprobación.</p>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white' }}>
-                  <X size={24} />
+                <button onClick={() => setIsCreateModalOpen(false)} className={styles.modalCloseBtn}>
+                  <X size={18} />
                 </button>
               </div>
 
@@ -1338,18 +1338,18 @@ export default function PoliciesModule() {
                   <span style={{ color: '#4f46e5', fontWeight: 800, fontSize: '0.85rem' }}>{selectedPolicy.id}</span>
                   <h2>{selectedPolicy.title}</h2>
                   <div className={styles.headerBadges}>
-                    <span className={styles.statusBadge} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <span className={styles.statusBadge} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
                       Versión {selectedPolicy.version}
                     </span>
-                    <span className={styles.statusBadge} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <span className={styles.statusBadge} style={{ background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}>
                       {selectedPolicy.status}
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                    {!isEditing ? (
                      <>
-                        <button className={styles.secondaryBtn} onClick={startEditing} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid white' }}>
+                        <button className={styles.secondaryBtn} onClick={startEditing}>
                           <Settings size={18} style={{ marginRight: '8px' }} /> Editar
                         </button>
                         {selectedPolicy.status === 'Borrador' && (
@@ -1368,8 +1368,8 @@ export default function PoliciesModule() {
                         <CheckCircle size={18} style={{ marginRight: '8px' }} /> Guardar Cambios
                      </button>
                    )}
-                   <button onClick={() => { setSelectedPolicy(null); setIsEditing(false); }} style={{ background: 'transparent', border: 'none', color: 'white' }}>
-                     <X size={28} />
+                   <button onClick={() => { setSelectedPolicy(null); setIsEditing(false); }} className={styles.modalCloseBtn}>
+                     <X size={18} />
                    </button>
                 </div>
               </div>
@@ -1979,15 +1979,15 @@ export default function PoliciesModule() {
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}
             >
-              <div style={{ padding: '24px 32px', background: selectedKPI.color, color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex' }}>
+                   <div style={{ padding: '10px', background: `${selectedKPI.color}20`, borderRadius: '12px', display: 'flex', color: selectedKPI.color }}>
                      <Award size={24} />
                    </div>
-                   <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
+                   <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
                 </div>
-                <button onClick={() => setSelectedKPI(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', color: 'white', display: 'flex' }}>
-                   <X size={20} />
+                <button onClick={() => setSelectedKPI(null)} className={styles.modalCloseBtn}>
+                   <X size={18} />
                 </button>
               </div>
               <div style={{ padding: '32px' }}>
@@ -2017,65 +2017,53 @@ export default function PoliciesModule() {
           <div className={styles.modalOverlay} onClick={() => setIsStdModalOpen(false)}>
             <motion.div 
               className={styles.modalContent}
-              style={{ 
-                maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column',
-                background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                fontFamily: 'var(--modal-font, inherit)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '32px', 
-                color: 'var(--modal-text-color, white)', 
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-              }}
+              style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                <h2 style={{ color: 'var(--modal-text-color, white)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Crear Estándar Técnico</h2>
-                <button onClick={() => setIsStdModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Crear Estándar Técnico</h2>
+                  <p style={{ color: '#64748b' }}>Complete los campos del estándar.</p>
+                </div>
+                <button onClick={() => setIsStdModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Código del Estándar</label>
-                  <input type="text" value={newStandard.code} onChange={e => setNewStandard({...newStandard, code: e.target.value})} placeholder="Ej: STD-005" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Código del Estándar</label>
+                  <input type="text" value={newStandard.code} onChange={e => setNewStandard({...newStandard, code: e.target.value})} placeholder="Ej: EST-005" className={styles.modalInput} />
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Nombre del Estándar</label>
-                  <input type="text" value={newStandard.name} onChange={e => setNewStandard({...newStandard, name: e.target.value})} placeholder="Ej: Cifrado AES-256 PII" style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }} />
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Nombre del Estándar</label>
+                  <input type="text" value={newStandard.name} onChange={e => setNewStandard({...newStandard, name: e.target.value})} placeholder="Ej: Cifrado de datos en tránsito" className={styles.modalInput} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Categoría</label>
-                    <select value={newStandard.category} onChange={e => setNewStandard({...newStandard, category: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
-                      <option value="Arquitectura" style={{ color: 'black' }}>Arquitectura</option>
-                      <option value="Seguridad" style={{ color: 'black' }}>Seguridad</option>
-                      <option value="Interoperabilidad" style={{ color: 'black' }}>Interoperabilidad</option>
-                      <option value="Accesos" style={{ color: 'black' }}>Accesos</option>
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Categoría</label>
+                    <select value={newStandard.category} onChange={e => setNewStandard({...newStandard, category: e.target.value})} className={styles.modalInput}>
+                      <option value="Arquitectura">Arquitectura</option>
+                      <option value="Seguridad">Seguridad</option>
+                      <option value="Interoperabilidad">Interoperabilidad</option>
+                      <option value="Accesos">Accesos</option>
                     </select>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Estado</label>
-                    <select value={newStandard.status} onChange={e => setNewStandard({...newStandard, status: e.target.value})} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}>
-                      <option value="Activo" style={{ color: 'black' }}>Activo</option>
-                      <option value="Crítico" style={{ color: 'black' }}>Crítico</option>
+                  <div className={styles.modalFormGroup}>
+                    <label className={styles.modalLabel}>Estado</label>
+                    <select value={newStandard.status} onChange={e => setNewStandard({...newStandard, status: e.target.value})} className={styles.modalInput}>
+                      <option value="Activo">Activo</option>
+                      <option value="Crítico">Crítico</option>
                     </select>
                   </div>
                 </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--modal-text-color, white)', opacity: 0.7, fontSize: '0.9rem' }}>Enlace al Documento o Subir Archivo</label>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Enlace al Documento o Subir Archivo</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="text" value={newStandard.document_url || ''} onChange={e => setNewStandard({...newStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" style={{ flex: 1, padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '0.9rem', outline: 'none' }} />
-                    {newStandard.document_url && (
-                      <a href={newStandard.document_url} target="_blank" rel="noopener noreferrer" className={styles.secondaryBtn} style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#60a5fa', textDecoration: 'none', padding: '12px', borderRadius: '12px' }} title="Abrir enlace">
-                        <ExternalLink size={16} />
-                      </a>
-                    )}
+                    <input type="text" value={newStandard.document_url || ''} onChange={e => setNewStandard({...newStandard, document_url: e.target.value})} placeholder="https://sharepoint... o clic en Subir" className={styles.modalInput} style={{ flex: 1 }} />
                     <div style={{ position: 'relative' }}>
                       <input type="file" id="std-create-upload" style={{ display: 'none' }} onChange={e => handleNativeFileUpload(e, (url) => setNewStandard({...newStandard, document_url: url}), 'estandares')} />
-                      <label htmlFor="std-create-upload" className={styles.secondaryBtn} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--modal-text-color, white)', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
+                      <label htmlFor="std-create-upload" className={styles.secondaryBtn} style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', borderRadius: '12px' }}>
                          <Upload size={16} style={{ marginRight: '8px' }} /> {isUploading ? 'Subiendo...' : 'Subir'}
                       </label>
                     </div>
@@ -2086,12 +2074,12 @@ export default function PoliciesModule() {
                     className={styles.secondaryBtn} 
                     onClick={() => simulateStandardAiGeneration('new')}
                     disabled={isAiGenerating}
-                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#d8b4fe', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
-                     <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                     <Cpu size={14} /> Asistente IA
                   </button>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className={styles.secondaryBtn} onClick={() => setIsStdModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--modal-text-color, white)' }}>Cancelar</button>
+                    <button className={styles.secondaryBtn} onClick={() => setIsStdModalOpen(false)}>Cancelar</button>
                     <button className={styles.primaryBtn} onClick={handleAddStandard}>Crear Estándar</button>
                   </div>
                 </div>
@@ -2106,15 +2094,17 @@ export default function PoliciesModule() {
         {isProcModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsProcModalOpen(false)}>
             <motion.div 
-              className={styles.modalContentLight}
+              className={styles.modalContent}
               style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeaderLight}>
-                <h2>Crear Procedimiento</h2>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Crear Procedimiento</h2>
+                </div>
                 <button onClick={() => setIsProcModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
@@ -2178,15 +2168,17 @@ export default function PoliciesModule() {
         {isStdDetailModalOpen && selectedStandard && (
           <div className={styles.modalOverlay} onClick={() => setIsStdDetailModalOpen(false)}>
             <motion.div 
-              className={styles.modalContentLight}
+              className={styles.modalContent}
               style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeaderLight}>
-                <h2>Gestionar Estándar Técnico</h2>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Gestionar Estándar Técnico</h2>
+                </div>
                 <button onClick={() => setIsStdDetailModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
@@ -2263,15 +2255,17 @@ export default function PoliciesModule() {
         {isProcDetailModalOpen && selectedProcedure && (
           <div className={styles.modalOverlay} onClick={() => setIsProcDetailModalOpen(false)}>
             <motion.div 
-              className={styles.modalContentLight}
+              className={styles.modalContent}
               style={{ maxWidth: '600px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeaderLight}>
-                <h2>Gestionar Procedimiento</h2>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Gestionar Procedimiento</h2>
+                </div>
                 <button onClick={() => setIsProcDetailModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
@@ -2339,15 +2333,17 @@ export default function PoliciesModule() {
         {isEvidenceModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsEvidenceModalOpen(false)}>
             <motion.div 
-              className={styles.modalContentLight}
+              className={styles.modalContent}
               style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeaderLight}>
-                <h2>Subir Evidencia</h2>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Subir Evidencia</h2>
+                </div>
                 <button onClick={() => setIsEvidenceModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
@@ -2391,15 +2387,17 @@ export default function PoliciesModule() {
         {isApproveModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsApproveModalOpen(false)}>
             <motion.div 
-              className={styles.modalContentLight}
+              className={styles.modalContent}
               style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className={styles.modalHeaderLight}>
-                <h2>Asignar y Aprobar Paso</h2>
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Asignar y Aprobar Paso</h2>
+                </div>
                 <button onClick={() => setIsApproveModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '32px' }}>
