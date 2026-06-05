@@ -558,16 +558,7 @@ export default function PoliciesModule() {
     setIsEditing(true);
   };
 
-  const advanceWorkflow = (policyId: string) => {
-    setPolicyToApprove(policyId);
-    setApproveAssignee('');
-    setIsApproveModalOpen(true);
-  };
-
-  const executeAdvanceWorkflow = async () => {
-    if (!policyToApprove) return;
-    const policyId = policyToApprove;
-
+  const advanceWorkflow = async (policyId: string) => {
     const pIndex = policies.findIndex(p => p.id === policyId);
     if (pIndex === -1) return;
 
@@ -583,8 +574,8 @@ export default function PoliciesModule() {
     const updatedPolicy = { ...policy, currentStep: nextStepIdx, status: nextStatus };
 
     try {
-      const { error } = await supabase.from('data_policies')
-
+      const { error } = await supabase
+        .from('data_policies')
         .update({ current_step: nextStepIdx, status: nextStatus })
         .eq('id', policyId);
       if (error) throw error;
@@ -593,8 +584,6 @@ export default function PoliciesModule() {
       if (selectedPolicy?.id === policyId) {
         setSelectedPolicy(updatedPolicy);
       }
-      setIsApproveModalOpen(false);
-      setPolicyToApprove(null);
     } catch (e) {
       console.error('Error advancing workflow:', e);
       alert('Error al avanzar el flujo en la base de datos.');
@@ -2498,60 +2487,6 @@ export default function PoliciesModule() {
       </AnimatePresence>
 
       {/* Approve Workflow Modal */}
-      <AnimatePresence>
-        {isApproveModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsApproveModalOpen(false)}>
-            <motion.div 
-              className={styles.modalContent}
-              style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className={styles.modalHeader}>
-                <div className={styles.headerInfo}>
-                  <h2>Asignar y Aprobar Paso</h2>
-                </div>
-                <button onClick={() => setIsApproveModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
-              </div>
-              <div style={{ padding: '32px' }}>
-                <div className={styles.modalFormGroup}>
-                  <label className={styles.modalLabel}>Responsable de Aprobación</label>
-                  <select 
-                    value={approveAssignee}
-                    onChange={e => setApproveAssignee(e.target.value)}
-                    className={styles.modalInput}
-                  >
-                    <option value="" disabled>Seleccione el responsable asignado...</option>
-                    {teamMembers.map((m, i) => (
-                      <option key={i} value={m.name}>{m.name} ({m.role})</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ padding: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', marginBottom: '24px' }}>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e40af', lineHeight: 1.5 }}>
-                    <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px', display: 'inline-block' }} />
-                    Al firmar y avanzar, el documento pasará al siguiente estado del ciclo de vida y la fecha quedará registrada en la pista de auditoría.
-                  </p>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className={styles.secondaryBtn} onClick={() => setIsApproveModalOpen(false)}>Cancelar</button>
-                  <button 
-                    className={styles.primaryBtn} 
-                    onClick={executeAdvanceWorkflow}
-                    disabled={!approveAssignee}
-                    style={{ opacity: !approveAssignee ? 0.5 : 1, cursor: !approveAssignee ? 'not-allowed' : 'pointer' }}
-                  >
-                    Firmar y Avanzar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Manage Control Modal */}
       <AnimatePresence>
         {isControlModalOpen && (

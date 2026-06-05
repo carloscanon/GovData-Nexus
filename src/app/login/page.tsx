@@ -112,6 +112,17 @@ export default function Login() {
   const [isSent, setIsSent] = useState(false);
   const [cfg, setCfg] = useState<LoginPageConfig>(DEFAULT_CONFIG);
 
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [demoOrg, setDemoOrg] = useState('');
+  const [demoName, setDemoName] = useState('');
+  const [demoEmail, setDemoEmail] = useState('');
+  const [demoCountryCode, setDemoCountryCode] = useState('+57');
+  const [demoPhone, setDemoPhone] = useState('');
+  const [demoRole, setDemoRole] = useState('');
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [demoSuccess, setDemoSuccess] = useState(false);
+  const [demoError, setDemoError] = useState('');
+
   // Load superadmin login config from localStorage
   useEffect(() => {
     try {
@@ -225,6 +236,42 @@ export default function Login() {
       setIsLoading(false);
       setIsSent(true);
     }, 1500);
+  };
+
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsDemoLoading(true);
+    setDemoError('');
+
+    const fullPhoneNumber = `${demoCountryCode} ${demoPhone.trim()}`;
+
+    try {
+      const { error: insertError } = await supabase
+        .from('demo_requests')
+        .insert({
+          organization: demoOrg,
+          name: demoName,
+          email: demoEmail,
+          phone: fullPhoneNumber,
+          role: demoRole
+        });
+
+      if (insertError) throw insertError;
+
+      setDemoSuccess(true);
+      // Clear form
+      setDemoOrg('');
+      setDemoName('');
+      setDemoEmail('');
+      setDemoPhone('');
+      setDemoRole('');
+      setDemoCountryCode('+57');
+    } catch (err: any) {
+      console.error('Error submitting demo request:', err);
+      setDemoError(err.message || 'Ocurrió un error al registrar la solicitud de demo. Por favor intente nuevamente.');
+    } finally {
+      setIsDemoLoading(false);
+    }
   };
 
   return (
@@ -434,8 +481,152 @@ export default function Login() {
           <p className={styles.footer}>
             ¿No tienes acceso? <a href="#">Contacta a Soporte TI</a>
           </p>
+
+          <div className={styles.demoCalloutCard}>
+            <div className={styles.demoCalloutText}>
+              <h4>¿Quieres conocer la plataforma?</h4>
+              <p>Solicita una demostración guiada y personalizada para tu organización.</p>
+            </div>
+            <button 
+              type="button" 
+              className={styles.demoPrimaryBtn} 
+              onClick={() => { setDemoSuccess(false); setDemoError(''); setIsDemoModalOpen(true); }}
+            >
+              Solicitar una Demo
+            </button>
+          </div>
         </motion.div>
       </div>
+
+      {/* Demo Modal */}
+      {isDemoModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsDemoModalOpen(false)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={styles.modalContent} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className={styles.closeBtn} onClick={() => setIsDemoModalOpen(false)}>&times;</button>
+            
+            {demoSuccess ? (
+              <div className={styles.successView}>
+                <div className={styles.successIcon}>
+                  <ShieldCheck size={40} />
+                </div>
+                <h3>Solicitud Enviada</h3>
+                <p>Tu solicitud de demo ha sido registrada con éxito. Nos pondremos en contacto contigo pronto.</p>
+                <button 
+                  onClick={() => setIsDemoModalOpen(false)} 
+                  className={styles.submitBtn} 
+                  style={{ width: '100%', marginTop: '24px' }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={styles.modalHeader}>
+                  <h3>Solicitar una Demo</h3>
+                  <p>Completa tus datos y un especialista te contactará.</p>
+                </div>
+
+                {demoError && (
+                  <div className={styles.errorMsg}>
+                    {demoError}
+                  </div>
+                )}
+
+                <form onSubmit={handleDemoSubmit} className={styles.form}>
+                  <div className={styles.inputGroup}>
+                    <label>Organización / Empresa</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nombre de la empresa" 
+                      value={demoOrg}
+                      onChange={(e) => setDemoOrg(e.target.value)}
+                      required
+                      className={styles.modalInput}
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Nombre Completo</label>
+                    <input 
+                      type="text" 
+                      placeholder="Tu nombre" 
+                      value={demoName}
+                      onChange={(e) => setDemoName(e.target.value)}
+                      required
+                      className={styles.modalInput}
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Correo Corporativo</label>
+                    <input 
+                      type="email" 
+                      placeholder="ejemplo@empresa.com" 
+                      value={demoEmail}
+                      onChange={(e) => setDemoEmail(e.target.value)}
+                      required
+                      className={styles.modalInput}
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Teléfono de Contacto</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select 
+                        value={demoCountryCode} 
+                        onChange={(e) => setDemoCountryCode(e.target.value)}
+                        className={styles.modalSelect}
+                        style={{ width: '100px', flexShrink: 0 }}
+                      >
+                        <option value="+57">🇨🇴 +57</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+54">🇦🇷 +54</option>
+                        <option value="+56">🇨🇱 +56</option>
+                        <option value="+51">🇵🇪 +51</option>
+                        <option value="+58">🇻🇪 +58</option>
+                        <option value="+ec">🇪🇨 +593</option>
+                        <option value="+506">🇨🇷 +506</option>
+                      </select>
+                      <input 
+                        type="tel" 
+                        placeholder="300 000 0000" 
+                        value={demoPhone}
+                        onChange={(e) => setDemoPhone(e.target.value)}
+                        required
+                        className={styles.modalInput}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Cargo / Rol</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej: Director de Datos" 
+                      value={demoRole}
+                      onChange={(e) => setDemoRole(e.target.value)}
+                      required
+                      className={styles.modalInput}
+                    />
+                  </div>
+
+                  <button type="submit" className={styles.submitBtn} disabled={isDemoLoading}>
+                    {isDemoLoading ? 'Registrando...' : 'Enviar Solicitud'}
+                    {!isDemoLoading && <ArrowRight size={18} />}
+                  </button>
+                </form>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

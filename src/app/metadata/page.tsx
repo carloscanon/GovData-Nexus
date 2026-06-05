@@ -96,17 +96,19 @@ export default function MetadataPage() {
       setGlossary(glossaryData || []);
 
       // Fetch Semantic Dictionary
-      const { data: dictData } = await supabase
+      const { data: dictData, error: dictError } = await supabase
         .from('semantic_dictionary')
         .select('*')
         .eq('tenant_id', currentTenant.id);
+      if (dictError) throw dictError;
       setSemanticDict(dictData || []);
 
       // Fetch Domains
-      const { data: domainsData } = await supabase
+      const { data: domainsData, error: domainsError } = await supabase
         .from('team_domains')
         .select('id, name')
         .eq('tenant_id', currentTenant.id);
+      if (domainsError) throw domainsError;
       if (domainsData && domainsData.length > 0) {
         setDomains(domainsData);
       } else {

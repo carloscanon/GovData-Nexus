@@ -26,6 +26,7 @@ import './superadmin.css';
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard SaaS', href: '/superadmin' },
   { icon: Building2, label: 'Empresas', href: '/superadmin/empresas' },
+  { icon: ClipboardList, label: 'Solicitud de Demos', href: '/superadmin/demos' },
   { icon: Layers, label: 'Planes SaaS', href: '/superadmin/planes' },
   { icon: CreditCard, label: 'Facturación', href: '/superadmin/billing' },
   { icon: Gauge, label: 'Control de Consumo', href: '/superadmin/consumo' },

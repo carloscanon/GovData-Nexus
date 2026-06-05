@@ -64,7 +64,10 @@ interface SlaRule {
 
 
 
-const auditEvents: any[] = [];
+const normalizeText = (text: string | null | undefined): string => {
+  if (!text) return '';
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+};
 
 function parseTextSla(slaStr: string, createdTime: number): number | null {
   const clean = (slaStr || '').toLowerCase().trim();
@@ -280,20 +283,64 @@ export default function Workflows() {
     if (!selectedReq || !currentTenant?.id) return;
     
     try {
+      const original = requests.find(r => r.id === selectedReq.id);
+      const newTimeline = [...(selectedReq.timeline || [])];
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (original) {
+        if (original.status !== selectedReq.status) {
+          newTimeline.push({
+            step: `Cambio de Estado: ${original.status || 'Pendiente'} -> ${selectedReq.status}`,
+            user: 'Usuario Actual',
+            date: today,
+            status: 'done'
+          });
+        }
+        if (original.assignee !== selectedReq.assignee) {
+          newTimeline.push({
+            step: `Reasignación: ${original.assignee || 'Sin asignar'} -> ${selectedReq.assignee || 'Sin asignar'}`,
+            user: 'Usuario Actual',
+            date: today,
+            status: 'done'
+          });
+        }
+        if (original.category !== selectedReq.category) {
+          newTimeline.push({
+            step: `Cambio de Dominio: ${original.category || 'Sin asignar'} -> ${selectedReq.category || 'Sin asignar'}`,
+            user: 'Usuario Actual',
+            date: today,
+            status: 'done'
+          });
+        }
+        if (original.priority !== selectedReq.priority) {
+          newTimeline.push({
+            step: `Cambio de Prioridad: ${original.priority || 'Media'} -> ${selectedReq.priority}`,
+            user: 'Usuario Actual',
+            date: today,
+            status: 'done'
+          });
+        }
+      }
+      
+      const savedReq = {
+        ...selectedReq,
+        timeline: newTimeline
+      };
+
       const { error } = await supabase.from('workflow_requests').update({
-        status: selectedReq.status,
-        sla_status: selectedReq.slaStatus,
-        current_step: selectedReq.currentStep,
-        timeline: selectedReq.timeline,
-        assigned_to: selectedReq.assignee || null,
-        priority: selectedReq.priority,
-        sla: selectedReq.sla,
-        category: selectedReq.category
-      }).eq('id', selectedReq.id);
+        status: savedReq.status,
+        sla_status: savedReq.slaStatus,
+        current_step: savedReq.currentStep,
+        timeline: savedReq.timeline,
+        assigned_to: savedReq.assignee || null,
+        priority: savedReq.priority,
+        sla: savedReq.sla,
+        category: savedReq.category
+      }).eq('id', savedReq.id);
 
       if (error) throw error;
       
-      const updated = requests.map(r => r.id === selectedReq.id ? selectedReq : r);
+      const updated = requests.map(r => r.id === savedReq.id ? savedReq : r);
       setRequests(updated);
     } catch (e) {
       console.error('Error updating request:', e);
@@ -443,7 +490,7 @@ export default function Workflows() {
 
   const filteredRequests = requests.filter(req => {
     // 1. Domain filter
-    if (activeDomain && req.category !== activeDomain) return false;
+    if (activeDomain && normalizeText(req.category) !== normalizeText(activeDomain)) return false;
     
     // 2. Tab filter
     if (activeTab === 'pendientes') {
@@ -473,6 +520,17 @@ export default function Workflows() {
     
     return true;
   });
+
+  const auditEvents = requests.flatMap(req => {
+    const timeline = req.timeline || [];
+    return timeline.map((t: any, idx: number) => ({
+      id: `${req.id}-${idx}`,
+      date: t.date || req.date || new Date().toISOString().split('T')[0],
+      action: t.step,
+      user: t.user || 'Sistema',
+      detail: `Asociado a Solicitud: "${req.title}" (ID: ${req.id})`
+    }));
+  }).sort((a, b) => b.date.localeCompare(a.date));
 
   const getPriorityColor = (p: string) => {
     switch (p) {
@@ -819,10 +877,10 @@ export default function Workflows() {
                             <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{req.date}</div>
                          </td>
                          <td>
-                            <div className={styles.typeTag}>
-                               <span className={styles.categoryDot} style={{ background: '#6366f1' }} />
-                               {req.type}
-                            </div>
+                             <div className={styles.typeTag}>
+                                <span className={styles.categoryDot} style={{ background: '#6366f1' }} />
+                                {req.category || 'General'}
+                             </div>
                          </td>
                          <td>
                              <span className={styles.statusBadge} style={getStatusStyle(req.status || 'Pendiente')}>

@@ -76,6 +76,7 @@ export default function SecurityModule() {
   const [accessReviews, setAccessReviews] = useState<AccessReview[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
   const [frameworks, setFrameworks] = useState<string[]>(['ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework']);
+  const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -102,13 +103,14 @@ export default function SecurityModule() {
     const tid = currentTenant.id;
     setLoading(true);
     try {
-      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
+      const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
         supabase.from('security_risks').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('security_incidents').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('security_controls').select('*').eq('tenant_id', tid).order('framework'),
         supabase.from('security_access_reviews').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', tid).order('name'),
         supabase.from('security_frameworks').select('name').eq('tenant_id', tid),
+        supabase.from('data_policies').select('id, expiry, status').eq('tenant_id', tid)
       ]);
       if (r1.data) setRisks(r1.data.map(r => ({ ...r, controls: r.controls || [] })));
       if (r2.data) setIncidents(r2.data);
@@ -118,6 +120,7 @@ export default function SecurityModule() {
       if (r6.data && r6.data.length > 0) {
         setFrameworks(r6.data.map(f => f.name));
       }
+      if (r7.data) setPolicies(r7.data);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [currentTenant?.id]);
@@ -351,7 +354,18 @@ export default function SecurityModule() {
           { id: 'incidentes', label: 'Incidentes', icon: <Zap size={16} />, count: openIncidents.length },
           { id: 'cumplimiento', label: 'Cumplimiento', icon: <CheckCircle size={16} /> },
           { id: 'accesos', label: 'Accesos', icon: <UserCheck size={16} />, count: highAccessCount || undefined },
-          { id: 'politicas', label: 'Políticas', icon: <FileWarning size={16} /> },
+          { id: 'politicas', label: 'Políticas', icon: <FileWarning size={16} />, count: (() => {
+            const currentYear = new Date().getFullYear();
+            const expired = policies.filter(p => {
+              if (p.status === 'Vencida') return true;
+              if (p.expiry) {
+                const expYear = parseInt(p.expiry, 10);
+                if (!isNaN(expYear) && expYear < currentYear) return true;
+              }
+              return false;
+            });
+            return expired.length > 0 ? expired.length : undefined;
+          })() },
         ].map(tab => (
           <button key={tab.id}
             className={`${styles.tabBtn} ${activeTab === tab.id ? styles.activeTab : ''}`}
@@ -976,11 +990,16 @@ function PoliciesTab({ tenantId }: { tenantId?: string }) {
   }, [tenantId]);
 
   const today = new Date();
-  const isExpired = (expiry: string) => new Date(expiry + '-01-01') < today;
+  const currentYear = today.getFullYear();
+  const isExpired = (expiry: string) => {
+    if (!expiry) return false;
+    const expYear = parseInt(expiry, 10);
+    return !isNaN(expYear) && expYear < currentYear;
+  };
   const expiringSoon = (expiry: string) => {
-    const d = new Date(expiry + '-01-01');
-    const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 90;
+    if (!expiry) return false;
+    const expYear = parseInt(expiry, 10);
+    return !isNaN(expYear) && expYear === currentYear;
   };
 
   if (loading) return <p style={{ color: '#94a3b8', padding: '20px' }}>Cargando políticas...</p>;

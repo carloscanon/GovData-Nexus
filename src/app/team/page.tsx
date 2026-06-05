@@ -2432,7 +2432,7 @@ export default function Team() {
 
                            <select 
 
-                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
 
                              value={newDomain.owner}
 
@@ -2440,11 +2440,11 @@ export default function Team() {
 
                            >
 
-                              <option value="Por definir">Por definir</option>
+                              <option value="Por definir" style={{ color: '#e2e8f0', background: '#1e293b' }}>Por definir</option>
 
-                              {tenantUsers.map(u => (
+                              {members.map(m => (
 
-                                <option key={u.id} value={u.name}>{u.name}</option>
+                                <option key={m.id} value={m.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{m.name} ({m.roleType})</option>
 
                               ))}
 
@@ -2458,7 +2458,7 @@ export default function Team() {
 
                            <select 
 
-                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
 
                              value={newDomain.steward}
 
@@ -2466,11 +2466,11 @@ export default function Team() {
 
                            >
 
-                              <option value="Por definir">Por definir</option>
+                              <option value="Por definir" style={{ color: '#e2e8f0', background: '#1e293b' }}>Por definir</option>
 
-                              {tenantUsers.map(u => (
+                              {members.map(m => (
 
-                                <option key={u.id} value={u.name}>{u.name}</option>
+                                <option key={m.id} value={m.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{m.name} ({m.roleType})</option>
 
                               ))}
 
@@ -2484,7 +2484,7 @@ export default function Team() {
 
                            <select 
 
-                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--modal-text-color, white)', fontSize: '1rem', outline: 'none' }}
+                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#1e293b', color: '#e2e8f0', fontSize: '1rem', outline: 'none' }}
 
                              value={newDomain.custodian}
 
@@ -2492,11 +2492,11 @@ export default function Team() {
 
                            >
 
-                              <option value="Por definir">Por definir</option>
+                              <option value="Por definir" style={{ color: '#e2e8f0', background: '#1e293b' }}>Por definir</option>
 
-                              {tenantUsers.map(u => (
+                              {members.map(m => (
 
-                                <option key={u.id} value={u.name}>{u.name}</option>
+                                <option key={m.id} value={m.name} style={{ color: '#e2e8f0', background: '#1e293b' }}>{m.name} ({m.roleType})</option>
 
                               ))}
 

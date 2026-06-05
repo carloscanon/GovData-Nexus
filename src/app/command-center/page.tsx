@@ -326,15 +326,17 @@ export default function CommandCenter() {
 
         // 2. Activos
         const totalA = assets ? assets.length : 0;
-        const oCount = assets ? assets.filter(a => a.owner_id).length : 0;
-        const classCount = assets ? assets.filter(a => a.confidentiality !== 'Public' && a.confidentiality != null).length : 0;
+        const oCount = assets ? assets.filter(a => a.data_owner && a.data_owner.trim() !== '' && a.data_owner.trim().toLowerCase() !== 'por definir').length : 0;
+        const sCount = assets ? assets.filter(a => a.data_steward && a.data_steward.trim() !== '' && a.data_steward.trim().toLowerCase() !== 'por definir').length : 0;
+        const classCount = assets ? assets.filter(a => a.sensitivity && a.sensitivity.trim() !== '').length : 0;
+        const linCount = assets ? assets.filter(a => a.source && a.source.trim() !== '').length : 0;
         
         setAssetStats({
           total: totalA,
           withOwner: totalA > 0 ? Math.round((oCount / totalA) * 100) : 0,
-          withSteward: totalA > 0 ? Math.round((oCount / totalA) * 90) : 0, // Estimado por DB si no hay steward map
+          withSteward: totalA > 0 ? Math.round((sCount / totalA) * 100) : 0,
           classified: totalA > 0 ? Math.round((classCount / totalA) * 100) : 0,
-          lineage: totalA > 0 ? Math.round((oCount / totalA) * 75) : 0 // Estimado
+          lineage: totalA > 0 ? Math.round((linCount / totalA) * 100) : 0
         });
 
         // 3. Workflows
@@ -396,9 +398,20 @@ export default function CommandCenter() {
         const estScore = estObj ? estObj.A : matScore;
 
         // 4. Seguridad y Riesgo (Basado en encuesta y db)
+        const currentYear = new Date().getFullYear();
         const rCrit = risks ? risks.filter((r: any) => r.severity === 'Crítico' && r.status !== 'Cerrado').length : 0;
         const rHigh = risks ? risks.filter((r: any) => r.severity === 'Alto' && r.status !== 'Cerrado').length : 0;
-        const pExp = policies ? policies.filter(p => p.status === 'Vencida').length : 0;
+        
+        const pExp = policies ? policies.filter(p => {
+          if (p.status === 'Vencida') return true;
+          if (p.expiry) {
+            const expYear = parseInt(p.expiry, 10);
+            if (!isNaN(expYear) && expYear < currentYear) {
+              return true;
+            }
+          }
+          return false;
+        }).length : 0;
         
         setSecStats({
           critical: rCrit,
