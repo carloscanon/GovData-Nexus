@@ -70,6 +70,8 @@ export default function Maturity() {
 
   // Historical evolution data – stored/loaded from localStorage
   const [evolutionData, setEvolutionData] = React.useState<{name:string; score:number; benchmark:number}[]>([]);
+  const [findings, setFindings] = React.useState<any[]>([]);
+  const [roadmaps, setRoadmaps] = React.useState<any[]>([]);
 
   // Real DB counters
   const [dbStats, setDbStats] = React.useState({
@@ -136,6 +138,21 @@ export default function Maturity() {
           setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
           setEvolutionData([]);
         }
+
+        // Fetch Findings
+        const { data: findingsData } = await supabase
+          .from('maturity_findings')
+          .select('*')
+          .eq('tenant_id', currentTenant.id);
+        setFindings(findingsData || []);
+
+        // Fetch Roadmaps
+        const { data: roadmapsData } = await supabase
+          .from('maturity_roadmaps')
+          .select('*')
+          .eq('tenant_id', currentTenant.id)
+          .order('phase', { ascending: true });
+        setRoadmaps(roadmapsData || []);
       } catch (e: any) {
         console.error('Error fetching maturity data:', e);
         if (e.code === '42P01') {
@@ -587,14 +604,15 @@ export default function Maturity() {
 
                 <div className={styles.findingsBox}>
                   <h3><AlertTriangle size={16} /> Hallazgos y Riesgos</h3>
-                  <div className={styles.findingItem}>
-                    <div className={styles.riskLevel} data-level={selectedDim.score < 60 ? 'high' : 'medium'} />
-                    <p>Falta de automatización en el monitoreo de {selectedDim.name.toLowerCase()}.</p>
-                  </div>
-                  <div className={styles.findingItem}>
-                    <div className={styles.riskLevel} data-level="medium" />
-                    <p>Documentación de procesos desactualizada (última revisión hace 6 meses).</p>
-                  </div>
+                  {findings.filter(f => f.dimension.toLowerCase() === selectedDim.id.toLowerCase()).map((f, idx) => (
+                    <div key={f.id || idx} className={styles.findingItem}>
+                      <div className={styles.riskLevel} data-level={f.severity || 'medium'} />
+                      <p>{f.finding}</p>
+                    </div>
+                  ))}
+                  {findings.filter(f => f.dimension.toLowerCase() === selectedDim.id.toLowerCase()).length === 0 && (
+                    <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No hay hallazgos registrados para esta dimensión.</p>
+                  )}
                 </div>
 
                 <div className={styles.roadmapBox}>
@@ -714,27 +732,20 @@ export default function Maturity() {
           <button className={styles.secondaryBtn}><RefreshCw size={16} /> Actualizar Plan</button>
         </div>
         <div className={styles.timeline}>
-          <div className={styles.timelineItem}>
-            <div className={styles.timeLabel}>Mes 1</div>
-            <div className={styles.timeContent}>
-              <strong>Fase: Cimentación</strong>
-              <p>Asignar Stewards en Finanzas y Ventas. Automatizar reglas críticas de calidad.</p>
+          {roadmaps.map((r, idx) => (
+            <div key={r.id || idx} className={styles.timelineItem}>
+              <div className={styles.timeLabel}>{r.phase}</div>
+              <div className={styles.timeContent}>
+                <strong>{r.title}</strong>
+                <p>{r.description}</p>
+              </div>
             </div>
-          </div>
-          <div className={styles.timelineItem}>
-            <div className={styles.timeLabel}>Mes 2</div>
-            <div className={styles.timeContent}>
-              <strong>Fase: Operación</strong>
-              <p>Configurar SLAs en Workflows. Integrar logs de auditoría automáticos.</p>
+          ))}
+          {roadmaps.length === 0 && (
+            <div style={{ textAlign: 'center', width: '100%', padding: '20px', color: '#64748b' }}>
+              No hay pasos de roadmap registrados en la base de datos para esta organización.
             </div>
-          </div>
-          <div className={styles.timelineItem}>
-            <div className={styles.timeLabel}>Mes 3</div>
-            <div className={styles.timeContent}>
-              <strong>Fase: Optimización</strong>
-              <p>Desplegar enmascaramiento dinámico. Activar portal de autoservicio.</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -52,7 +52,7 @@ const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   Activo:        { bg: '#eff6ff', text: '#3b82f6' },
   Revocado:      { bg: '#f0fdf4', text: '#10b981' },
 };
-const FRAMEWORKS = ['ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework'];
+
 
 function SevBadge({ value, map }: { value: string; map: Record<string, { bg: string; text: string }> }) {
   const c = map[value] || { bg: '#f1f5f9', text: '#64748b' };
@@ -75,6 +75,7 @@ export default function SecurityModule() {
   const [controls, setControls] = useState<Control[]>([]);
   const [accessReviews, setAccessReviews] = useState<AccessReview[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
+  const [frameworks, setFrameworks] = useState<string[]>(['ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework']);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -101,18 +102,22 @@ export default function SecurityModule() {
     const tid = currentTenant.id;
     setLoading(true);
     try {
-      const [r1, r2, r3, r4, r5] = await Promise.all([
+      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
         supabase.from('security_risks').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('security_incidents').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('security_controls').select('*').eq('tenant_id', tid).order('framework'),
         supabase.from('security_access_reviews').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', tid).order('name'),
+        supabase.from('security_frameworks').select('name').eq('tenant_id', tid),
       ]);
       if (r1.data) setRisks(r1.data.map(r => ({ ...r, controls: r.controls || [] })));
       if (r2.data) setIncidents(r2.data);
       if (r3.data) setControls(r3.data);
       if (r4.data) setAccessReviews(r4.data);
       if (r5.data) setTenantUsers(r5.data);
+      if (r6.data && r6.data.length > 0) {
+        setFrameworks(r6.data.map(f => f.name));
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [currentTenant?.id]);
@@ -126,7 +131,7 @@ export default function SecurityModule() {
   const highAccessCount = accessReviews.filter(a => a.risk_level === 'Alto' && a.status === 'Activo').length;
 
   // SCI: % controles OK por framework
-  const frameworkScores = FRAMEWORKS.map(f => {
+  const frameworkScores = frameworks.map(f => {
     const fw = controls.filter(c => c.framework === f);
     if (fw.length === 0) return { name: f, pct: 0, color: '#94a3b8' };
     const ok = fw.filter(c => c.status === 'OK').length;
@@ -318,7 +323,7 @@ export default function SecurityModule() {
             </div>
             <h2 className={styles.globalTitle}>Índice de Seguridad y Cumplimiento (SCI)</h2>
             <p className={styles.globalSub}>
-              Calculado automáticamente desde {controls.length} controles registrados en {FRAMEWORKS.length} frameworks normativos.
+              Calculado automáticamente desde {controls.length} controles registrados en {frameworks.length} frameworks normativos.
             </p>
           </div>
         </div>
@@ -500,7 +505,7 @@ export default function SecurityModule() {
           {/* ── CUMPLIMIENTO ── */}
           {activeTab === 'cumplimiento' && (
             <div>
-              {FRAMEWORKS.map(fw => {
+              {frameworks.map(fw => {
                 const fwControls = controls.filter(c => c.framework === fw);
                 return (
                   <div key={fw} style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
@@ -923,7 +928,7 @@ export default function SecurityModule() {
                   <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Normativa / Framework *</label>
                     <select value={newControl.framework} onChange={e => setNewControl({ ...newControl, framework: e.target.value })}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
-                      {FRAMEWORKS.map(fw => <option key={fw} value={fw}>{fw}</option>)}
+                      {frameworks.map(fw => <option key={fw} value={fw}>{fw}</option>)}
                     </select></div>
                 </div>
                 <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nombre del Control *</label>

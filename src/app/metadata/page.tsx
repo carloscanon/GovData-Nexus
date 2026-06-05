@@ -20,6 +20,7 @@ export default function MetadataPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
   const [glossary, setGlossary] = useState<any[]>([]);
+  const [semanticDict, setSemanticDict] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal Glosario
@@ -43,25 +44,6 @@ export default function MetadataPage() {
   useEffect(() => {
     setIsMounted(true);
     fetchMetadata();
-    
-    if (currentTenant?.id) {
-      const domainsKey = `govdata_team_domains_${currentTenant.id}`;
-      const savedDomains = localStorage.getItem(domainsKey);
-      if (savedDomains) {
-        try {
-          setDomains(JSON.parse(savedDomains));
-        } catch (e) {
-          setDomains([]);
-        }
-      } else {
-        setDomains([
-          { id: 'DOM-01', name: 'Finanzas' },
-          { id: 'DOM-02', name: 'Ventas' },
-          { id: 'DOM-03', name: 'Recursos Humanos' },
-          { id: 'DOM-04', name: 'Logística' }
-        ]);
-      }
-    }
   }, [currentTenant?.id]);
 
   const fetchMetadata = async () => {
@@ -112,6 +94,29 @@ export default function MetadataPage() {
       
       if (glossaryError) throw glossaryError;
       setGlossary(glossaryData || []);
+
+      // Fetch Semantic Dictionary
+      const { data: dictData } = await supabase
+        .from('semantic_dictionary')
+        .select('*')
+        .eq('tenant_id', currentTenant.id);
+      setSemanticDict(dictData || []);
+
+      // Fetch Domains
+      const { data: domainsData } = await supabase
+        .from('team_domains')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id);
+      if (domainsData && domainsData.length > 0) {
+        setDomains(domainsData);
+      } else {
+        setDomains([
+          { id: 'DOM-01', name: 'Finanzas' },
+          { id: 'DOM-02', name: 'Ventas' },
+          { id: 'DOM-03', name: 'Recursos Humanos' },
+          { id: 'DOM-04', name: 'Logística' }
+        ]);
+      }
     } catch (err: any) {
       console.error('Error fetching metadata (Tables might not exist in Supabase):', {
         message: err.message,
@@ -219,24 +224,17 @@ export default function MetadataPage() {
     }
   };
 
-  // Diccionario Semántico para expansión de consultas de negocio
-  const SEMANTIC_DICTIONARY: Record<string, string[]> = {
-    cliente: ['cliente', 'persona', 'boleta', 'contacto', 'comprador', 'customer', 'compras', 'users', 'usuario', 'cuenta', 'socio', 'client', 'datos_personales', 'contact', 'buyer'],
-    venta: ['venta', 'transaccion', 'boleta', 'ingreso', 'factura', 'pedido', 'order', 'sale', 'payment', 'pago', 'recaudación', 'boletas', 'invoice'],
-    empleado: ['empleado', 'nomina', 'staff', 'recursos humanos', 'rrhh', 'worker', 'employee', 'contrato', 'colaborador', 'salario'],
-    producto: ['producto', 'articulo', 'inventario', 'stock', 'item', 'product', 'catalogo', 'sku'],
-    financiero: ['finanzas', 'contabilidad', 'impuesto', 'balance', 'ingreso', 'egreso', 'factura', 'caja', 'banco', 'accounting', 'tax', 'finance']
-  };
-
   const matchesSearch = (asset: any, query: string) => {
     if (!query) return true;
     const lowerQuery = query.toLowerCase().trim();
     
-    // Obtener sinónimos si el término existe en el diccionario semántico
+    // Obtener sinónimos si el término existe en el diccionario semántico de la BD
     let termsToSearch = [lowerQuery];
-    Object.entries(SEMANTIC_DICTIONARY).forEach(([key, synonyms]) => {
-      if (lowerQuery.includes(key) || synonyms.some(syn => lowerQuery.includes(syn))) {
-        termsToSearch = Array.from(new Set([...termsToSearch, key, ...synonyms]));
+    semanticDict.forEach(entry => {
+      const key = entry.term.toLowerCase();
+      const synonyms = entry.synonyms || [];
+      if (lowerQuery.includes(key) || synonyms.some((syn: string) => lowerQuery.includes(syn.toLowerCase()))) {
+        termsToSearch = Array.from(new Set([...termsToSearch, key, ...synonyms.map((s: string) => s.toLowerCase())]));
       }
     });
 

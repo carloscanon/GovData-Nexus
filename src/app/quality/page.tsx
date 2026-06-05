@@ -209,20 +209,36 @@ export default function QualityModule() {
       setAssetFields([]);
     }
 
-    const localKey = `govdata_quality_history_${currentTenant?.id || 'demo'}`;
-    try {
-      const saved = localStorage.getItem(localKey);
-      if (saved) {
-        setMonitoringHistory(JSON.parse(saved));
-      } else {
-        const initial = [
-          { date: '2026-06-02 10:00', asset: 'Maestro de Clientes', status: 'Exitoso', score: 94 },
-          { date: '2026-06-01 10:00', asset: 'Maestro de Clientes', status: 'Exitoso', score: 92 },
-          { date: '2026-05-31 10:00', asset: 'Transacciones Q2', status: 'Exitoso', score: 88 }
-        ];
-        setMonitoringHistory(initial);
-      }
-    } catch {}
+    if (currentTenant?.id) {
+      const fetchHistoryAndStewards = async () => {
+        try {
+          const { data: histData } = await supabase
+            .from('quality_monitoring_history')
+            .select('*')
+            .eq('tenant_id', currentTenant.id)
+            .order('date', { ascending: false });
+          if (histData && histData.length > 0) {
+            setMonitoringHistory(histData.map(h => ({
+              date: new Date(h.date).toLocaleString('es-CO'),
+              asset: h.asset_name,
+              status: h.status,
+              score: h.score
+            })));
+          }
+
+          const { data: teamData } = await supabase
+            .from('team_members')
+            .select('id, name, role')
+            .eq('tenant_id', currentTenant.id);
+          if (teamData && teamData.length > 0) {
+            setStewards(teamData);
+          }
+        } catch (err) {
+          console.error('[Quality] Error fetching history/stewards:', err);
+        }
+      };
+      fetchHistoryAndStewards();
+    }
   }, [selectedAssetId, currentTenant?.id]);
 
   const fetchAssets = async () => {
