@@ -611,6 +611,18 @@ export default function QualityModule() {
         score: avgPct
       };
 
+      if (mode !== 'DEMO' && currentTenant?.id) {
+        supabase.from('quality_monitoring_history').insert([{
+          tenant_id: currentTenant.id,
+          asset_name: asset?.name || 'Activo Sin Nombre',
+          status: 'Exitoso',
+          score: avgPct,
+          date: new Date().toISOString()
+        }]).then(({ error }) => {
+          if (error) console.error('[Quality] Error saving monitoring history to Supabase:', error);
+        });
+      }
+
       setMonitoringHistory(prev => {
         const updated = [newHistoryItem, ...prev];
         const localKey = `govdata_quality_history_${currentTenant?.id || 'demo'}`;
@@ -1700,73 +1712,87 @@ export default function QualityModule() {
                 Historial de Escaneos y Resultados
               </h3>
               
-              {monitoringHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
-                  No se han registrado ejecuciones previas de calidad para este tenant.
-                </div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                        <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Fecha y Hora</th>
-                        <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Activo de Datos</th>
-                        <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Estado</th>
-                        <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Calidad Promedio (DQI)</th>
-                        <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, textAlign: 'right' }}>Tendencia</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {monitoringHistory.map((item, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.2s' }}>
-                          <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#64748b', fontFamily: 'monospace' }}>{item.date}</td>
-                          <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>{item.asset}</td>
-                          <td style={{ padding: '14px 16px' }}>
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              padding: '4px 10px', 
-                              borderRadius: '100px', 
-                              fontWeight: 700,
-                              background: item.status === 'Exitoso' ? '#ecfdf5' : '#fef2f2',
-                              color: item.status === 'Exitoso' ? '#10b981' : '#ef4444'
-                            }}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>{item.score}%</span>
-                              <div style={{ width: '80px', height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
-                                <div style={{ 
-                                  width: `${item.score}%`, 
-                                  height: '100%', 
-                                  background: item.score >= 90 ? '#10b981' : item.score >= 75 ? '#f59e0b' : '#ef4444'
-                                }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                            {idx === monitoringHistory.length - 1 ? (
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</span>
-                            ) : (
-                              (() => {
-                                const diff = item.score - monitoringHistory[idx + 1].score;
-                                if (diff > 0) {
-                                  return <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}><ArrowUpRight size={14} /> +{diff}%</span>;
-                                } else if (diff < 0) {
-                                  return <span style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}><ArrowDownRight size={14} /> {diff}%</span>;
-                                } else {
-                                  return <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700 }}>0%</span>;
-                                }
-                              })()
-                            )}
-                          </td>
+              {(() => {
+                const selectedAsset = assets.find(a => a.id === selectedAssetId);
+                const filteredHistory = selectedAsset 
+                  ? monitoringHistory.filter(h => h.asset === selectedAsset.name)
+                  : monitoringHistory;
+
+                if (filteredHistory.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                      {selectedAsset 
+                        ? `No se han registrado ejecuciones de calidad previas para el activo "${selectedAsset.name}".`
+                        : "No se han registrado ejecuciones previas de calidad para este tenant."
+                      }
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                          <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Fecha y Hora</th>
+                          <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Activo de Datos</th>
+                          <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Estado</th>
+                          <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Calidad Promedio (DQI)</th>
+                          <th style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, textAlign: 'right' }}>Tendencia</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {filteredHistory.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.2s' }}>
+                            <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#64748b', fontFamily: 'monospace' }}>{item.date}</td>
+                            <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>{item.asset}</td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{ 
+                                fontSize: '0.75rem', 
+                                padding: '4px 10px', 
+                                borderRadius: '100px', 
+                                fontWeight: 700,
+                                background: item.status === 'Exitoso' ? '#ecfdf5' : '#fef2f2',
+                                color: item.status === 'Exitoso' ? '#10b981' : '#ef4444'
+                              }}>
+                                {item.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>{item.score}%</span>
+                                <div style={{ width: '80px', height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
+                                  <div style={{ 
+                                    width: `${item.score}%`, 
+                                    height: '100%', 
+                                    background: item.score >= 90 ? '#10b981' : item.score >= 75 ? '#f59e0b' : '#ef4444'
+                                  }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                              {idx === filteredHistory.length - 1 ? (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</span>
+                              ) : (
+                                (() => {
+                                  const diff = item.score - filteredHistory[idx + 1].score;
+                                  if (diff > 0) {
+                                    return <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}><ArrowUpRight size={14} /> +{diff}%</span>;
+                                  } else if (diff < 0) {
+                                    return <span style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}><ArrowDownRight size={14} /> {diff}%</span>;
+                                  } else {
+                                    return <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700 }}>0%</span>;
+                                  }
+                                })()
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Biblioteca de reglas corporativas */}
