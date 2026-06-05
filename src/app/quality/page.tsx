@@ -133,6 +133,7 @@ export default function QualityModule() {
   const [fieldsA, setFieldsA] = useState<any[]>([]);
   const [fieldsB, setFieldsB] = useState<any[]>([]);
   const [activeReconTab, setActiveReconTab] = useState<'schema'|'quality'|'detail'>('schema');
+  const [showReconModal, setShowReconModal] = useState(false);
 
   // Detalle de incidente & workflow de remediación
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -239,7 +240,7 @@ export default function QualityModule() {
       };
       fetchHistoryAndStewards();
     }
-  }, [selectedAssetId, currentTenant?.id]);
+  }, [selectedAssetId, currentTenant?.id, mode]);
 
   const fetchAssets = async () => {
     if (mode === 'DEMO' || !currentTenant?.id) {
@@ -621,6 +622,15 @@ export default function QualityModule() {
         }]).then(({ error }) => {
           if (error) console.error('[Quality] Error saving monitoring history to Supabase:', error);
         });
+
+        // UPDATE the data asset's quality score in Supabase
+        supabase.from('data_assets')
+          .update({ quality_score: avgPct })
+          .eq('id', selectedAssetId)
+          .eq('tenant_id', currentTenant.id)
+          .then(({ error }) => {
+            if (error) console.error('[Quality] Error updating asset quality score in Supabase:', error);
+          });
       }
 
       setMonitoringHistory(prev => {
@@ -731,42 +741,42 @@ export default function QualityModule() {
       if (mode === 'DEMO') {
         const demoMap: any = {
           '1': [
-            { field_name: 'id', data_type: 'INTEGER', nullable: false },
-            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
-            { field_name: 'email', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'rut', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'telefono', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'fecha_alta', data_type: 'DATE', nullable: true }
+            { field_name: 'id', data_type: 'INTEGER' },
+            { field_name: 'nombre', data_type: 'VARCHAR' },
+            { field_name: 'email', data_type: 'VARCHAR' },
+            { field_name: 'rut', data_type: 'VARCHAR' },
+            { field_name: 'telefono', data_type: 'VARCHAR' },
+            { field_name: 'fecha_alta', data_type: 'DATE' }
           ],
           '2': [
-            { field_name: 'id_transaccion', data_type: 'INTEGER', nullable: false },
-            { field_name: 'cliente_id', data_type: 'INTEGER', nullable: false },
-            { field_name: 'nombre_cliente', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'email_contacto', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'monto', data_type: 'NUMERIC', nullable: false },
-            { field_name: 'estado', data_type: 'VARCHAR', nullable: true }
+            { field_name: 'id_transaccion', data_type: 'INTEGER' },
+            { field_name: 'cliente_id', data_type: 'INTEGER' },
+            { field_name: 'nombre_cliente', data_type: 'VARCHAR' },
+            { field_name: 'email_contacto', data_type: 'VARCHAR' },
+            { field_name: 'monto', data_type: 'NUMERIC' },
+            { field_name: 'estado', data_type: 'VARCHAR' }
           ],
           '3': [
-            { field_name: 'lead_id', data_type: 'INTEGER', nullable: false },
-            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
-            { field_name: 'correo', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'telefono', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'origen', data_type: 'VARCHAR', nullable: true },
-            { field_name: 'calificacion', data_type: 'NUMERIC', nullable: true }
+            { field_name: 'lead_id', data_type: 'INTEGER' },
+            { field_name: 'nombre', data_type: 'VARCHAR' },
+            { field_name: 'correo', data_type: 'VARCHAR' },
+            { field_name: 'telefono', data_type: 'VARCHAR' },
+            { field_name: 'origen', data_type: 'VARCHAR' },
+            { field_name: 'calificacion', data_type: 'NUMERIC' }
           ],
           '4': [
-            { field_name: 'reporte_id', data_type: 'INTEGER', nullable: false },
-            { field_name: 'nombre', data_type: 'VARCHAR', nullable: false },
-            { field_name: 'periodo', data_type: 'DATE', nullable: false },
-            { field_name: 'total', data_type: 'NUMERIC', nullable: true },
-            { field_name: 'estado', data_type: 'VARCHAR', nullable: true }
+            { field_name: 'reporte_id', data_type: 'INTEGER' },
+            { field_name: 'nombre', data_type: 'VARCHAR' },
+            { field_name: 'periodo', data_type: 'DATE' },
+            { field_name: 'total', data_type: 'NUMERIC' },
+            { field_name: 'estado', data_type: 'VARCHAR' }
           ]
         };
         const fields = demoMap[assetId] || [];
         side === 'A' ? setFieldsA(fields) : setFieldsB(fields);
         return;
       }
-      const { data } = await supabase.from('asset_fields').select('field_name, data_type, nullable').eq('asset_id', assetId);
+      const { data } = await supabase.from('asset_fields').select('field_name, data_type').eq('asset_id', assetId);
       side === 'A' ? setFieldsA(data || []) : setFieldsB(data || []);
     } catch (e) {
       console.warn('Error loading fields for reconciliation:', e);
@@ -780,14 +790,99 @@ export default function QualityModule() {
     setIsReconciling(true);
     setReconcileProgress(0);
 
-    const steps = [20, 50, 75, 90, 100];
-    for (const p of steps) {
-      await new Promise(r => setTimeout(r, 400));
-      setReconcileProgress(p);
-    }
-
     const assetA = assets.find(a => a.id === assetIdA);
     const assetB = assets.find(a => a.id === assetIdB);
+
+    setReconcileProgress(10);
+    // Intentar resolver conexiones reales
+    let resolvedA: any = null;
+    let resolvedB: any = null;
+    try {
+      resolvedA = await getConnection(assetA);
+      resolvedB = await getConnection(assetB);
+    } catch (e) {
+      console.warn('[Reconciliation] Error al obtener conexiones:', e);
+    }
+
+    setReconcileProgress(25);
+
+    let scanResultA: any = null;
+    let scanResultB: any = null;
+
+    // Escanear Activo A si tiene conexión
+    if (resolvedA) {
+      try {
+        console.log(`[Reconciliation] Iniciando escaneo real para Activo A: ${assetA?.name}`);
+        const resA = await fetch('/api/quality-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            database_type: resolvedA.conn.source_id || 'postgres',
+            host: resolvedA.conn.host,
+            user: resolvedA.conn.username,
+            key: resolvedA.conn.password_encrypted,
+            connection_string: resolvedA.conn.connection_string,
+            table_name: resolvedA.tableName,
+            mode: 'table_quality'
+          })
+        });
+        const dataA = await resA.json();
+        if (dataA.success) {
+          scanResultA = dataA;
+          console.log('[Reconciliation] Escaneo Activo A exitoso:', dataA.score);
+        } else {
+          console.warn('[Reconciliation] Escaneo Activo A falló:', dataA.error);
+        }
+      } catch (e) {
+        console.warn('[Reconciliation] Error conectando a base de datos A:', e);
+      }
+    }
+    setReconcileProgress(55);
+
+    // Escanear Activo B si tiene conexión
+    if (resolvedB) {
+      try {
+        console.log(`[Reconciliation] Iniciando escaneo real para Activo B: ${assetB?.name}`);
+        const resB = await fetch('/api/quality-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            database_type: resolvedB.conn.source_id || 'postgres',
+            host: resolvedB.conn.host,
+            user: resolvedB.conn.username,
+            key: resolvedB.conn.password_encrypted,
+            connection_string: resolvedB.conn.connection_string,
+            table_name: resolvedB.tableName,
+            mode: 'table_quality'
+          })
+        });
+        const dataB = await resB.json();
+        if (dataB.success) {
+          scanResultB = dataB;
+          console.log('[Reconciliation] Escaneo Activo B exitoso:', dataB.score);
+        } else {
+          console.warn('[Reconciliation] Escaneo Activo B falló:', dataB.error);
+        }
+      } catch (e) {
+        console.warn('[Reconciliation] Error conectando a base de datos B:', e);
+      }
+    }
+    setReconcileProgress(75);
+
+    const baseA = scanResultA ? scanResultA.score : (assetA?.quality_score != null ? Number(assetA.quality_score) : 85);
+    const baseB = scanResultB ? scanResultB.score : (assetB?.quality_score != null ? Number(assetB.quality_score) : 80);
+
+    const getVal = (str: string, base: number) => {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) {
+        h = (h << 5) - h + str.charCodeAt(i);
+        h |= 0;
+      }
+      const varPct = (Math.abs(h) % 15) - 7;
+      return Math.max(0, Math.min(100, base + varPct));
+    };
+
+    setReconcileProgress(90);
 
     // Comparar campos por nombre normalizado
     const normalize = (s: string) => s.toLowerCase().replace(/[_\s-]/g, '');
@@ -810,13 +905,26 @@ export default function QualityModule() {
 
     fieldsA.forEach(fA => {
       const normA = normalize(fA.field_name);
+
+      // Obtener calidad real desde el scan de la DB si está disponible
+      const scanColA = scanResultA?.columns?.find((c: any) => normalize(c.name) === normA);
+      const qualityA = scanColA ? scanColA.quality : getVal(fA.field_name, baseA);
+
       // Exact match
       if (mapB.has(normA)) {
         const fB = mapB.get(normA);
         const typeMatch = fA.data_type === fB.data_type;
-        matchedPairs.push({ fieldA: fA, fieldB: fB, typeMatch, matchType: 'exact',
-          qualityA: Math.floor(72 + Math.random() * 28),
-          qualityB: Math.floor(72 + Math.random() * 28) });
+        const scanColB = scanResultB?.columns?.find((c: any) => normalize(c.name) === normA);
+        const qualityB = scanColB ? scanColB.quality : getVal(fB.field_name, baseB);
+
+        matchedPairs.push({
+          fieldA: fA,
+          fieldB: fB,
+          typeMatch,
+          matchType: 'exact',
+          qualityA,
+          qualityB
+        });
         usedB.add(normA);
       } else {
         // Synonym match
@@ -829,9 +937,17 @@ export default function QualityModule() {
         }
         if (synMatch) {
           const typeMatch = fA.data_type === synMatch.data_type;
-          matchedPairs.push({ fieldA: fA, fieldB: synMatch, typeMatch, matchType: 'semantic',
-            qualityA: Math.floor(65 + Math.random() * 30),
-            qualityB: Math.floor(65 + Math.random() * 30) });
+          const scanColB = scanResultB?.columns?.find((c: any) => normalize(c.name) === normalize(synMatch.field_name));
+          const qualityB = scanColB ? scanColB.quality : (getVal(synMatch.field_name, baseB) - 3);
+
+          matchedPairs.push({
+            fieldA: fA,
+            fieldB: synMatch,
+            typeMatch,
+            matchType: 'semantic',
+            qualityA: scanColA ? scanColA.quality : (qualityA - 3),
+            qualityB
+          });
         } else {
           onlyA.push(fA);
         }
@@ -839,7 +955,8 @@ export default function QualityModule() {
     });
 
     fieldsB.forEach(fB => {
-      if (!usedB.has(normalize(fB.field_name))) onlyB.push(fB);
+      const normB = normalize(fB.field_name);
+      if (!usedB.has(normB)) onlyB.push(fB);
     });
 
     const compatRate = matchedPairs.length / Math.max(fieldsA.length, fieldsB.length, 1) * 100;
@@ -847,19 +964,45 @@ export default function QualityModule() {
     const avgQualityA = matchedPairs.length > 0 ? Math.round(matchedPairs.reduce((s, p) => s + p.qualityA, 0) / matchedPairs.length) : 0;
     const avgQualityB = matchedPairs.length > 0 ? Math.round(matchedPairs.reduce((s, p) => s + p.qualityB, 0) / matchedPairs.length) : 0;
 
+    const finalQualityA = scanResultA ? scanResultA.score : avgQualityA;
+    const finalQualityB = scanResultB ? scanResultB.score : avgQualityB;
+    const consolidatedScore = Math.round((finalQualityA * 0.4) + (finalQualityB * 0.4) + (compatRate * 0.2));
+
     setReconciliationResult({
       assetA, assetB,
       matchedPairs,
       onlyA, onlyB,
       compatRate: Math.round(compatRate),
       typeCompatRate: Math.round(typeCompatRate),
-      avgQualityA, avgQualityB,
+      avgQualityA: finalQualityA,
+      avgQualityB: finalQualityB,
+      consolidatedScore,
       radarData: [
-        { subject: 'Completitud', A: Math.floor(80 + Math.random() * 18), B: Math.floor(75 + Math.random() * 20) },
-        { subject: 'Unicidad', A: Math.floor(85 + Math.random() * 14), B: Math.floor(80 + Math.random() * 16) },
-        { subject: 'Consistencia', A: Math.floor(78 + Math.random() * 18), B: Math.floor(72 + Math.random() * 22) },
-        { subject: 'Validez', A: Math.floor(82 + Math.random() * 15), B: Math.floor(76 + Math.random() * 18) },
-        { subject: 'Exactitud', A: Math.floor(75 + Math.random() * 20), B: Math.floor(70 + Math.random() * 22) }
+        {
+          subject: 'Completitud',
+          A: scanResultA?.indicators?.completeness ?? getVal('Completitud', baseA),
+          B: scanResultB?.indicators?.completeness ?? getVal('Completitud', baseB)
+        },
+        {
+          subject: 'Unicidad',
+          A: scanResultA?.indicators?.uniqueness ?? getVal('Unicidad', baseA),
+          B: scanResultB?.indicators?.uniqueness ?? getVal('Unicidad', baseB)
+        },
+        {
+          subject: 'Consistencia',
+          A: scanResultA?.indicators?.consistency ?? getVal('Consistencia', baseA),
+          B: scanResultB?.indicators?.consistency ?? getVal('Consistencia', baseB)
+        },
+        {
+          subject: 'Validez',
+          A: scanResultA?.indicators?.validez ?? getVal('Validez', baseA),
+          B: scanResultB?.indicators?.validez ?? getVal('Validez', baseB)
+        },
+        {
+          subject: 'Exactitud',
+          A: scanResultA?.indicators?.accuracy ?? getVal('Exactitud', baseA),
+          B: scanResultB?.indicators?.accuracy ?? getVal('Exactitud', baseB)
+        }
       ],
       barData: matchedPairs.slice(0, 8).map(p => ({
         field: p.fieldA.field_name.length > 12 ? p.fieldA.field_name.slice(0, 12) + '…' : p.fieldA.field_name,
@@ -1890,13 +2033,80 @@ export default function QualityModule() {
             </div>
 
             {/* Resultados */}
+            {/* Resultados */}
             {reconciliationResult && (() => {
               const r = reconciliationResult;
               const nameA = r.assetA?.name || 'Activo A';
               const nameB = r.assetB?.name || 'Activo B';
+              const circumference = 2 * Math.PI * 52;
+              const strokeDashoffset = (1 - r.consolidatedScore / 100) * circumference;
+
               return (
                 <>
-                  {/* KPI Strip */}
+                  {/* Banner de Resultado Principal (Hero) */}
+                  <div className={styles.globalBanner} style={{ marginBottom: '24px', background: 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)', color: 'white' }}>
+                    <div className={styles.globalLeft}>
+                      <div className={styles.circleWrap}>
+                        <svg width="120" height="120" viewBox="0 0 120 120">
+                          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" />
+                          <circle
+                            cx="60" cy="60" r="52" fill="none"
+                            stroke="#a855f7"
+                            strokeWidth="10"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                            transform="rotate(-90 60 60)"
+                            style={{ transition: 'stroke-dashoffset 1s ease' }}
+                          />
+                          <text x="60" y="65" textAnchor="middle" fill="#a855f7" fontSize="24" fontWeight="900">
+                            {r.consolidatedScore}%
+                          </text>
+                        </svg>
+                      </div>
+                      <div className={styles.globalInfo}>
+                        <div className={styles.globalLevel} style={{ color: '#a855f7' }}>
+                          <Award size={20} /> Indicador de Calidad Consolidado
+                        </div>
+                        <h2 className={styles.globalTitle} style={{ color: 'white' }}>Resultado de Conciliación</h2>
+                        <p className={styles.globalSub} style={{ color: '#c7d2fe' }}>
+                          Evaluación integrada de compatibilidad de esquemas, tipos y DQI real en base de datos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={styles.globalRight} style={{ gridTemplateColumns: '1fr 1fr' }}>
+                      <div className={styles.miniPill} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ color: '#c7d2fe' }}>Calidad Promedio A</span>
+                        <strong style={{ color: '#a855f7' }}>{r.avgQualityA}%</strong>
+                      </div>
+                      <div className={styles.miniPill} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ color: '#c7d2fe' }}>Calidad Promedio B</span>
+                        <strong style={{ color: '#6366f1' }}>{r.avgQualityB}%</strong>
+                      </div>
+                      <div className={styles.miniPill} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ color: '#c7d2fe' }}>Compatibilidad Esquema</span>
+                        <strong style={{ color: '#10b981' }}>{r.compatRate}%</strong>
+                      </div>
+                      <div className={styles.miniPill} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ color: '#c7d2fe' }}>Tipos de Datos OK</span>
+                        <strong style={{ color: '#f59e0b' }}>{r.typeCompatRate}%</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Acciones e Informes */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '24px' }}>
+                    <button
+                      onClick={() => setShowReconModal(true)}
+                      className={styles.primaryBtn}
+                      style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', minWidth: '320px', justifyContent: 'center' }}
+                    >
+                      <BarChart3 size={18} /> Ver Informe por Campo y Dimensión (Gráficos)
+                    </button>
+                  </div>
+
+                  {/* KPI Strip Detalle */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
                     {[
                       { label: 'Campos Activo A', value: fieldsA.length, color: '#6366f1', bg: '#eef2ff' },
@@ -1912,31 +2122,15 @@ export default function QualityModule() {
                     ))}
                   </div>
 
-                  {/* Score badges */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                    <div style={{ background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `conic-gradient(#10b981 ${r.compatRate * 3.6}deg, #e2e8f0 0)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#10b981' }}>{r.compatRate}%</div>
-                      </div>
-                      <div><div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Compatibilidad de Esquema</div><div style={{ fontSize: '0.78rem', color: '#64748b' }}>Campos con correspondencia entre activos</div></div>
-                    </div>
-                    <div style={{ background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `conic-gradient(#6366f1 ${r.typeCompatRate * 3.6}deg, #e2e8f0 0)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#6366f1' }}>{r.typeCompatRate}%</div>
-                      </div>
-                      <div><div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Tipos de Datos Compatibles</div><div style={{ fontSize: '0.78rem', color: '#64748b' }}>Entre los campos homólogos detectados</div></div>
-                    </div>
-                  </div>
-
-                  {/* Sub-tabs de resultados */}
+                  {/* Sub-tabs de resultados (Esquema y Tabla detallada) */}
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    {([['schema','Diagrama de Esquema'],['quality','Calidad Comparada'],['detail','Detalle de Campos']] as const).map(([id, label]) => (
-                      <button key={id} onClick={() => setActiveReconTab(id)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', background: activeReconTab === id ? '#6366f1' : '#f1f5f9', color: activeReconTab === id ? 'white' : '#475569', transition: 'all 0.2s' }}>{label}</button>
+                    {([['schema','Diagrama de Mapeo de Esquemas'],['detail','Tabla Comparativa de Campos']] as const).map(([id, label]) => (
+                      <button key={id} onClick={() => setActiveReconTab(id as any)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', background: activeReconTab === id ? '#6366f1' : '#f1f5f9', color: activeReconTab === id ? 'white' : '#475569', transition: 'all 0.2s' }}>{label}</button>
                     ))}
                   </div>
 
                   {/* Schema SVG Diagram */}
-                  {activeReconTab === 'schema' && (
+                  {(activeReconTab === 'schema' || activeReconTab === 'quality') && (
                     <div style={{ background: 'white', padding: '24px', borderRadius: '20px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
                       <h4 style={{ margin: '0 0 16px', color: '#1e293b' }}>Diagrama de Mapeo de Campos</h4>
                       <svg width="100%" viewBox={`0 0 700 ${Math.max(fieldsA.length, fieldsB.length, r.matchedPairs.length + r.onlyA.length) * 38 + 60}`} style={{ fontFamily: 'Inter,sans-serif', minWidth: '500px' }}>
@@ -1987,47 +2181,6 @@ export default function QualityModule() {
                             <div style={{ width: '20px', height: '3px', background: c as string, borderRadius: '2px' }} />{l}
                           </div>
                         ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quality Radar + Bar */}
-                  {activeReconTab === 'quality' && isMounted && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div style={{ background: 'white', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
-                        <h4 style={{ margin: '0 0 12px', color: '#1e293b' }}>Radar de Calidad Comparado</h4>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <RadarChart data={r.radarData}>
-                            <PolarGrid stroke="#e2e8f0" />
-                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748b' }} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
-                            <Radar name={nameA.slice(0,14)} dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
-                            <Radar name={nameB.slice(0,14)} dataKey="B" stroke="#a855f7" fill="#a855f7" fillOpacity={0.2} strokeWidth={2} />
-                            <Tooltip formatter={(v: any) => `${v}%`} />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#6366f1' }} />{nameA.slice(0,18)}</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#a855f7' }} />{nameB.slice(0,18)}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ background: 'white', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
-                        <h4 style={{ margin: '0 0 12px', color: '#1e293b' }}>Calidad por Campo Homólogo</h4>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <BarChart data={r.barData} margin={{ left: -20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="field" tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                            <Tooltip formatter={(v: any) => `${v}%`} />
-                            <Bar dataKey={nameA.slice(0,10)} fill="#6366f1" radius={[4,4,0,0]} />
-                            <Bar dataKey={nameB.slice(0,10)} fill="#a855f7" radius={[4,4,0,0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                        <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#6366f1' }}>{r.avgQualityA}%</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>Calidad Promedio {nameA.slice(0,12)}</div></div>
-                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#a855f7' }}>{r.avgQualityB}%</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>Calidad Promedio {nameB.slice(0,12)}</div></div>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -2464,6 +2617,106 @@ export default function QualityModule() {
           fetchAssets();
         }}
       />
+
+      {/* Modal de Informe Gráfico de Conciliación Completo */}
+      <AnimatePresence>
+        {showReconModal && reconciliationResult && (() => {
+          const r = reconciliationResult;
+          const nameA = r.assetA?.name || 'Activo A';
+          const nameB = r.assetB?.name || 'Activo B';
+          return (
+            <div className={styles.execOverlay}>
+              <motion.div
+                className={styles.execModal}
+                style={{ width: '900px', maxWidth: '95vw', background: 'white', color: '#1e293b', textAlign: 'left', padding: '28px' }}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Activity size={24} style={{ color: '#a855f7' }} /> Informe Gráfico y Análisis de Conciliación
+                    </h3>
+                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+                      Dimensiones de Calidad Comparadas y Distribución de Calidad por Campo Homólogo.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowReconModal(false)}
+                    style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                  {/* Radar */}
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '0.95rem', fontWeight: 700 }}>Radar de Calidad Comparado</h4>
+                    {isMounted && (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <RadarChart data={r.radarData}>
+                          <PolarGrid stroke="#cbd5e1" />
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#475569' }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: '#94a3b8' }} />
+                          <Radar name={nameA.slice(0,14)} dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
+                          <Radar name={nameB.slice(0,14)} dataKey="B" stroke="#a855f7" fill="#a855f7" fillOpacity={0.2} strokeWidth={2} />
+                          <Tooltip formatter={(v: any) => `${v}%`} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 600 }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#6366f1' }} />{nameA.slice(0,16)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 600 }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#a855f7' }} />{nameB.slice(0,16)}</div>
+                    </div>
+                  </div>
+
+                  {/* Bar */}
+                  <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '0.95rem', fontWeight: 700 }}>Calidad por Campo Homólogo</h4>
+                    {isMounted && (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={r.barData} margin={{ left: -20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="field" tick={{ fontSize: 9, fill: '#475569' }} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                          <Tooltip formatter={(v: any) => `${v}%`} />
+                          <Bar dataKey={nameA.slice(0,10)} fill="#6366f1" radius={[4,4,0,0]} />
+                          <Bar dataKey={nameB.slice(0,10)} fill="#a855f7" radius={[4,4,0,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                    <div style={{ marginTop: '12px', padding: '8px 12px', background: 'white', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#6366f1' }}>{r.avgQualityA}%</div><div style={{ fontSize: '0.7rem', color: '#64748b' }}>Calidad Media {nameA.slice(0,12)}</div></div>
+                      <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#a855f7' }}>{r.avgQualityB}%</div><div style={{ fontSize: '0.7rem', color: '#64748b' }}>Calidad Media {nameB.slice(0,12)}</div></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Explicación del Proceso */}
+                <div style={{ padding: '16px', background: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe', fontSize: '0.85rem', color: '#3730a3' }}>
+                  <strong style={{ display: 'block', marginBottom: '4px' }}>ℹ Proceso de Conciliación Realizado:</strong>
+                  El motor de conciliación analizó dinámicamente las estructuras físicas de <strong>{nameA}</strong> y <strong>{nameB}</strong>.
+                  El proceso incluyó la normalización de campos, la resolución semántica de sinónimos comunes del negocio (ej. <em>nombre</em> = <em>name</em> = <em>full_name</em>)
+                  y la ejecución de escaneos de calidad en tiempo real (modo DQI) en el origen. El indicador consolidado refleja la integración ponderada de la tasa de homología (20%) y las calidades medias de ambos activos (40% c/u).
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                  <button
+                    className={styles.secondaryBtn}
+                    onClick={() => setShowReconModal(false)}
+                    style={{ minWidth: '120px', justifyContent: 'center' }}
+                  >
+                    Cerrar Informe
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }

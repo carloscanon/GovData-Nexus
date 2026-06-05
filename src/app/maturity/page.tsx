@@ -76,16 +76,32 @@ export default function Maturity() {
   // Real DB counters
   const [dbStats, setDbStats] = React.useState({
     totalAssets: 0,
+    assetsWithOwner: 0,
+    assetsWithSteward: 0,
+    assetsClassified: 0,
+    assetsWithLineage: 0,
+    criticalAssets: 0,
+    averageQuality: 0,
     openIncidents: 0,
+    resolvedIncidents: 0,
+    totalIncidents: 0,
     approvedWorkflows: 0,
+    totalWorkflows: 0,
+    totalPolicies: 0,
+    activePolicies: 0,
+    expiredPolicies: 0,
+    totalCommittees: 0,
+    totalResolutions: 0,
   });
 
-  // Questionnaire answers (manual hybrid inputs)
-  const [answers, setAnswers] = React.useState<Record<string, number>>({
-    q1: 3, // formal committee (1-5)
-    q2: 4, // data owners training (1-5)
-    q3: 3, // strategy alignment (1-5)
-    q4: 3, // compliance frameworks (1-5)
+  const [wizardStep, setWizardStep] = React.useState(0);
+
+  // Questionnaire answers (for backward compatibility if needed)
+  const [answers, setAnswers] = React.useState<Record<string, any>>({
+    q1: 3,
+    q2: 4,
+    q3: 3,
+    q4: 3,
   });
 
   // Brand colour
@@ -174,79 +190,126 @@ export default function Maturity() {
         { data: assetsData },
         { data: workflowsData },
         { data: incidentsData },
+        { data: policiesData },
+        { data: committeesData },
+        { data: committeeDocsData }
       ] = await Promise.all([
         supabase
           .from('data_assets')
-          .select('id, quality_score, data_owner, sensitivity, criticality')
+          .select('id, quality_score, data_owner, data_steward, sensitivity, criticality, source')
           .eq('tenant_id', currentTenant.id),
         supabase
-          .from('workflows')
-          .select('id, status, data_assets!inner(tenant_id)')
-          .eq('data_assets.tenant_id', currentTenant.id),
+          .from('workflow_requests')
+          .select('id, status')
+          .eq('tenant_id', currentTenant.id),
         supabase
           .from('quality_incidents')
-          .select('id, severity, status, data_assets!inner(tenant_id)')
-          .eq('data_assets.tenant_id', currentTenant.id),
+          .select('id, severity, status')
+          .eq('tenant_id', currentTenant.id),
+        supabase
+          .from('data_policies')
+          .select('id, status')
+          .eq('tenant_id', currentTenant.id),
+        supabase
+          .from('gov_committees')
+          .select('id')
+          .eq('tenant_id', currentTenant.id),
+        supabase
+          .from('gov_committee_documents')
+          .select('id, committee_id')
       ]);
 
       const assets = assetsData ?? [];
       const workflows = workflowsData ?? [];
       const incidents = incidentsData ?? [];
+      const policies = policiesData ?? [];
+      const committees = committeesData ?? [];
+      const committeeDocs = committeeDocsData ?? [];
 
-      setDbStats({
-        totalAssets: assets.length,
-        openIncidents: incidents.filter(i => i.status !== 'Resuelto').length,
-        approvedWorkflows: workflows.filter(w => w.status === 'Aprobado').length,
-      });
+      // Filter resolutions/acts by tenant committees
+      const tenantCommitteeIds = committees.map((c: any) => c.id);
+      const tenantDocs = committeeDocs.filter((d: any) => tenantCommitteeIds.includes(d.committee_id));
 
-      // --- Calidad: exact global health from incidents ---
-      let calidad = 65;
-      if (incidents.length > 0) {
-        let totalRecords = 0;
-        let totalAffected = 0;
-        incidents.forEach((inc: any) => {
-          totalRecords += (inc.total_records || 0);
-          totalAffected += (inc.affected_records || 0);
-        });
-        if (totalRecords > 0) {
-          calidad = Math.round(((totalRecords - totalAffected) / totalRecords) * 100);
+      const totalAssets = assets.length;
+      const assetsWithOwner = assets.filter(a => a.data_owner && a.data_owner.trim() !== '' && a.data_owner.trim().toLowerCase() !== 'por definir').length;
+      const assetsWithSteward = assets.filter(a => a.data_steward && a.data_steward.trim() !== '' && a.data_steward.trim().toLowerCase() !== 'por definir').length;
+      const assetsClassified = assets.filter(a => a.sensitivity && a.sensitivity.trim() !== '').length;
+      const assetsWithLineage = assets.filter(a => a.source && a.source.trim() !== '').length;
+      const criticalAssets = assets.filter(a => a.criticality === 'Alta' || a.criticality === 'Crítica').length;
+
+      let averageQuality = 80;
+      if (totalAssets > 0) {
+        const assetsWithVal = assets.filter(a => a.quality_score && a.quality_score > 0);
+        if (assetsWithVal.length > 0) {
+          const totalQuality = assetsWithVal.reduce((sum, a) => sum + (a.quality_score || 0), 0);
+          averageQuality = Math.round(totalQuality / assetsWithVal.length);
+        } else {
+          averageQuality = 80; // Baseline default quality score when no scans have run
         }
       }
 
-      // --- Organización: % assets with data_owner + questionnaire ---
-      let orgDB = 50;
-      if (assets.length > 0) {
-        const owned = assets.filter(a => !!a.data_owner).length;
-        orgDB = Math.max(30, Math.round((owned / assets.length) * 100));
-      }
-      const organizacion = Math.min(100, Math.round(
-        (orgDB * 0.4) + ((answers.q1 || 3) * 10) + ((answers.q2 || 4) * 8)
-      ));
+      const openIncidents = incidents.filter(i => i.status !== 'Cerrado' && i.status !== 'Resuelto').length;
+      const resolvedIncidents = incidents.filter(i => i.status === 'Resuelto' || i.status === 'Cerrado').length;
+      const totalIncidents = incidents.length;
 
-      // --- Seguridad: PII classified + sensitivity coverage ---
-      let seguridad = 60;
-      if (assets.length > 0) {
-        const classified = assets.filter(a => a.sensitivity && a.sensitivity !== 'Público').length;
-        seguridad = Math.min(100, Math.round((classified / assets.length) * 80 + 20));
-      }
+      const approvedWorkflows = workflows.filter(w => w.status === 'Aprobado' || w.status === 'Completado' || w.status === 'Cerrado').length;
+      const totalWorkflows = workflows.length;
 
-      // --- Arquitectura: criticality coverage ---
-      let arquitectura = 55;
-      if (assets.length > 0) {
-        const critical = assets.filter(a => a.criticality === 'Alta' || a.criticality === 'Crítica').length;
-        arquitectura = Math.min(100, Math.round((critical / assets.length) * 70 + 30));
-      }
+      const totalPolicies = policies.length;
+      const expiredPolicies = policies.filter(p => p.status === 'Vencida').length;
+      const activePolicies = totalPolicies - expiredPolicies;
 
-      // --- Estrategia: approved workflows + questionnaire ---
-      const approved = workflows.filter(w => w.status === 'Aprobado').length;
-      const estrategia = Math.min(100, Math.round(60 + (approved * 4) + ((answers.q3 || 3) * 6)));
+      const totalCommittees = committees.length;
+      const totalResolutions = tenantDocs.length;
 
-      // --- Compliance: incidents resolved + questionnaire ---
-      const resolved = incidents.filter(i => i.status === 'Resuelto').length;
-      const totalInc = incidents.length || 1;
-      const compliance = Math.min(100, Math.round(
-        ((resolved / totalInc) * 60) + ((answers.q4 || 3) * 8)
-      ));
+      setDbStats({
+        totalAssets,
+        assetsWithOwner,
+        assetsWithSteward,
+        assetsClassified,
+        assetsWithLineage,
+        criticalAssets,
+        averageQuality,
+        openIncidents,
+        resolvedIncidents,
+        totalIncidents,
+        approvedWorkflows,
+        totalWorkflows,
+        totalPolicies,
+        activePolicies,
+        expiredPolicies,
+        totalCommittees,
+        totalResolutions,
+      });
+
+      // --- 1. Calidad: average quality score minus open incidents ---
+      const calidad = Math.max(0, averageQuality - (openIncidents * 5));
+
+      // --- 2. Organización: Data Owners + Data Stewards coverage ---
+      const ownerRatio = totalAssets > 0 ? (assetsWithOwner / totalAssets) * 60 : 30;
+      const stewardRatio = totalAssets > 0 ? (assetsWithSteward / totalAssets) * 40 : 20;
+      const organizacion = Math.round(ownerRatio + stewardRatio);
+
+      // --- 3. Seguridad: PII classified assets + active policies ---
+      const classRatio = totalAssets > 0 ? (assetsClassified / totalAssets) * 60 : 30;
+      const polRatio = totalPolicies > 0 ? (activePolicies / totalPolicies) * 40 : 20;
+      const seguridad = Math.round(classRatio + polRatio);
+
+      // --- 4. Arquitectura: Lineage mapping + Criticality definition ---
+      const linRatio = totalAssets > 0 ? (assetsWithLineage / totalAssets) * 50 : 25;
+      const critRatio = totalAssets > 0 ? (criticalAssets / totalAssets) * 50 : 25;
+      const arquitectura = Math.round(linRatio + critRatio);
+
+      // --- 5. Estrategia: approved workflows + committees & resolutions ---
+      const wfRatio = totalWorkflows > 0 ? (approvedWorkflows / totalWorkflows) * 50 : 25;
+      const commPoints = totalCommittees > 0 ? 30 : 0;
+      const resPoints = totalResolutions > 0 ? 20 : 0;
+      const estrategia = Math.round(wfRatio + commPoints + resPoints);
+
+      // --- 6. Compliance: resolved incidents + active policies ---
+      const incRatio = totalIncidents > 0 ? (resolvedIncidents / totalIncidents) * 50 : 25;
+      const compPolRatio = totalPolicies > 0 ? (activePolicies / totalPolicies) * 50 : 25;
+      const compliance = Math.round(incRatio + compPolRatio);
 
       setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
       await setItem('maturity_scores', { estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
@@ -255,7 +318,7 @@ export default function Maturity() {
     } finally {
       setLoading(false);
     }
-  }, [currentTenant, answers]);
+  }, [currentTenant]);
 
   React.useEffect(() => {
     fetchLiveMaturity();
@@ -340,6 +403,40 @@ export default function Maturity() {
     },
   ];
 
+  const [isAssigningTask, setIsAssigningTask] = React.useState(false);
+
+  const handleAssignWorkflowTask = async (dimensionName: string) => {
+    if (!currentTenant?.id) return;
+    setIsAssigningTask(true);
+    try {
+      const title = `[Madurez] Mejorar dimensión de ${dimensionName}`;
+      const description = `Tarea estratégica recomendada desde el Centro de Madurez para solventar brechas identificadas en la dimensión de ${dimensionName}. Se requiere automatizar validaciones, asignar custodios de datos y documentar activos.`;
+      
+      const { data, error } = await supabase.from('workflow_requests').insert([{
+        tenant_id: currentTenant.id,
+        title,
+        description,
+        status: 'Pendiente',
+        category: 'Gobernanza',
+        priority: 'Media',
+        sla: '72h',
+        sla_status: 'Ok',
+        current_step: 'Definición de Brecha de Madurez',
+        timeline: [
+          { step: 'Identificado en Auditoría de Madurez', user: 'Sistema de Madurez GMF', date: new Date().toISOString().split('T')[0], status: 'done' }
+        ]
+      }]).select();
+
+      if (error) throw error;
+      alert(`¡Tarea de mejora para la dimensión "${dimensionName}" asignada exitosamente al Workflow de Gobernanza!`);
+    } catch (e: any) {
+      console.error('Error assigning workflow task:', e);
+      alert('Error al crear la solicitud en el workflow: ' + e.message);
+    } finally {
+      setIsAssigningTask(false);
+    }
+  };
+
   // ------- Assessment submit -------
   const handleAssessmentSubmit = async () => {
     if (!currentTenant?.id) return;
@@ -354,7 +451,11 @@ export default function Maturity() {
         tenant_id: currentTenant.id,
         dimension: 'GLOBAL',
         score: globalScore,
-        answers: answers,
+        answers: {
+          timestamp: new Date().toISOString(),
+          dbStats: dbStats,
+          maturityScores: maturityScores
+        },
         assessment_date: today
       }]);
       if (error) throw error;
@@ -375,6 +476,7 @@ export default function Maturity() {
     }
 
     setIsAssessmentModalOpen(false);
+    setWizardStep(0);
   };
 
   // Circle progress helper
@@ -624,8 +726,13 @@ export default function Maturity() {
                       <span>Impacto esperado: +7% en score global</span>
                     </div>
                   </div>
-                  <button className={styles.primaryBtn} style={{ width: '100%', marginTop: '16px' }}>
-                    Asignar Tarea a Workflow
+                  <button 
+                    className={styles.primaryBtn} 
+                    style={{ width: '100%', marginTop: '16px' }}
+                    onClick={() => handleAssignWorkflowTask(selectedDim.name)}
+                    disabled={isAssigningTask}
+                  >
+                    {isAssigningTask ? 'Asignando...' : 'Asignar Tarea a Workflow'}
                   </button>
                 </div>
               </motion.div>
@@ -857,52 +964,211 @@ export default function Maturity() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               className={styles.modalContent}
+              style={{ width: '650px', maxWidth: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
             >
-              <div className={styles.modalHeader}>
+              <div className={styles.modalHeader} style={{ padding: '24px 32px 16px', background: 'transparent', borderBottom: 'none' }}>
                 <div>
-                  <h2>Nueva Evaluación de Madurez</h2>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-                    Score actual: <strong style={{ color: levelColor }}>{globalScore}%</strong> · {maturityLevel}
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Asistente de Madurez GovData</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                    Auditoría Automática de Base de Datos · Paso {wizardStep + 1} de 5
                   </p>
                 </div>
-                <button className={styles.closeBtn} onClick={() => setIsAssessmentModalOpen(false)}>×</button>
+                <button className={styles.closeBtn} onClick={() => { setIsAssessmentModalOpen(false); setWizardStep(0); }}>×</button>
               </div>
-              <div className={styles.modalBody}>
-                <div className={styles.questionnaire}>
-                  <h3>Evaluación Híbrida Manual (GMF)</h3>
 
-                  {[
-                    { key: 'q1', label: '1. Comité de Gobierno formal constituido', lo: 'No existe (1)', mid: 'En proceso (3)', hi: 'Activo & Formal (5)' },
-                    { key: 'q2', label: '2. Capacitación de Data Owners', lo: 'No entrenados (1)', mid: 'Parcial (3)', hi: 'Totalmente (5)' },
-                    { key: 'q3', label: '3. Estrategia alineada con Objetivos', lo: 'Desalineada (1)', mid: 'Parcial (3)', hi: 'Integrada (5)' },
-                    { key: 'q4', label: '4. Marcos de Compliance activos', lo: 'Sin marcos (1)', mid: 'En adopción (3)', hi: 'Certificados (5)' },
-                  ].map(q => (
-                    <div key={q.key} className={styles.question} style={{ marginBottom: '20px' }}>
-                      <p><strong>{q.label}:</strong> (Actual: {answers[q.key]} / 5)</p>
-                      <input
-                        type="range" min="1" max="5"
-                        value={answers[q.key]}
-                        onChange={(e) => setAnswers({ ...answers, [q.key]: parseInt(e.target.value) })}
-                        style={{ width: '100%', accentColor: primaryColor }}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-                        <span>{q.lo}</span><span>{q.mid}</span><span>{q.hi}</span>
+              <div className={styles.modalBody} style={{ padding: '0 32px 24px', overflowY: 'auto', flex: 1 }}>
+                
+                {wizardStep === 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ padding: '16px', background: 'rgba(99, 102, 241, 0.06)', border: '1px solid rgba(99, 102, 241, 0.15)', borderRadius: '16px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                      <Zap size={32} color={primaryColor} style={{ flexShrink: 0 }} />
+                      <div style={{ fontSize: '0.9rem', lineHeight: 1.5, color: '#334155' }}>
+                        <strong>Auditoría Basada en Evidencia</strong>
+                        <p style={{ margin: '4px 0 0', color: '#64748b' }}>
+                          Este asistente escaneará las tablas y registros correspondientes a tu empresa para computar los scores en las 6 dimensiones del GovData Maturity Framework sin estimaciones manuales.
+                        </p>
                       </div>
                     </div>
-                  ))}
 
-                  {/* Live preview */}
-                  <div className={styles.previewBox}>
-                    <span>Score estimado tras evaluación:</span>
-                    <strong style={{ color: levelColor, fontSize: '1.2rem' }}>{globalScore}%</strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulos a Auditar</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <Users size={16} color="#3b82f6" /> Organización (Catálogo)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <BarChart3 size={16} color="#10b981" /> Arquitectura (Linaje)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <TrendingUp size={16} color="#f59e0b" /> Calidad de Datos
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <Target size={16} color="#8b5cf6" /> Estrategia (Workflows)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <Shield size={16} color="#6366f1" /> Seguridad (PII)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
+                          <FileCheck size={16} color="#ef4444" /> Compliance (Políticas)
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {wizardStep === 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>1. Catálogo & Estructura Organizativa</h3>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Análisis de activos registrados en `data_assets` y asignación de roles.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Total Activos de Datos:</span>
+                        <strong>{dbStats.totalAssets}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Activos con Propietario (Data Owner):</span>
+                        <strong>{dbStats.assetsWithOwner} ({dbStats.totalAssets > 0 ? Math.round(dbStats.assetsWithOwner / dbStats.totalAssets * 100) : 0}%)</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Activos con Steward Técnico:</span>
+                        <strong>{dbStats.assetsWithSteward} ({dbStats.totalAssets > 0 ? Math.round(dbStats.assetsWithSteward / dbStats.totalAssets * 100) : 0}%)</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Activos con Trazabilidad (Linaje):</span>
+                        <strong>{dbStats.assetsWithLineage} ({dbStats.totalAssets > 0 ? Math.round(dbStats.assetsWithLineage / dbStats.totalAssets * 100) : 0}%)</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Organización</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.organizacion}%</strong>
+                      </div>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Arquitectura</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.arquitectura}%</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 2 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>2. Calidad de Datos & Operación de Gobierno</h3>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Análisis de reglas de calidad y eficiencia de flujos de aprobación.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Calidad Promedio del Catálogo:</span>
+                        <strong>{dbStats.averageQuality}%</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Incidentes de Calidad Abiertos:</span>
+                        <strong style={{ color: dbStats.openIncidents > 0 ? '#ef4444' : '#10b981' }}>{dbStats.openIncidents}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Solicitudes Operadas a Tiempo (SLA):</span>
+                        <strong>{dbStats.approvedWorkflows} de {dbStats.totalWorkflows} aprobados</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Calidad</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.calidad}%</strong>
+                      </div>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Estrategia</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.estrategia}%</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 3 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>3. Políticas, Seguridad & Comités Directivos</h3>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Análisis de la gobernanza ejecutiva, actas registradas y clasificación de PII.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Activos Clasificados (Sensibilidad):</span>
+                        <strong>{dbStats.assetsClassified} ({dbStats.totalAssets > 0 ? Math.round(dbStats.assetsClassified / dbStats.totalAssets * 100) : 0}%)</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Políticas Vigentes vs Vencidas:</span>
+                        <strong>{dbStats.activePolicies} activas / {dbStats.expiredPolicies} vencidas</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                        <span>Comités Creados & Actas Registradas:</span>
+                        <strong>{dbStats.totalCommittees} comités / {dbStats.totalResolutions} resoluciones</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Seguridad</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.seguridad}%</strong>
+                      </div>
+                      <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Compliance</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.compliance}%</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 4 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>4. Consolidación Final</h3>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Resultados calculados sobre la base de datos de producción:
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {dynamicDimensions.map(d => (
+                        <div key={d.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>{d.name}</span>
+                          <strong style={{ color: d.score >= 70 ? '#10b981' : d.score >= 50 ? '#f59e0b' : '#ef4444' }}>{d.score}%</strong>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>Consolidado Global Recalculado</span>
+                      <strong style={{ fontSize: '2rem', color: '#1d4ed8' }}>{globalScore}%</strong>
+                      <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: levelColor, marginTop: '4px' }}>Nivel de Madurez: {maturityLevel}</span>
+                    </div>
+                  </div>
+                )}
+
               </div>
-              <div className={styles.modalFooter}>
-                <button className={styles.secondaryBtn} onClick={() => setIsAssessmentModalOpen(false)}>Cancelar</button>
-                <button className={styles.primaryBtn} onClick={handleAssessmentSubmit}>
-                  <CheckCircle2 size={16} /> Finalizar y Recalcular
+
+              <div className={styles.modalFooter} style={{ padding: '16px 32px 24px', background: 'transparent', borderTop: 'none', gap: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                {wizardStep > 0 && (
+                  <button className={styles.secondaryBtn} onClick={() => setWizardStep(prev => prev - 1)}>
+                    Atrás
+                  </button>
+                )}
+                <button className={styles.secondaryBtn} onClick={() => { setIsAssessmentModalOpen(false); setWizardStep(0); }}>
+                  Cancelar
                 </button>
+                {wizardStep < 4 ? (
+                  <button className={styles.primaryBtn} onClick={() => setWizardStep(prev => prev + 1)}>
+                    Siguiente
+                  </button>
+                ) : (
+                  <button className={styles.primaryBtn} onClick={handleAssessmentSubmit} style={{ background: '#10b981' }}>
+                    <CheckCircle2 size={16} /> Confirmar y Guardar
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
