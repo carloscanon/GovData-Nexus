@@ -144,6 +144,10 @@ export default function PoliciesModule() {
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [policyToApprove, setPolicyToApprove] = useState<string | null>(null);
   const [approveAssignee, setApproveAssignee] = useState<string>('');
+  const [isControlModalOpen, setIsControlModalOpen] = useState(false);
+  const [selectedControl, setSelectedControl] = useState<any>(null);
+  const [newControl, setNewControl] = useState<any>({ code: '', description: '', frequency: 'Diaria', status: 'OK', policy_id: '' });
+
 
   const [newStandard, setNewStandard] = useState<any>({ name: '', code: '', category: 'Arquitectura', coverage: 'Global', status: 'Activo', owner: 'AR (Arquitectura)', document_url: null });
   const [newProcedure, setNewProcedure] = useState<any>({ title: '', code: '', version: '1.0', content: '', document_url: null });
@@ -200,7 +204,9 @@ export default function PoliciesModule() {
             expiry: p.expiry || '2026',
             workflowId: p.workflow_id || '',
             currentStep: p.current_step || 0,
-            documentUrl: p.document_url || null
+            documentUrl: p.document_url || null,
+            data_custodian: p.data_custodian || 'Sofía Rodríguez (TI Ops)',
+            auditor_designado: p.auditor_designado || 'Elena Gómez (Auditor)'
           })));
         }
         if (wfData) setWorkflows(wfData);
@@ -289,7 +295,9 @@ export default function PoliciesModule() {
     scope: '',
     guidelines: [''],
     controls: [''],
-    sancions: ''
+    sancions: '',
+    data_custodian: 'Sofía Rodríguez (TI Ops)',
+    auditor_designado: 'Elena Gómez (Auditor)'
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -312,7 +320,7 @@ export default function PoliciesModule() {
 
   if (!isMounted) return null;
 
-  const handleAddPolicy = async () => {
+   const handleAddPolicy = async () => {
     if (!currentTenant?.id) return;
 
     try {
@@ -336,7 +344,9 @@ export default function PoliciesModule() {
         framework_origin: newPolicy.framework_origin,
         guidelines: newPolicy.guidelines,
         controls: newPolicy.controls,
-        sancions: newPolicy.sancions
+        sancions: newPolicy.sancions,
+        data_custodian: newPolicy.data_custodian,
+        auditor_designado: newPolicy.auditor_designado
       }]).select();
 
       if (error) throw error;
@@ -345,7 +355,9 @@ export default function PoliciesModule() {
         const newDoc = {
           ...data[0],
           workflowId: data[0].workflow_id || selectedWf?.id,
-          currentStep: data[0].current_step || 0
+          currentStep: data[0].current_step || 0,
+          data_custodian: data[0].data_custodian || newPolicy.data_custodian,
+          auditor_designado: data[0].auditor_designado || newPolicy.auditor_designado
         };
         setPolicies([newDoc, ...policies]);
       }
@@ -359,7 +371,9 @@ export default function PoliciesModule() {
     setNewPolicy({
       id: '', title: '', type: 'Gobierno de Datos', framework_origin: 'Cumplimiento Normativo', status: 'Borrador', workflowId: '', currentStep: 0, expiry: '2026',
       owner: 'Carlos Director (CDO)', version: '1.0', objective: '', scope: '', 
-      guidelines: [''], controls: [''], sancions: ''
+      guidelines: [''], controls: [''], sancions: '',
+      data_custodian: 'Sofía Rodríguez (TI Ops)',
+      auditor_designado: 'Elena Gómez (Auditor)'
     });
   };
 
@@ -408,6 +422,64 @@ export default function PoliciesModule() {
       alert(`Error subiendo documento: ${err.message}`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleAddControl = async () => {
+    if (!currentTenant?.id) return;
+    try {
+      const { data, error } = await supabase.from('policy_controls').insert([{
+        tenant_id: currentTenant.id,
+        code: newControl.code,
+        description: newControl.description,
+        frequency: newControl.frequency,
+        status: newControl.status,
+        policy_id: newControl.policy_id || null
+      }]).select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setControls([data[0], ...controls]);
+        setIsControlModalOpen(false);
+        setNewControl({ code: '', description: '', frequency: 'Diaria', status: 'OK', policy_id: '' });
+      }
+    } catch (e: any) {
+      alert(`Error guardando control: ${e.message}`);
+    }
+  };
+
+  const handleUpdateControl = async () => {
+    if (!currentTenant?.id || !selectedControl) return;
+    try {
+      const { data, error } = await supabase.from('policy_controls').update({
+        code: selectedControl.code,
+        description: selectedControl.description,
+        frequency: selectedControl.frequency,
+        status: selectedControl.status,
+        policy_id: selectedControl.policy_id || null
+      }).eq('id', selectedControl.id).select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setControls(controls.map(c => c.id === selectedControl.id ? data[0] : c));
+        setIsControlModalOpen(false);
+        setSelectedControl(null);
+      }
+    } catch (e: any) {
+      alert(`Error actualizando control: ${e.message}`);
+    }
+  };
+
+  const handleDeleteControl = async (id: string) => {
+    if (!window.confirm('¿Está seguro de eliminar este control?')) return;
+    try {
+      const { error } = await supabase.from('policy_controls').delete().eq('id', id);
+      if (error) throw error;
+      setControls(controls.filter(c => c.id !== id));
+      setIsControlModalOpen(false);
+      setSelectedControl(null);
+    } catch (e: any) {
+      alert(`Error eliminando control: ${e.message}`);
     }
   };
 
@@ -735,10 +807,43 @@ export default function PoliciesModule() {
     }, 1000);
   };
 
-  const saveEdits = () => {
-    setPolicies(policies.map(p => p.id === editForm.id ? editForm : p));
-    setSelectedPolicy(editForm);
-    setIsEditing(false);
+  const saveEdits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('data_policies')
+        .update({
+          title: editForm.title,
+          type: editForm.type,
+          version: editForm.version,
+          objective: editForm.objective,
+          scope: editForm.scope,
+          expiry: editForm.expiry,
+          owner: editForm.owner,
+          framework_origin: editForm.framework_origin,
+          guidelines: editForm.guidelines,
+          controls: editForm.controls,
+          sancions: editForm.sancions,
+          data_custodian: editForm.data_custodian,
+          auditor_designado: editForm.auditor_designado
+        })
+        .eq('id', editForm.id)
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const updated = {
+          ...data[0],
+          workflowId: data[0].workflow_id || editForm.workflowId,
+          currentStep: data[0].current_step || editForm.currentStep
+        };
+        setPolicies(policies.map(p => p.id === editForm.id ? updated : p));
+        setSelectedPolicy(updated);
+        setIsEditing(false);
+      }
+    } catch (err: any) {
+      alert(`Error guardando cambios en base de datos: ${err.message}`);
+    }
   };
 
   const handleFileUpload = (policyId: string, customFileName?: string) => {
@@ -786,9 +891,18 @@ export default function PoliciesModule() {
       {/* ── Consolidated Global Score Banner calculations ── */}
       {(() => {
         const totalPoliciesCount = policies.length;
-        const activePoliciesCount = policies.filter((p: any) => p.status === 'Vigente' || p.status === 'Publicado').length;
-        const expiredPoliciesCount = policies.filter((p: any) => p.status === 'Vencida').length;
-        const reviewPoliciesCount = policies.filter((p: any) => p.status === 'En Revisión').length;
+        const activePoliciesCount = policies.filter((p: any) => {
+          const s = (p.status || '').toLowerCase();
+          return s.includes('vigente') || s.includes('publicado') || s.includes('aprobado') || s.includes('activo');
+        }).length;
+        const expiredPoliciesCount = policies.filter((p: any) => {
+          const s = (p.status || '').toLowerCase();
+          return s.includes('vencida') || s.includes('vencido') || (p.expiry && parseInt(p.expiry) < new Date().getFullYear());
+        }).length;
+        const reviewPoliciesCount = policies.filter((p: any) => {
+          const s = (p.status || '').toLowerCase();
+          return s.includes('revisión') || s.includes('revision') || s.includes('actualiz') || s.includes('documento');
+        }).length;
 
         // Cálculo de NGI homologado con Command Center (Gestión Documental Normativa)
         const totalDocs = policies.length + standards.length + procedures.length;
@@ -819,7 +933,10 @@ export default function PoliciesModule() {
 
         const circumference = 2 * Math.PI * 52;
         const dashOffset = circumference - (ngiScore / 100) * circumference;
-        const totalControls = policies.reduce((acc: number, p: any) => acc + (p.controls?.length || 0), 0) + 12; // Base controls + policy specific
+        
+        // Controles y tasa de cumplimiento reales basados en la base de datos
+        const totalControls = controls.length;
+        const complianceRate = controls.length > 0 ? Math.round((controls.filter((c: any) => c.status === 'OK' || c.status === 'CUMPLE').length / controls.length) * 100) : 100;
 
         return (
           <motion.div
@@ -878,15 +995,15 @@ export default function PoliciesModule() {
                 <span>Vencidas</span>
                 <strong style={{ color: expiredPoliciesCount > 0 ? '#ef4444' : '#64748b' }}>{expiredPoliciesCount}</strong>
               </div>
-              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Cumplimiento', value: '87%', explanation: kpiExplanations['Cumplimiento'], color: '#6366f1' })}>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Cumplimiento', value: `${complianceRate}%`, explanation: kpiExplanations['Cumplimiento'], color: '#6366f1' })}>
                 <ShieldCheck size={14} color="#6366f1" />
                 <span>Cumplimiento</span>
-                <strong style={{ color: '#6366f1' }}>87%</strong>
+                <strong style={{ color: '#6366f1' }}>{complianceRate}%</strong>
               </div>
-              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Estándares Aplicados', value: '42', explanation: kpiExplanations['Estándares Aplicados'], color: '#8b5cf6' })}>
+              <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Estándares Aplicados', value: standards.length.toString(), explanation: kpiExplanations['Estándares Aplicados'], color: '#8b5cf6' })}>
                 <Settings size={14} color="#8b5cf6" />
                 <span>Estándares</span>
-                <strong style={{ color: '#8b5cf6' }}>{standards.length * 10 + 2}</strong>
+                <strong style={{ color: '#8b5cf6' }}>{standards.length}</strong>
               </div>
               <div className={styles.miniPill} onClick={() => setSelectedKPI({ label: 'Controles Operativos', value: totalControls.toString(), explanation: kpiExplanations['Controles Operativos'] || 'Controles operacionales en ejecución.', color: '#06b6d4' })}>
                 <CheckSquare size={14} color="#06b6d4" />
@@ -1122,33 +1239,46 @@ export default function PoliciesModule() {
                  </div>
                ))}
                {procedures.length === 0 && (
-                 <p style={{ gridColumn: '1 / -1', textAlign: 'center' }}>No hay procedimientos documentados aún.</p>
+                 <div style={{ gridColumn: '1 / -1', padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay procedimientos configurados.</div>
                )}
             </div>
           </div>
         )}
 
         {activeTab === 'controles' && (
-          <div className={styles.riskTable}>
-             <div className={styles.tableHeader} style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
+          <div className={styles.mainContent} style={{ padding: '0 0 32px 0' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 className={styles.sectionTitle} style={{ margin: 0, border: 'none' }}>Catálogo de Controles Operativos</h2>
+                <button className={styles.primaryBtn} onClick={() => { setSelectedControl(null); setNewControl({ code: '', description: '', frequency: 'Diaria', status: 'OK', policy_id: '' }); setIsControlModalOpen(true); }}>
+                   <Plus size={16} style={{ marginRight: '8px' }} /> Nuevo Control
+                </button>
+             </div>
+             <div className={styles.tableHeader} style={{ gridTemplateColumns: '1.2fr 2.5fr 1fr 1fr 150px' }}>
                 <span>Control ID</span>
                 <span>Descripción del Control</span>
                 <span>Frecuencia</span>
                 <span>Estado</span>
+                <span>Acciones</span>
              </div>
              {controls.map((ctrl: any, i) => (
-               <div key={i} className={styles.row} style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
+               <div key={i} className={styles.row} style={{ gridTemplateColumns: '1.2fr 2.5fr 1fr 1fr 150px' }}>
                  <span className={styles.riskId}>{ctrl.code}</span>
                  <span style={{ fontWeight: 600 }}>{ctrl.description}</span>
                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{ctrl.frequency}</span>
-                 <span className={styles.sevBadge} style={{ 
-                    background: ctrl.status === 'OK' ? '#f0fdf4' : '#fef2f2',
-                    color: ctrl.status === 'OK' ? '#10b981' : '#ef4444'
-                 }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
+                 <div>
+                   <span className={styles.sevBadge} style={{ 
+                      background: ctrl.status === 'OK' ? '#f0fdf4' : '#fef2f2',
+                      color: ctrl.status === 'OK' ? '#10b981' : '#ef4444'
+                   }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
+                 </div>
+                 <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className={styles.secondaryBtn} onClick={() => { setSelectedControl(ctrl); setIsControlModalOpen(true); }} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Editar</button>
+                    <button className={styles.secondaryBtn} onClick={() => handleDeleteControl(ctrl.id)} style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>Eliminar</button>
+                 </div>
                </div>
              ))}
              {controls.length === 0 && (
-               <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No hay controles operativos configurados.</div>
+               <div style={{ padding: '20px', textAlign: 'center', color: '#cbd5e1' }}>No hay controles operativos configurados.</div>
              )}
           </div>
         )}
@@ -1263,23 +1393,47 @@ export default function PoliciesModule() {
                             <option key={i} value={wf.id}>{wf.name}</option>
                           ))}
                        </select>
-                    </div>
-                 </div>
+                     </div>
+                  </div>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                    <div>
-                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
-                       <select 
-                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                         value={newPolicy.owner}
-                         onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
-                       >
-                          {teamMembers.map((m, i) => (
-                            <option key={i}>{m.name} ({m.role})</option>
-                          ))}
-                       </select>
-                    </div>
-                 </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.owner}
+                          onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Custodio (TI Custodian)</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.data_custodian}
+                          onChange={e => setNewPolicy({...newPolicy, data_custodian: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Auditor Designado</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.auditor_designado}
+                          onChange={e => setNewPolicy({...newPolicy, auditor_designado: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                  </div>
 
                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     <div>
@@ -1335,13 +1489,12 @@ export default function PoliciesModule() {
             >
               <div className={styles.modalHeader}>
                 <div className={styles.headerInfo}>
-                  <span style={{ color: '#a855f7', fontWeight: 800, fontSize: '0.85rem' }}>{selectedPolicy.id}</span>
                   <h2>{selectedPolicy.title}</h2>
                   <div className={styles.headerBadges}>
-                    <span className={styles.statusBadge} style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <span className={styles.statusBadge} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
                       Versión {selectedPolicy.version}
                     </span>
-                    <span className={styles.statusBadge} style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                    <span className={styles.statusBadge} style={{ background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe' }}>
                       {selectedPolicy.status}
                     </span>
                   </div>
@@ -1401,10 +1554,10 @@ export default function PoliciesModule() {
                   {modalTab === 'ciclo' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                        <h3 className={styles.sectionTitle}>Gestión del Ciclo de Vida</h3>
-                       <div style={{ padding: '24px', background: '#111827', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                       <div style={{ padding: '24px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
                           <div style={{ marginBottom: '32px' }}>
-                             <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '16px' }}>
-                                Flujo aplicado: <strong>{getPolicyWorkflow(selectedPolicy.workflowId)?.name}</strong>
+                             <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
+                                Flujo aplicado: <strong style={{ color: '#1e293b' }}>{getPolicyWorkflow(selectedPolicy.workflowId)?.name}</strong>
                              </div>
                              <div className={styles.horizontalStepper}>
                                 {getPolicyWorkflow(selectedPolicy.workflowId)?.steps.map((step: string, sIdx: number) => {
@@ -1425,9 +1578,9 @@ export default function PoliciesModule() {
                              </div>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 700, color: '#f8fafc' }}>Paso Actual: {selectedPolicy.status}</div>
+                                <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
                                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
                                    {selectedPolicy.currentStep === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 
                                      ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
@@ -1579,9 +1732,9 @@ export default function PoliciesModule() {
                               </div>
                            </div>
                         )}
-                        <div style={{ marginTop: '32px', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                           <h5 style={{ margin: '0 0 12px 0', color: '#f8fafc' }}>Definiciones Clave</h5>
-                           <ul style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+                        <div style={{ marginTop: '32px', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                           <h5 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Definiciones Clave</h5>
+                           <ul style={{ fontSize: '0.9rem', color: '#64748b' }}>
                               <li><strong>Dato Sensible:</strong> Aquel que afecta la intimidad del titular.</li>
                               <li><strong>PII:</strong> Personally Identifiable Information.</li>
                            </ul>
@@ -1632,40 +1785,60 @@ export default function PoliciesModule() {
 
                   {modalTab === 'responsables' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-                      <h3 className={styles.sectionTitle}>Matriz de Responsabilidades</h3>
-                      <div className={styles.evidenceGrid} style={{ gridTemplateColumns: '1fr' }}>
-                         <div className={styles.evidenceCard}>
-                            <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><User color="#6366f1" /></div>
-                            <div style={{ flex: 1 }}>
-                               <div style={{ fontWeight: 700 }}>Data Owner (Dueño)</div>
-                                {isEditing ? (
-                                   <select 
-                                     style={{ width: '100%', padding: '6px', marginTop: '4px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                                     value={editForm.owner}
-                                     onChange={e => setEditForm({...editForm, owner: e.target.value})}
-                                   >
-                                      {teamMembers.map((m: any, i: number) => <option key={i}>{m.name} ({m.role})</option>)}
-                                   </select>
-                                ) : (
-                                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
-                                )}
-                            </div>
-                         </div>
-                         <div className={styles.evidenceCard}>
-                            <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><Shield color="#10b981" /></div>
-                            <div>
-                               <div style={{ fontWeight: 700 }}>Data Custodian (TI)</div>
-                               <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Sofia Rodriguez (TI Ops)</div>
-                            </div>
-                         </div>
-                         <div className={styles.evidenceCard}>
-                            <div style={{ padding: '10px', background: '#fffbeb', borderRadius: '8px' }}><CheckSquare color="#f59e0b" /></div>
-                            <div>
-                               <div style={{ fontWeight: 700 }}>Auditor Designado</div>
-                               <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Elena Gomez (Internal Audit)</div>
-                            </div>
-                         </div>
-                      </div>
+                       <h3 className={styles.sectionTitle}>Matriz de Responsabilidades</h3>
+                       <div className={styles.evidenceGrid} style={{ gridTemplateColumns: '1fr' }}>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><User color="#6366f1" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Data Owner (Dueño)</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.owner}
+                                      onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
+                                 )}
+                             </div>
+                          </div>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><Shield color="#10b981" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Data Custodian (TI)</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.data_custodian}
+                                      onChange={e => setEditForm({...editForm, data_custodian: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.data_custodian}</div>
+                                 )}
+                             </div>
+                          </div>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#fffbeb', borderRadius: '8px' }}><CheckSquare color="#f59e0b" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Auditor Designado</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.auditor_designado}
+                                      onChange={e => setEditForm({...editForm, auditor_designado: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.auditor_designado}</div>
+                                 )}
+                             </div>
+                          </div>
+                       </div>
                     </motion.div>
                   )}
 
@@ -1707,17 +1880,17 @@ export default function PoliciesModule() {
                             </button>
                          )}
                       </div>
-                      <div style={{ marginTop: '32px', padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                         <h5 style={{ margin: '0 0 8px 0', color: '#f87171' }}>Sanciones por Incumplimiento</h5>
+                      <div style={{ marginTop: '32px', padding: '20px', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fca5a5' }}>
+                         <h5 style={{ margin: '0 0 8px 0', color: '#dc2626' }}>Sanciones por Incumplimiento</h5>
                          {isEditing ? (
                              <textarea 
                                rows={3}
-                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)', color: '#f8fafc', marginTop: '8px', outline: 'none' }}
+                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fca5a5', background: '#fff5f5', color: '#1e293b', marginTop: '8px', outline: 'none' }}
                                value={editForm.sancions}
                                onChange={e => setEditForm({...editForm, sancions: e.target.value})}
                              />
                           ) : (
-                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#fca5a5' }}>{selectedPolicy.sancions}</p>
+                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#dc2626' }}>{selectedPolicy.sancions}</p>
                           )}
                       </div>
                     </motion.div>
@@ -1871,50 +2044,81 @@ export default function PoliciesModule() {
               <motion.div 
                 className={styles.modalContent}
                 style={{ 
-                  maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-                  background: 'var(--modal-bg, rgba(15, 23, 42, 0.85))', 
-                  backdropFilter: 'blur(var(--modal-blur, 24px))', 
-                  WebkitBackdropFilter: 'blur(var(--modal-blur, 24px))',
-                  fontFamily: 'var(--modal-font, inherit)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '32px', 
-                  color: 'var(--modal-text-color, white)', 
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                  maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
                 }}
                initial={{ opacity: 0, scale: 0.9 }}
                animate={{ opacity: 1, scale: 1 }}
                onClick={e => e.stopPropagation()}
              >
-                <div className={styles.modalHeader} style={{ background: 'transparent', padding: '32px 32px 0 32px', borderBottom: 'none' }}>
-                   <h2 style={{ color: 'white', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{String(editingWf.id).startsWith('new_') ? 'Crear Nuevo Flujo' : `Configurar Flujo: ${editingWf.name}`}</h2>
-                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}><X size={18} /></button>
+                <div className={styles.modalHeader}>
+                   <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{String(editingWf.id).startsWith('new_') ? 'Crear Nuevo Flujo' : `Configurar Flujo: ${editingWf.name}`}</h2>
+                   <button onClick={() => setIsWfModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
                 </div>
-                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'block' }}
+                   >
                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
                      <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Nombre del Flujo</label>
+                        <label className={styles.modalLabel}>Nombre del Flujo</label>
                         <input 
                           type="text" 
                           value={editingWf.name}
                           onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
-                          style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
+                          className={styles.modalInput}
                         />
                      </div>
                      <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Color Identificador</label>
+                        <label className={styles.modalLabel}>Color Identificador</label>
                         <input 
                           type="color" 
                           value={editingWf.color}
                           onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
-                          style={{ width: '100%', height: '50px', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer' }}
+                          style={{ width: '100%', height: '50px', padding: '4px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
                         />
                      </div>
                    </div>
-                   <label style={{ display: 'block', marginBottom: '12px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Pasos del Ciclo de Vida</label>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.owner}
+                          onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Custodio (TI Custodian)</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.data_custodian}
+                          onChange={e => setNewPolicy({...newPolicy, data_custodian: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                     <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Auditor Designado</label>
+                        <select 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          value={newPolicy.auditor_designado}
+                          onChange={e => setNewPolicy({...newPolicy, auditor_designado: e.target.value})}
+                        >
+                           {teamMembers.map((m, i) => (
+                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
+                           ))}
+                        </select>
+                     </div>
+                  </div>
+                   <label className={styles.modalLabel} style={{ marginBottom: '12px', display: 'block' }}>Pasos del Ciclo de Vida</label>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
                       {editingWf.steps.map((step: string, idx: number) => (
                         <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, boxShadow: `0 0 15px ${editingWf.color}40` }}>
+                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
                              {idx + 1}
                            </div>
                            <input 
@@ -1925,7 +2129,7 @@ export default function PoliciesModule() {
                                newSteps[idx] = e.target.value;
                                setEditingWf({ ...editingWf, steps: newSteps });
                              }}
-                             style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '0.95rem', outline: 'none' }}
+                             className={styles.modalInput}
                              placeholder="Ej. Revisión Legal"
                            />
                            <button 
@@ -1933,9 +2137,7 @@ export default function PoliciesModule() {
                                const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
                                setEditingWf({ ...editingWf, steps: newSteps });
                              }}
-                             style={{ color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-                             onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
-                             onMouseOut={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                             style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
                            >
                               <Trash2 size={18} />
                            </button>
@@ -1943,17 +2145,16 @@ export default function PoliciesModule() {
                       ))}
                       <button 
                         onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
-                        style={{ marginTop: '16px', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', fontWeight: 600, transition: 'all 0.2s' }}
-                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                        onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        className={styles.secondaryBtn}
+                        style={{ marginTop: '8px', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
-                         <Plus size={16} style={{ marginRight: '8px' }} /> Añadir Paso
+                         <Plus size={16} /> Añadir Paso
                       </button>
                    </div>
                 </div>
-                <div style={{ padding: '24px 32px', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-                   <button onClick={() => setIsWfModalOpen(false)} style={{ background: 'transparent', color: '#94a3b8', border: 'none', fontWeight: 600, padding: '10px 20px', cursor: 'pointer' }}>Cancelar</button>
-                   <button onClick={saveWorkflow} style={{ background: editingWf.color, color: 'white', border: 'none', padding: '10px 24px', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: `0 4px 15px ${editingWf.color}60` }}>
+                <div className={styles.footer}>
+                   <button onClick={() => setIsWfModalOpen(false)} className={styles.secondaryBtn}>Cancelar</button>
+                   <button onClick={saveWorkflow} className={styles.primaryBtn} style={{ background: editingWf.color }}>
                       {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
                    </button>
                 </div>
@@ -2424,6 +2625,127 @@ export default function PoliciesModule() {
                     style={{ opacity: !approveAssignee ? 0.5 : 1, cursor: !approveAssignee ? 'not-allowed' : 'pointer' }}
                   >
                     Firmar y Avanzar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Manage Control Modal */}
+      <AnimatePresence>
+        {isControlModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => { setIsControlModalOpen(false); setSelectedControl(null); }}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>{selectedControl ? 'Editar Control Operativo' : 'Nuevo Control Operativo'}</h2>
+                </div>
+                <button onClick={() => { setIsControlModalOpen(false); setSelectedControl(null); }} className={styles.modalCloseBtn}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Código del Control</label>
+                  <input 
+                    type="text" 
+                    value={selectedControl ? selectedControl.code : newControl.code} 
+                    onChange={e => {
+                      if (selectedControl) {
+                        setSelectedControl({ ...selectedControl, code: e.target.value });
+                      } else {
+                        setNewControl({ ...newControl, code: e.target.value });
+                      }
+                    }} 
+                    placeholder="Ej: CTRL-001" 
+                    className={styles.modalInput} 
+                  />
+                </div>
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Descripción</label>
+                  <textarea 
+                    value={selectedControl ? selectedControl.description : newControl.description} 
+                    onChange={e => {
+                      if (selectedControl) {
+                        setSelectedControl({ ...selectedControl, description: e.target.value });
+                      } else {
+                        setNewControl({ ...newControl, description: e.target.value });
+                      }
+                    }} 
+                    placeholder="Descripción detallada del control operativo..." 
+                    className={styles.modalInput}
+                    style={{ minHeight: '100px', resize: 'vertical' }}
+                  />
+                </div>
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Frecuencia</label>
+                  <select 
+                    value={selectedControl ? selectedControl.frequency : newControl.frequency} 
+                    onChange={e => {
+                      if (selectedControl) {
+                        setSelectedControl({ ...selectedControl, frequency: e.target.value });
+                      } else {
+                        setNewControl({ ...newControl, frequency: e.target.value });
+                      }
+                    }} 
+                    className={styles.modalInput}
+                  >
+                    <option value="Diaria">Diaria</option>
+                    <option value="Semanal">Semanal</option>
+                    <option value="Mensual">Mensual</option>
+                    <option value="Trimestral">Trimestral</option>
+                    <option value="Semestral">Semestral</option>
+                    <option value="Anual">Anual</option>
+                    <option value="Continuo">Continuo</option>
+                  </select>
+                </div>
+                <div className={styles.modalFormGroup}>
+                  <label className={styles.modalLabel}>Estado</label>
+                  <select 
+                    value={selectedControl ? selectedControl.status : newControl.status} 
+                    onChange={e => {
+                      if (selectedControl) {
+                        setSelectedControl({ ...selectedControl, status: e.target.value });
+                      } else {
+                        setNewControl({ ...newControl, status: e.target.value });
+                      }
+                    }} 
+                    className={styles.modalInput}
+                  >
+                    <option value="OK">CUMPLE (OK)</option>
+                    <option value="FALLA">FALLA</option>
+                  </select>
+                </div>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel}>Política Asociada</label>
+                  <select 
+                    value={selectedControl ? (selectedControl.policy_id || '') : (newControl.policy_id || '')} 
+                    onChange={e => {
+                      if (selectedControl) {
+                        setSelectedControl({ ...selectedControl, policy_id: e.target.value || null });
+                      } else {
+                        setNewControl({ ...newControl, policy_id: e.target.value || null });
+                      }
+                    }} 
+                    className={styles.modalInput}
+                  >
+                    <option value="">Ninguna política asociada</option>
+                    {policies.map((p, i) => (
+                      <option key={i} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className={styles.secondaryBtn} onClick={() => { setIsControlModalOpen(false); setSelectedControl(null); }}>Cancelar</button>
+                  <button className={styles.primaryBtn} onClick={selectedControl ? handleUpdateControl : handleAddControl}>
+                    {selectedControl ? 'Guardar Cambios' : 'Crear Control'}
                   </button>
                 </div>
               </div>

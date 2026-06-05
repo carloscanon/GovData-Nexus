@@ -113,7 +113,14 @@ export default function MetadataPage() {
       if (glossaryError) throw glossaryError;
       setGlossary(glossaryData || []);
     } catch (err: any) {
-      console.error('Error fetching metadata (Tables might not exist in Supabase):', err);
+      console.error('Error fetching metadata (Tables might not exist in Supabase):', {
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+        stack: err.stack,
+        error: err
+      });
       if (err.code === '42P01') {
         alert("Las tablas de metadata no existen en la base de datos Supabase. Ejecuta el script SQL de creación.");
       }

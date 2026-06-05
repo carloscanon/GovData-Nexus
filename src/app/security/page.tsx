@@ -163,6 +163,28 @@ export default function SecurityModule() {
     if (selectedRisk?.id === id) setSelectedRisk(prev => prev ? { ...prev, status } : null);
   };
 
+  const handleSaveRiskEdit = async () => {
+    if (!selectedRisk || !currentTenant?.id) return;
+    const { error } = await supabase.from('security_risks').update({
+      name: selectedRisk.name,
+      asset: selectedRisk.asset,
+      severity: selectedRisk.severity,
+      impact: selectedRisk.impact,
+      probability: selectedRisk.probability,
+      owner: selectedRisk.owner,
+      description: selectedRisk.description,
+      action_plan: selectedRisk.action_plan,
+      updated_at: new Date().toISOString()
+    }).eq('id', selectedRisk.id);
+    
+    if (!error) {
+      setRisks(prev => prev.map(r => r.id === selectedRisk.id ? selectedRisk : r));
+      alert('Riesgo actualizado correctamente.');
+    } else {
+      alert('Error al actualizar: ' + error.message);
+    }
+  };
+
   const handleDeleteRisk = async (id: string) => {
     if (!confirm('¿Eliminar este riesgo?')) return;
     await supabase.from('security_risks').delete().eq('id', id);
@@ -651,42 +673,76 @@ export default function SecurityModule() {
       <AnimatePresence>
         {selectedRisk && (
           <div className={styles.modalOverlay} onClick={() => setSelectedRisk(null)}>
-            <motion.div className={styles.modalContent}
+            <motion.div className={styles.modalContent} style={{ maxWidth: '600px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHeader}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #ef4444, #6366f1)' }}>
                 <div>
-                  <span className={styles.riskId}>{selectedRisk.code}</span>
-                  <h2 style={{ margin: '8px 0 4px', fontSize: '1.5rem', color: 'white' }}>{selectedRisk.name}</h2>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: 'ui-monospace, monospace' }}>{selectedRisk.code}</span>
+                  <h2 style={{ margin: '8px 0 12px', fontSize: '1.6rem', color: 'white', fontWeight: 800 }}>{selectedRisk.name}</h2>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <SevBadge value={selectedRisk.severity} map={{ ...SEV_COLOR, [selectedRisk.severity]: { bg: 'rgba(255,255,255,0.15)', text: 'white' } }} />
-                    <SevBadge value={selectedRisk.status} map={{ ...STATUS_COLOR, [selectedRisk.status]: { bg: 'rgba(255,255,255,0.15)', text: 'white' } }} />
+                    <SevBadge value={selectedRisk.severity} map={{ ...SEV_COLOR, [selectedRisk.severity]: { bg: 'rgba(255,255,255,0.2)', text: 'white' } }} />
+                    <SevBadge value={selectedRisk.status} map={{ ...STATUS_COLOR, [selectedRisk.status]: { bg: 'rgba(255,255,255,0.2)', text: 'white' } }} />
                   </div>
                 </div>
-                <button onClick={() => setSelectedRisk(null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '12px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={22} /></button>
+                <button onClick={() => setSelectedRisk(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
               </div>
-              <div className={styles.modalBody}>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoField}><label>Descripción</label><div>{selectedRisk.description || '—'}</div></div>
-                  <div className={styles.infoField}><label>Activo Afectado</label><div>{selectedRisk.asset || '—'}</div></div>
-                  <div className={styles.infoField}><label>Impacto</label><div>{selectedRisk.impact}</div></div>
-                  <div className={styles.infoField}><label>Probabilidad</label><div>{selectedRisk.probability}</div></div>
-                  <div className={styles.infoField}><label>Responsable</label><div>{selectedRisk.owner || '—'}</div></div>
-                  <div className={styles.infoField} style={{ gridColumn: '1 / -1' }}><label>Plan de Mitigación</label><div>{selectedRisk.action_plan || '—'}</div></div>
+              <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nombre del Riesgo *</label>
+                    <input value={selectedRisk.name} onChange={e => setSelectedRisk({ ...selectedRisk, name: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Activo Afectado</label>
+                    <input value={selectedRisk.asset} onChange={e => setSelectedRisk({ ...selectedRisk, asset: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '24px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  {[
+                    { label: 'Severidad', key: 'severity', opts: ['Crítico','Alto','Medio','Bajo'] },
+                    { label: 'Impacto', key: 'impact', opts: ['Alto','Medio','Bajo'] },
+                    { label: 'Probabilidad', key: 'probability', opts: ['Alta','Media','Baja'] },
+                  ].map(f => (
+                    <div key={f.key}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>{f.label}</label>
+                      <select value={(selectedRisk as any)[f.key]} onChange={e => setSelectedRisk({ ...selectedRisk, [f.key]: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                        {f.opts.map(o => <option key={o}>{o}</option>)}
+                      </select></div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Responsable</label>
+                  <select value={selectedRisk.owner} onChange={e => setSelectedRisk({ ...selectedRisk, owner: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                    <option value="">Seleccionar responsable...</option>
+                    {tenantUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                  </select></div>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Descripción</label>
+                  <textarea value={selectedRisk.description} onChange={e => setSelectedRisk({ ...selectedRisk, description: e.target.value })} rows={2}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ marginBottom: '24px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Plan de Mitigación</label>
+                  <textarea value={selectedRisk.action_plan} onChange={e => setSelectedRisk({ ...selectedRisk, action_plan: e.target.value })} rows={2}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                
+                <div style={{ display: 'flex', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>Cambiar estado:</label>
                   {['Abierto', 'Mitigando', 'En Revisión', 'Cerrado'].map(s => (
                     <button key={s} onClick={() => handleUpdateRiskStatus(selectedRisk.id, s)}
-                      style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: selectedRisk.status === s ? '#1e293b' : 'white',
-                        color: selectedRisk.status === s ? 'white' : '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
+                      style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: selectedRisk.status === s ? '#4f46e5' : 'white',
+                        color: selectedRisk.status === s ? 'white' : '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', transition: 'all 0.2s',
+                        boxShadow: selectedRisk.status === s ? '0 2px 4px rgba(79, 70, 229, 0.2)' : 'none' }}>
                       {s}
                     </button>
                   ))}
-                  <button onClick={() => handleDeleteRisk(selectedRisk.id)}
-                    style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Trash2 size={13} /> Eliminar
-                  </button>
+                  
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+                    <button onClick={() => handleDeleteRisk(selectedRisk.id)}
+                      style={{ padding: '8px 16px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
+                      <Trash2 size={13} /> Eliminar
+                    </button>
+                    <button onClick={handleSaveRiskEdit}
+                      style={{ padding: '8px 16px', borderRadius: '8px', background: 'linear-gradient(135deg, #ef4444, #6366f1)', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
+                      <Save size={13} /> Guardar
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -728,8 +784,11 @@ export default function SecurityModule() {
                   ))}
                 </div>
                 <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Responsable</label>
-                  <input value={newRisk.owner} onChange={e => setNewRisk({ ...newRisk, owner: e.target.value })} placeholder="Ej: Seguridad TI"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
+                  <select value={newRisk.owner} onChange={e => setNewRisk({ ...newRisk, owner: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+                    <option value="">Seleccionar responsable...</option>
+                    {tenantUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                  </select></div>
                 <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Descripción</label>
                   <textarea value={newRisk.description} onChange={e => setNewRisk({ ...newRisk, description: e.target.value })} rows={2} placeholder="Describe el riesgo..."
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>

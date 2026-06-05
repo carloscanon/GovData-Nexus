@@ -403,8 +403,8 @@ export default function Team() {
         supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
-        supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).eq('status', 'Abierto'),
-        supabase.from('data_policies').select('id, title, owner').eq('tenant_id', currentTenant.id),
+        supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).neq('status', 'Cerrado'),
+        supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id)
       ]);
 
@@ -437,7 +437,12 @@ export default function Team() {
           const assetIds = memberAssets.map(a => a.id);
           
           const openIncidentsList = freshIncidents
-            .filter(i => assetIds.includes(i.asset_id) || (i.assigned_to && i.assigned_to.toLowerCase().includes(mNameLower)))
+            .filter(i => {
+              if (assetIds.includes(i.asset_id)) return true;
+              if (!i.assigned_to) return false;
+              const assignedLower = i.assigned_to.toLowerCase().trim();
+              return assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower);
+            })
             .map(i => {
               const asset = freshAssets.find(a => a.id === i.asset_id);
               return {
@@ -451,7 +456,12 @@ export default function Team() {
           const openIncidents = openIncidentsList.length;
 
           const memberPolicies = freshPolicies
-            .filter(p => (p.owner || '').toLowerCase().trim() === mNameLower)
+            .filter(p => {
+              const ownerStr = (p.owner || '').toLowerCase();
+              const custodianStr = (p.data_custodian || '').toLowerCase();
+              const auditorStr = (p.auditor_designado || '').toLowerCase();
+              return ownerStr.includes(mNameLower) || custodianStr.includes(mNameLower) || auditorStr.includes(mNameLower);
+            })
             .map(p => p.title);
 
           const memberWorkflows = freshWorkflows
@@ -592,8 +602,67 @@ export default function Team() {
           supabase.from('data_policies')
             .update({ owner: newName })
             .eq('tenant_id', currentTenant.id)
-            .eq('owner', oldName)
+            .eq('owner', oldName),
+          supabase.from('data_policies')
+            .update({ data_custodian: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('data_custodian', oldName),
+          supabase.from('data_policies')
+            .update({ auditor_designado: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('auditor_designado', oldName),
+          supabase.from('quality_incidents')
+            .update({ assigned_to: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('assigned_to', oldName),
+          supabase.from('security_incidents')
+            .update({ assigned_to: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('assigned_to', oldName),
+          supabase.from('security_risks')
+            .update({ owner: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('owner', oldName),
+          supabase.from('workflow_requests')
+            .update({ assigned_to: newName })
+            .eq('tenant_id', currentTenant.id)
+            .eq('assigned_to', oldName)
         ]);
+      }
+
+      // ── Sync avatar & name to tenant_users and localStorage if this is the current user ──
+      const currentUserEmail = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+      const memberEmail = (newMember.email || selectedMember.email || '').toLowerCase().trim();
+      const isCurrentUser = !!(currentUserEmail && memberEmail && currentUserEmail.toLowerCase().trim() === memberEmail);
+
+      if (isCurrentUser) {
+        // Update tenant_users table so the avatar persists across logins
+        const { data: tuData } = await supabase
+          .from('tenant_users')
+          .select('id')
+          .eq('tenant_id', currentTenant.id)
+          .ilike('email', memberEmail)
+          .maybeSingle();
+
+        if (tuData?.id) {
+          await supabase
+            .from('tenant_users')
+            .update({ avatar: newMember.avatar, name: newName })
+            .eq('id', tuData.id);
+        }
+
+        // Update localStorage so Sidebar refreshes immediately
+        if (newMember.avatar) {
+          localStorage.setItem('govdata_avatar_url', newMember.avatar);
+        }
+        if (newName) {
+          localStorage.setItem('govdata_user_name', newName);
+        }
+
+        // Dispatch custom event so Sidebar reacts without page reload
+        window.dispatchEvent(new CustomEvent('govdata_user_updated', {
+          detail: { avatar: newMember.avatar, name: newName }
+        }));
       }
 
       setIsEditMemberModalOpen(false);
@@ -649,6 +718,37 @@ export default function Team() {
         .eq('tenant_id', currentTenant.id)
         .eq('owner', sourceName);
       if (policyErr) throw policyErr;
+
+      await supabase.from('data_policies')
+        .update({ data_custodian: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('data_custodian', sourceName);
+
+      await supabase.from('data_policies')
+        .update({ auditor_designado: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('auditor_designado', sourceName);
+
+      // Reassign incidents, risks and workflows (by name)
+      await supabase.from('quality_incidents')
+        .update({ assigned_to: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('assigned_to', sourceName);
+
+      await supabase.from('security_incidents')
+        .update({ assigned_to: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('assigned_to', sourceName);
+
+      await supabase.from('security_risks')
+        .update({ owner: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('owner', sourceName);
+
+      await supabase.from('workflow_requests')
+        .update({ assigned_to: targetName })
+        .eq('tenant_id', currentTenant.id)
+        .eq('assigned_to', sourceName);
 
       // 3. Reassign domains (by owner_id UUID)
       const { error: domainErr } = await supabase.from('team_domains')
@@ -2133,26 +2233,72 @@ export default function Team() {
                        </div>
 
                        <div>
-
                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Área / Departamento</label>
-
                           <input 
-
                             type="text" 
-
                             style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '1rem', outline: 'none' }}
-
                             value={newMember.area}
-
                             onChange={e => setNewMember({...newMember, area: e.target.value})}
-
                           />
-
                        </div>
-
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                    <div style={{ marginBottom: '16px', padding: '16px', background: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                       <label style={{ display: 'block', marginBottom: '12px', fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>📸 Foto de Perfil</label>
+                       <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                         <div style={{ width: '72px', height: '72px', borderRadius: '16px', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.8rem', fontWeight: 800 }}>
+                           {newMember.avatar && newMember.avatar.startsWith('http') ? (
+                             <img src={newMember.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                           ) : (
+                             <span>{newMember.name ? newMember.name.charAt(0).toUpperCase() : '?'}</span>
+                           )}
+                         </div>
+                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '10px', border: '1px dashed rgba(99,102,241,0.5)', cursor: 'pointer', background: 'rgba(99,102,241,0.07)', color: '#a5b4fc', fontSize: '0.85rem', fontWeight: 600 }}>
+                             {isUploadingAvatar ? '⏳ Subiendo...' : '📁 Subir imagen desde mi equipo'}
+                             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                           </label>
+                           <input
+                             type="url"
+                             placeholder="O pega una URL de imagen..."
+                             style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                             value={newMember.avatar}
+                             onChange={e => setNewMember({ ...newMember, avatar: e.target.value })}
+                           />
+                         </div>
+                       </div>
+                    </div>
+
+                    {selectedMember && (
+                       <div style={{ marginBottom: '24px', padding: '20px', background: 'rgba(239,68,68,0.06)', borderRadius: '20px', border: '1px solid rgba(239,68,68,0.15)' }}>
+                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontWeight: 700, color: '#fca5a5', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                           <AlertTriangle size={16} style={{ color: '#f87171' }} /> Incidentes Recientes Asignados
+                         </label>
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto' }}>
+                            {selectedMember.assignments.incidents && selectedMember.assignments.incidents.length > 0 ? (
+                              selectedMember.assignments.incidents.map((incident: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.9rem', color: '#e2e8f0' }}>
+                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: incident.severity === 'alta' || incident.severity === 'Crítico' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)', color: incident.severity === 'alta' || incident.severity === 'Crítico' ? '#f87171' : '#f59e0b', fontSize: '0.75rem', fontWeight: 700 }}>
+                                     !
+                                   </div>
+                                   <div style={{ flex: 1 }}>
+                                     <span style={{ fontWeight: 600 }}>{incident.issue_type}</span>
+                                     <span style={{ color: '#94a3b8', margin: '0 4px' }}>en</span>
+                                     <span style={{ color: '#a5b4fc', fontWeight: 500 }}>{incident.asset_name}</span>
+                                   </div>
+                                   <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: incident.severity === 'alta' || incident.severity === 'Crítico' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', color: incident.severity === 'alta' || incident.severity === 'Crítico' ? '#f87171' : '#f59e0b', textTransform: 'uppercase' }}>
+                                     {incident.severity}
+                                   </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ color: '#94a3b8', fontSize: '0.88rem', padding: '8px', textAlign: 'center' }}>No hay incidentes abiertos asignados to este miembro.</div>
+                            )}
+                         </div>
+                       </div>
+                     )}
+
+                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
 
                         <button className={styles.dangerBtn} style={{ marginRight: 'auto' }} onClick={() => selectedMember && handleDeleteMember(selectedMember.id)}>
 
@@ -2219,6 +2365,8 @@ export default function Team() {
                  animate={{ opacity: 1, scale: 1 }}
 
                  exit={{ opacity: 0, scale: 0.9 }}
+
+                 onClick={e => e.stopPropagation()}
 
                >
 
@@ -2362,7 +2510,7 @@ export default function Team() {
 
                         <button className={styles.secondaryBtn} onClick={closeDomainModal}>Cancelar</button>
 
-                        <button className={styles.primaryBtn} onClick={handleAddDomain}>Guardar Dominio</button>
+                        <button className={styles.primaryBtn} onClick={e => { e.stopPropagation(); handleAddDomain(); }}>Guardar Dominio</button>
 
                      </div>
 

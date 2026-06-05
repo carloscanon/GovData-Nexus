@@ -878,6 +878,40 @@ export default function QualityModule() {
       alert('Incidente actualizado y sincronizado en el Centro de Operaciones (Workflows) exitosamente.');
     } catch (e) {
       console.error(e);
+      alert('Error actualizando el incidente o sincronizando workflow.');
+    }
+  };
+
+  const handleSaveIncidentEdit = async () => {
+    if (!selectedIncident) return;
+    try {
+      await supabase
+        .from('quality_incidents')
+        .update({
+          assigned_to: incidentFields.assignedTo,
+          due_date: incidentFields.dueDate,
+          impact: incidentFields.impact,
+          root_cause: incidentFields.rootCause,
+          evidence: incidentFields.evidence
+        })
+        .eq('id', selectedIncident.dbId);
+
+      await supabase
+        .from('workflow_requests')
+        .update({
+          assigned_to: incidentFields.assignedTo
+        })
+        .like('description', `%ID Incidente: ${selectedIncident.dbId}%`);
+
+      setSelectedIncident((prev: any) => ({
+        ...prev,
+        ...incidentFields
+      }));
+      fetchIncidents(selectedAssetId);
+      alert('Cambios guardados correctamente.');
+    } catch (e) {
+      console.error(e);
+      alert('Error al guardar los cambios.');
     }
   };
 
@@ -2119,7 +2153,7 @@ export default function QualityModule() {
                         onChange={e => setIncidentFields({ ...incidentFields, assignedTo: e.target.value })}
                         className={styles.select}
                       >
-                        {stewards.map(s => <option key={s.id}>{s.name} ({s.role})</option>)}
+                        {stewards.map(s => <option key={s.id} value={s.name}>{s.name} ({s.role})</option>)}
                       </select>
                     </div>
 
@@ -2143,7 +2177,14 @@ export default function QualityModule() {
                       />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={handleSaveIncidentEdit}
+                        className={styles.primaryBtnSmall}
+                        style={{ flex: '1 1 100%', justifyContent: 'center', background: '#3b82f6', marginBottom: '8px' }}
+                      >
+                        Guardar Cambios
+                      </button>
                       <button
                         onClick={() => handleUpdateIncidentStatus('En análisis')}
                         className={styles.secondaryBtnSmall}

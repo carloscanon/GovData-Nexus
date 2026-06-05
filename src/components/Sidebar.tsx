@@ -75,6 +75,27 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
       setUserAvatar(localStorage.getItem('govdata_avatar_url'));
       setUserEmail(localStorage.getItem('govdata_user_email'));
     }
+
+    // Listen for profile updates from the access management module
+    const handleUserUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.avatar !== undefined) setUserAvatar(detail.avatar || null);
+      if (detail?.name) setUserName(detail.name);
+    };
+
+    // Also re-sync from localStorage when another tab updates it
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'govdata_avatar_url') setUserAvatar(e.newValue);
+      if (e.key === 'govdata_user_name') setUserName(e.newValue);
+    };
+
+    window.addEventListener('govdata_user_updated', handleUserUpdated);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('govdata_user_updated', handleUserUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Logout handler
@@ -123,6 +144,11 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
         >
           {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
         </button>
+      </div>
+
+      {/* KITT Scanner — subtle red scan light like K.I.T.T. from Knight Rider */}
+      <div className={styles.kittScanner}>
+        <div className={styles.kittScannerGlow} />
       </div>
 
       {/* Selector de Empresa (SaaS / Multi-Tenant Context Switcher) */}
@@ -248,30 +274,21 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
           };
           const rc = roleConfig[userRole || 'user'] || roleConfig['user'];
           const initials = userName ? userName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : 'U';
+          const seed = encodeURIComponent((userName || '').replace(/\s+/g, '').substring(0, 30));
+          const isReal = (url: string | null | undefined) => !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
+          const finalAvatar = isReal(userAvatar) ? userAvatar : `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+
           return (
             <div className={styles.userProfile}>
               <div className={styles.userMain}>
                 {/* Avatar */}
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  {userAvatar ? (
-                    <img
-                      src={userAvatar}
-                      alt={userName || 'avatar'}
-                      style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', border: `2px solid ${rc.color}`, display: 'block' }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '44px', height: '44px', borderRadius: '12px',
-                      background: rc.gradient,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 800, fontSize: '1rem', color: 'white',
-                      letterSpacing: '-0.02em',
-                      boxShadow: `0 4px 14px ${rc.color}55`
-                    }}>
-                      {initials}
-                    </div>
-                  )}
+                  <img
+                    src={finalAvatar as string}
+                    alt={userName || 'avatar'}
+                    style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', border: `2px solid ${rc.color}`, display: 'block' }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`; }}
+                  />
                   {/* Online dot */}
                   <div style={{
                     position: 'absolute', bottom: '-2px', right: '-2px',
