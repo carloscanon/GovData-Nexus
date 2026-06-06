@@ -421,11 +421,15 @@ export default function Login() {
               </div>
 
               <div className={styles.ssoButtons}>
-                <button className={styles.ssoBtn}>
+                <button 
+                  className={styles.ssoBtn} 
+                  type="button"
+                  onClick={() => signIn('azure-ad', { callbackUrl: '/' })}
+                >
                   <img src="https://authjs.dev/img/providers/microsoft.svg" alt="Microsoft" />
                   Microsoft 365
                 </button>
-                <button className={styles.ssoBtn}>
+                <button className={styles.ssoBtn} type="button">
                   <img src="https://authjs.dev/img/providers/google.svg" alt="Google" />
                   Google Workspace
                 </button>

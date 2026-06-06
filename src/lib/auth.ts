@@ -1,9 +1,15 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import AzureADProvider from "next-auth/providers/azure-ad";
 import { supabase } from "@/lib/supabase";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID || "placeholder-client-id",
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || "placeholder-client-secret",
+      tenantId: process.env.AZURE_AD_TENANT_ID || "common",
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -63,11 +69,29 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
-        token.tenant_id = user.tenant_id;
+        token.role = (user as any).role || "user";
+        token.tenant_id = (user as any).tenant_id || "demo-tenant-id";
+      }
+      // If authenticating via Azure AD, map email and create/verify the user metadata
+      if (account && account.provider === "azure-ad" && token.email) {
+        try {
+          const { data, error } = await supabase
+            .from("tenant_users")
+            .select("*")
+            .ilike("email", token.email)
+            .single();
+
+          if (data && !error) {
+            token.id = data.id;
+            token.role = data.role || "user";
+            token.tenant_id = data.tenant_id;
+          }
+        } catch (e) {
+          console.error("Error matching Azure AD user to tenant_users:", e);
+        }
       }
       return token;
     },
