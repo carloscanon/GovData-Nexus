@@ -426,11 +426,11 @@ export default function Login() {
                   type="button"
                   onClick={() => signIn('azure-ad', { callbackUrl: '/' })}
                 >
-                  <img src="https://authjs.dev/img/providers/microsoft.svg" alt="Microsoft" />
+                  <img src="https://cdn.simpleicons.org/microsoft" alt="Microsoft" />
                   Microsoft 365
                 </button>
                 <button className={styles.ssoBtn} type="button">
-                  <img src="https://authjs.dev/img/providers/google.svg" alt="Google" />
+                  <img src="https://cdn.simpleicons.org/google" alt="Google" />
                   Google Workspace
                 </button>
               </div>
