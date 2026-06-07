@@ -2,6 +2,36 @@
   display: flex;
   min-height: 100vh;
   background-color: var(--background);
+  position: relative;
+}
+
+.topRightLogo {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoIconDark {
+  width: 48px;
+  height: 48px;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.4rem;
+}
+
+.logoTextDark {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
 }
 
 .leftSection {
@@ -324,15 +354,23 @@
   font-weight: 600;
   color: #475569;
   transition: background-color 0.2s;
+  cursor: pointer;
 }
 
 .ssoBtn:hover {
   background-color: #f8fafc;
 }
 
-.ssoBtn img {
+.ssoBtn img,
+.ssoIcon {
   width: 20px;
   height: 20px;
+  color: #64748b;
+  transition: color 0.2s;
+}
+
+.ssoBtn:hover .ssoIcon {
+  color: #1e293b;
 }
 
 .footer {

@@ -13,6 +13,11 @@
 - Compilamos la aplicación de manera local ejecutando `npm.cmd run build` de forma satisfactoria.
 - El proyecto se compila y empaqueta sin errores de TypeScript o dependencias, quedando 100% verificado para su despliegue en Vercel.
 
+### 38. Conciliación Basada en Datos Reales de Calidad
+- **Comparación Física y Lógica Real:** Modificamos la función `handleReconcile` en `src/app/quality/page.tsx` para que, en lugar de simular porcentajes e indicadores, resuelva las conexiones reales de base de datos de ambos activos mediante la función `getConnection`.
+- **Escaneres en Base de Datos en Tiempo Real:** Si ambos activos están vinculados a una base de datos PostgreSQL o MySQL activa, el motor ejecuta peticiones asíncronas consecutivas al endpoint `/api/quality-scan` en modo `table_quality` para escanear y extraer las métricas de completitud, validez, consistencia, unicidad y exactitud reales de cada tabla.
+- **Visualización Side-by-Side de Calidad:** Mapeamos los resultados del escaneo para graficar el radar de calidad comparada y el gráfico de barras por columna usando los porcentajes exactos de las bases de datos de producción, ofreciendo un fallback seguro y consistente que estima métricas de calidad de manera determinista si las conexiones no están configuradas o el usuario está en modo Demo.
+
 ### 19. Responsividad del Escaneo Automático (`AutoScanModal`)
 - Añadidas consultas de medios (`@media`) específicas en [AutoScanModal.module.css](file:///C:/Users/carlo/Desktop/GovData%20Nexus/src/components/catalog/AutoScanModal.module.css) para que la cuadrícula de origen (`.sourceGrid`), el panel de control de resultados (`.summaryDashboard`), las filas de credenciales y los botones de acción se adapten de forma óptima a pantallas móviles y de tabletas.
 - Rediseñada la disposición de la interfaz en pantallas pequeñas para apilar componentes y botones de forma limpia, mejorando sustancialmente la UX.

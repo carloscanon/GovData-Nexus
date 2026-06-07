@@ -5,6 +5,8 @@
   --sa-border: #16223f;
   --sa-primary: #3b82f6;
   --sa-text: #ffffff;
+  --sa-sidebar-text: #94a3b8;
+  --sa-btn-text: #ffffff;
 }
 /* ==============================================================================
    GovData Nexus - Superadmin Premium Dark Stylesheet
@@ -112,7 +114,7 @@
   justify-content: space-between;
   padding: 0.75rem 1rem;
   border-radius: 12px;
-  color: #94a3b8;
+  color: var(--sa-sidebar-text);
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -369,7 +371,7 @@
 
 .sa-btn-primary {
   background-color: var(--sa-primary);
-  color: var(--sa-text);
+  color: var(--sa-btn-text);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 

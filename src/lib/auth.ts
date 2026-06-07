@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import GoogleProvider from "next-auth/providers/google";
 import { supabase } from "@/lib/supabase";
 
 export const authOptions: NextAuthOptions = {
@@ -9,6 +10,10 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.AZURE_AD_CLIENT_ID || "placeholder-client-id",
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET || "placeholder-client-secret",
       tenantId: process.env.AZURE_AD_TENANT_ID || "common",
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "placeholder-google-client-id",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder-google-client-secret",
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -23,17 +28,6 @@ export const authOptions: NextAuthOptions = {
         
         const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
-
-        // Hardcoded global superadmin
-        if (email === "admin@govdata.io" && password === "admin123") {
-          return {
-            id: "superadmin-id",
-            name: "Super Admin",
-            email: email,
-            role: "superadmin",
-            tenant_id: "global"
-          };
-        }
 
         // Hardcoded global superadmin
         if (email === "admin@govdata.io" && password === "admin123") {
@@ -75,8 +69,8 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role || "user";
         token.tenant_id = (user as any).tenant_id || "demo-tenant-id";
       }
-      // If authenticating via Azure AD, map email and create/verify the user metadata
-      if (account && account.provider === "azure-ad" && token.email) {
+      // If authenticating via Azure AD or Google, map email to tenant_users
+      if (account && (account.provider === "azure-ad" || account.provider === "google") && token.email) {
         try {
           const { data, error } = await supabase
             .from("tenant_users")
@@ -90,7 +84,7 @@ export const authOptions: NextAuthOptions = {
             token.tenant_id = data.tenant_id;
           }
         } catch (e) {
-          console.error("Error matching Azure AD user to tenant_users:", e);
+          console.error("Error matching SSO user to tenant_users:", e);
         }
       }
       return token;

@@ -8,7 +8,9 @@ import {
   ShieldCheck, 
   Globe,
   Layout,
-  Check
+  Check,
+  X,
+  Award
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import styles from './login.module.css';
@@ -50,6 +52,11 @@ interface LoginPageConfig {
   logoImageWidthPx: string;
   logoKeepRatio: boolean;
   showLogo: boolean;
+  logoPosition?: 'left-panel' | 'top-right';
+  enableLoginSound?: boolean;
+  loginSoundUrl?: string;
+  themeId?: 'classic' | 'cyberpunk' | 'luxury' | 'minimalist' | 'custom';
+  fontFamily?: string;
 }
 
 const DEFAULT_CONFIG: LoginPageConfig = {
@@ -84,6 +91,11 @@ const DEFAULT_CONFIG: LoginPageConfig = {
   logoImageWidthPx: 'auto',
   logoKeepRatio: true,
   showLogo: true,
+  logoPosition: 'left-panel',
+  enableLoginSound: true,
+  loginSoundUrl: '',
+  themeId: 'classic',
+  fontFamily: 'system-ui, -apple-system, sans-serif',
 };
 
 function getLeftBg(cfg: LoginPageConfig): React.CSSProperties {
@@ -130,6 +142,97 @@ export default function Login() {
       if (saved) setCfg({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
     } catch {}
   }, []);
+
+  // ── Play login sound ─────────────────────────────────────────────
+  const playLoginSound = (onComplete: () => void) => {
+    const savedCfg = (() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+      } catch {}
+      return DEFAULT_CONFIG;
+    })();
+
+    if (savedCfg.enableLoginSound === false) {
+      onComplete();
+      return;
+    }
+
+    // Custom uploaded audio file
+    if (savedCfg.loginSoundUrl) {
+      try {
+        const audio = new Audio(savedCfg.loginSoundUrl);
+        audio.volume = 0.8;
+        
+        let completed = false;
+        const finish = () => {
+          if (!completed) {
+            completed = true;
+            onComplete();
+          }
+        };
+
+        audio.addEventListener('ended', finish);
+        audio.addEventListener('error', finish);
+        
+        audio.play()
+          .then(() => {
+            // Fallback timeout of 2.5s to prevent hanging on long audio files
+            setTimeout(finish, 2500);
+          })
+          .catch(e => {
+            console.warn('Custom audio play failed:', e);
+            finish();
+          });
+      } catch (e) {
+        console.warn('Custom audio error:', e);
+        onComplete();
+      }
+      return;
+    }
+
+    // Synthesized K.I.T.T. sound via Web Audio API
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        onComplete();
+        return;
+      }
+      const ctx = new AudioContextClass();
+
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(80, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(135, ctx.currentTime + 1.3);
+
+      filter.type = 'lowpass';
+      filter.Q.setValueAtTime(18, ctx.currentTime);
+      filter.frequency.setValueAtTime(180, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.4);
+      filter.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.8);
+      filter.frequency.exponentialRampToValueAtTime(850, ctx.currentTime + 1.2);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 1.5);
+      
+      // Delay redirection by 1.5s to match synth duration
+      setTimeout(onComplete, 1500);
+    } catch (e) {
+      console.warn('AudioContext failed:', e);
+      onComplete();
+    }
+  };
 
   const storeUserMetadata = async (normalizedEmail: string) => {
     let role = 'user';
@@ -201,7 +304,9 @@ export default function Login() {
       setIsLoading(false);
     } else {
       await storeUserMetadata(normalizedEmail);
-      window.location.href = '/';
+      playLoginSound(() => {
+        window.location.href = '/';
+      });
     }
   };
 
@@ -224,7 +329,9 @@ export default function Login() {
       setIsLoading(false);
     } else {
       await storeUserMetadata(normalizedEmail);
-      window.location.href = '/';
+      playLoginSound(() => {
+        window.location.href = '/';
+      });
     }
   };
 
@@ -275,7 +382,32 @@ export default function Login() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={cfg.fontFamily ? { fontFamily: cfg.fontFamily } : undefined}>
+      <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
+      {/* Absolute positioned Top Right Logo */}
+      {cfg.showLogo && cfg.logoPosition === 'top-right' && (
+        <div className={styles.topRightLogo}>
+          {cfg.logoMode === 'image' && cfg.logoImageUrl ? (
+            <img
+              src={cfg.logoImageUrl}
+              alt="logo"
+              style={{
+                height: `${cfg.logoImageHeightPx}px`,
+                width: cfg.logoImageWidthPx === 'auto' ? 'auto' : `${cfg.logoImageWidthPx}px`,
+                maxWidth: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <>
+              <div className={styles.logoIconDark}>GN</div>
+              <span className={styles.logoTextDark}>{cfg.logoText}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Left panel — fully driven by superadmin config */}
       <div
         className={styles.leftSection}
@@ -288,7 +420,7 @@ export default function Login() {
         />
         <div className={styles.content}>
           {/* Logo */}
-          {cfg.showLogo && (
+          {cfg.showLogo && cfg.logoPosition !== 'top-right' && (
             <div className={styles.logo}>
               {cfg.logoMode === 'image' && cfg.logoImageUrl ? (
                 <img
@@ -297,7 +429,7 @@ export default function Login() {
                   style={{
                     height: `${cfg.logoImageHeightPx}px`,
                     width: cfg.logoImageWidthPx === 'auto' ? 'auto' : `${cfg.logoImageWidthPx}px`,
-                    maxWidth: '280px',
+                    maxWidth: '100%',
                     objectFit: 'contain',
                     display: 'block',
                   }}
@@ -422,15 +554,29 @@ export default function Login() {
 
               <div className={styles.ssoButtons}>
                 <button 
-                  className={styles.ssoBtn} 
+                  className={styles.ssoBtn}
                   type="button"
                   onClick={() => signIn('azure-ad', { callbackUrl: '/' })}
                 >
-                  <img src="/images/m365_sso_icon.png" alt="Microsoft" />
+                  <svg className={styles.ssoIcon} viewBox="0 0 23 23" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="10" height="10" />
+                    <rect x="13" width="10" height="10" />
+                    <rect y="13" width="10" height="10" />
+                    <rect x="13" y="13" width="10" height="10" />
+                  </svg>
                   Microsoft 365
                 </button>
-                <button className={styles.ssoBtn} type="button">
-                  <img src="/images/google_sso_icon.png" alt="Google" />
+                <button
+                  className={styles.ssoBtn}
+                  type="button"
+                  onClick={() => signIn('google', { callbackUrl: '/' })}
+                >
+                  <svg className={styles.ssoIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
                   Google Workspace
                 </button>
               </div>
@@ -509,39 +655,54 @@ export default function Login() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className={styles.modalContent} 
+            style={{ maxWidth: '550px', padding: 0, overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button className={styles.closeBtn} onClick={() => setIsDemoModalOpen(false)}>&times;</button>
+            {/* Modal Header */}
+            <div style={{ padding: '20px 32px', background: '#4f46e5', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '10px', display: 'flex' }}>
+                  <Award size={22} />
+                </div>
+                <h3 style={{ margin: 0, color: 'white', fontSize: '1.15rem', fontWeight: 800 }}>Solicitar una Demo</h3>
+              </div>
+              <button onClick={() => setIsDemoModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '6px', borderRadius: '8px', cursor: 'pointer', color: 'white', display: 'flex' }}>
+                <X size={18} />
+              </button>
+            </div>
             
             {demoSuccess ? (
-              <div className={styles.successView}>
-                <div className={styles.successIcon}>
+              <div style={{ padding: '32px', textAlign: 'center' }}>
+                <div className={styles.successIcon} style={{ margin: '0 auto 20px' }}>
                   <ShieldCheck size={40} />
                 </div>
-                <h3>Solicitud Enviada</h3>
-                <p>Tu solicitud de demo ha sido registrada con éxito. Nos pondremos en contacto contigo pronto.</p>
-                <button 
-                  onClick={() => setIsDemoModalOpen(false)} 
-                  className={styles.submitBtn} 
-                  style={{ width: '100%', marginTop: '24px' }}
-                >
-                  Cerrar
-                </button>
+                <h3 style={{ fontSize: '1.4rem', color: '#1e293b', marginBottom: '8px', fontWeight: 800 }}>¡Solicitud Registrada!</h3>
+                <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                  Tu solicitud de demo ha sido procesada con éxito. Un especialista de GovData Nexus se pondrá en contacto contigo muy pronto.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', margin: '32px -32px -32px -32px' }}>
+                  <button 
+                    onClick={() => setIsDemoModalOpen(false)} 
+                    className={styles.primaryBtn} 
+                    style={{ minWidth: '120px' }}
+                  >
+                    Entendido
+                  </button>
+                </div>
               </div>
             ) : (
-              <>
-                <div className={styles.modalHeader}>
-                  <h3>Solicitar una Demo</h3>
-                  <p>Completa tus datos y un especialista te contactará.</p>
-                </div>
+              <form onSubmit={handleDemoSubmit}>
+                <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '0.92rem', color: '#64748b', lineHeight: 1.5 }}>
+                    Completa tus datos a continuación y un consultor te contactará para coordinar una sesión personalizada.
+                  </p>
 
-                {demoError && (
-                  <div className={styles.errorMsg}>
-                    {demoError}
-                  </div>
-                )}
+                  {demoError && (
+                    <div className={styles.errorMsg} style={{ marginBottom: 0 }}>
+                      {demoError}
+                    </div>
+                  )}
 
-                <form onSubmit={handleDemoSubmit} className={styles.form}>
                   <div className={styles.inputGroup}>
                     <label>Organización / Empresa</label>
                     <input 
@@ -558,7 +719,7 @@ export default function Login() {
                     <label>Nombre Completo</label>
                     <input 
                       type="text" 
-                      placeholder="Tu nombre" 
+                      placeholder="Tu nombre y apellido" 
                       value={demoName}
                       onChange={(e) => setDemoName(e.target.value)}
                       required
@@ -585,7 +746,7 @@ export default function Login() {
                         value={demoCountryCode} 
                         onChange={(e) => setDemoCountryCode(e.target.value)}
                         className={styles.modalSelect}
-                        style={{ width: '100px', flexShrink: 0 }}
+                        style={{ width: '95px', flexShrink: 0 }}
                       >
                         <option value="+57">🇨🇴 +57</option>
                         <option value="+1">🇺🇸 +1</option>
@@ -613,20 +774,36 @@ export default function Login() {
                     <label>Cargo / Rol</label>
                     <input 
                       type="text" 
-                      placeholder="Ej: Director de Datos" 
+                      placeholder="Ej: Director de Datos, CIO, CDO" 
                       value={demoRole}
                       onChange={(e) => setDemoRole(e.target.value)}
                       required
                       className={styles.modalInput}
                     />
                   </div>
+                </div>
 
-                  <button type="submit" className={styles.submitBtn} disabled={isDemoLoading}>
-                    {isDemoLoading ? 'Registrando...' : 'Enviar Solicitud'}
-                    {!isDemoLoading && <ArrowRight size={18} />}
+                {/* Modal Footer with buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsDemoModalOpen(false)} 
+                    className={styles.backBtn}
+                    style={{ margin: 0, padding: '10px 16px' }}
+                  >
+                    Cancelar
                   </button>
-                </form>
-              </>
+                  <button 
+                    type="submit" 
+                    className={styles.primaryBtn} 
+                    disabled={isDemoLoading}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px', justifyContent: 'center' }}
+                  >
+                    {isDemoLoading ? 'Registrando...' : 'Enviar Solicitud'}
+                    {!isDemoLoading && <ArrowRight size={16} />}
+                  </button>
+                </div>
+              </form>
             )}
           </motion.div>
         </div>

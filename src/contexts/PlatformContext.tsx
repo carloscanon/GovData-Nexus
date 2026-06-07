@@ -70,6 +70,8 @@ export interface SATheme {
   primary: string;
   text: string;
   fontFamily: string;
+  sidebarText: string;
+  btnText: string;
 }
 
 interface PlatformContextType {
@@ -239,7 +241,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     border: '#16223f',
     primary: '#3b82f6',
     text: '#ffffff',
-    fontFamily: 'Inter'
+    fontFamily: 'Inter',
+    sidebarText: '#94a3b8',
+    btnText: '#ffffff',
   });
 
   const [cardBg, setCardBgState] = useState<string>('#ffffff');
@@ -298,7 +302,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     const savedSaTheme = localStorage.getItem('govdata_satheme');
     if (savedSaTheme) {
       try {
-        setSaThemeState(JSON.parse(savedSaTheme));
+        const parsed = JSON.parse(savedSaTheme);
+        // Migration: fill missing fields added after initial release
+        setSaThemeState({
+          sidebarText: '#94a3b8',
+          btnText: '#ffffff',
+          ...parsed,
+        });
       } catch(e) {}
     }
   }, []);
@@ -585,6 +595,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty('--sa-primary', saTheme.primary);
     document.documentElement.style.setProperty('--sa-text', saTheme.text);
     document.documentElement.style.setProperty('--sa-font', saTheme.fontFamily);
+    document.documentElement.style.setProperty('--sa-sidebar-text', saTheme.sidebarText ?? '#94a3b8');
+    document.documentElement.style.setProperty('--sa-btn-text', saTheme.btnText ?? '#ffffff');
   }, [saTheme]);
 
   useEffect(() => {

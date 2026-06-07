@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Save, RotateCcw, Eye, EyeOff, Type, Image as ImageIcon,
   Palette, AlignLeft, Monitor, Upload, Check,
-  ChevronDown, ChevronUp, Layout, Sliders, Layers
+  ChevronDown, ChevronUp, Layout, Sliders, Layers, Music, Play, Trash2, Sparkles
 } from 'lucide-react';
 
 export interface LoginPageConfig {
@@ -49,6 +49,11 @@ export interface LoginPageConfig {
   logoImageWidthPx: string;   // 'auto' or px value
   logoKeepRatio: boolean;     // lock aspect ratio
   showLogo: boolean;
+  logoPosition?: 'left-panel' | 'top-right';
+  enableLoginSound?: boolean;
+  loginSoundUrl?: string;  // custom uploaded audio file as data URL
+  themeId?: 'classic' | 'cyberpunk' | 'luxury' | 'minimalist' | 'custom';
+  fontFamily?: string;
 }
 
 export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
@@ -83,6 +88,11 @@ export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
   logoImageWidthPx: 'auto',
   logoKeepRatio: true,
   showLogo: true,
+  logoPosition: 'left-panel',
+  enableLoginSound: true,
+  loginSoundUrl: '',
+  themeId: 'classic',
+  fontFamily: 'system-ui, -apple-system, sans-serif',
 };
 
 export const STORAGE_KEY = 'govdata_login_config';
@@ -183,12 +193,36 @@ function LoginPreview({ cfg }: { cfg: LoginPageConfig }) {
   const leftBg = getLeftPanelBackground(cfg);
   const overlay = getOverlayStyle(cfg);
   return (
-    <div style={{ display: 'flex', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', height: '520px', boxShadow: '0 24px 48px rgba(0,0,0,0.6)' }}>
+    <div style={{ display: 'flex', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', height: '520px', boxShadow: '0 24px 48px rgba(0,0,0,0.6)', position: 'relative', fontFamily: cfg.fontFamily || 'inherit' }}>
+      {/* Absolute positioned Top Right Logo */}
+      {cfg.showLogo && cfg.logoPosition === 'top-right' && (
+        <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 50, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {cfg.logoMode === 'image' && cfg.logoImageUrl ? (
+            <img
+              src={cfg.logoImageUrl}
+              alt="logo"
+              style={{
+                height: `${cfg.logoImageHeightPx}px`,
+                width: cfg.logoImageWidthPx === 'auto' ? 'auto' : `${cfg.logoImageWidthPx}px`,
+                maxWidth: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <>
+              <div style={{ width: 36, height: 36, background: '#1e3a8a', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.9rem', color: 'white' }}>GN</div>
+              <span style={{ color: '#0f172a', fontWeight: 700, fontSize: '1rem' }}>{cfg.logoText}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Left */}
       <div style={{ flex: 1.2, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px', ...leftBg }}>
         <div style={overlay} />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          {cfg.showLogo && (
+          {cfg.showLogo && cfg.logoPosition !== 'top-right' && (
             <div style={{ marginBottom: '32px' }}>
               {cfg.logoMode === 'image' && cfg.logoImageUrl ? (
                 <img
@@ -197,7 +231,7 @@ function LoginPreview({ cfg }: { cfg: LoginPageConfig }) {
                   style={{
                     height: `${cfg.logoImageHeightPx}px`,
                     width: cfg.logoImageWidthPx === 'auto' ? 'auto' : `${cfg.logoImageWidthPx}px`,
-                    maxWidth: '260px',
+                    maxWidth: '100%',
                     objectFit: 'contain',
                     display: 'block',
                   }}
@@ -268,11 +302,125 @@ export default function LoginConfigPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [previewVisible, setPreviewVisible] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const soundFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setCfg(loadLoginConfig()); }, []);
 
   const update = (key: keyof LoginPageConfig, value: any) =>
-    setCfg(prev => ({ ...prev, [key]: value }));
+    setCfg(prev => ({ ...prev, [key]: value, themeId: 'custom' }));
+
+  const THEMES: Record<'classic' | 'cyberpunk' | 'luxury' | 'minimalist', Partial<LoginPageConfig>> = {
+    classic: {
+      themeId: 'classic',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      backgroundMode: 'image',
+      backgroundImageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop',
+      overlayColorFrom: 'rgba(0,51,102,0.88)',
+      overlayColorTo: 'rgba(30,64,175,0.78)',
+      overlayOpacity: '1',
+      headline: 'La nueva era del',
+      headlineHighlight: 'Gobierno de Datos',
+      subtitle: 'Centraliza el control, garantiza la calidad y potencia la toma de decisiones estratégicas en un solo lugar.',
+      feature1: 'Seguridad Nivel Enterprise',
+      feature2: 'Cumplimiento Global',
+      feature3: 'UX/UI de Próxima Generación',
+      headlineColor: '#ffffff',
+      highlightColor: '#3b82f6',
+      subtitleColor: '#e2e8f0',
+      featureColor: '#ffffff',
+      loginTitle: 'Bienvenido',
+      loginSubtitle: 'Ingresa tus credenciales corporativas',
+      headlineSizeRem: '3.5',
+      subtitleSizeRem: '1.2',
+      featureSizeRem: '1.0',
+      loginTitleSizeRem: '2.0',
+    },
+    cyberpunk: {
+      themeId: 'cyberpunk',
+      fontFamily: "'Space Grotesk', 'Courier New', monospace",
+      backgroundMode: 'gradient',
+      gradientColorFrom: '#03000a',
+      gradientColorTo: '#140529',
+      gradientAngle: '135',
+      headline: 'LA NUEVA REVOLUCIÓN DEL',
+      headlineHighlight: 'GOBIERNO DE DATOS',
+      subtitle: 'Descentraliza el control, automatiza la orquestación y opera a velocidad hiperlumínica.',
+      feature1: 'Seguridad Cuántica & RLS',
+      feature2: 'Orquestación con Agentes IA',
+      feature3: 'Telemetría en Tiempo Real (RT-SDK)',
+      headlineColor: '#ffffff',
+      highlightColor: '#00ffcc',
+      subtitleColor: '#a78bfa',
+      featureColor: '#00ffcc',
+      loginTitle: 'ACCESO DECK',
+      loginSubtitle: 'Ingresa tus claves de red encriptadas',
+      headlineSizeRem: '3.2',
+      subtitleSizeRem: '1.1',
+      featureSizeRem: '0.95',
+      loginTitleSizeRem: '1.8',
+    },
+    luxury: {
+      themeId: 'luxury',
+      fontFamily: "'Playfair Display', Georgia, serif",
+      backgroundMode: 'image',
+      backgroundImageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop',
+      overlayColorFrom: '#0f172a',
+      overlayColorTo: '#1e293b',
+      overlayOpacity: '0.9',
+      headline: 'La excelencia y control del',
+      headlineHighlight: 'Activo de Datos',
+      subtitle: 'Gobernanza corporativa de nivel mundial y auditoría unificada para la alta dirección.',
+      feature1: 'Cumplimiento Global (GDPR/DAMA)',
+      feature2: 'Certificación de Calidad Triple-A',
+      feature3: 'Auditoría Inmutable (Traceability)',
+      headlineColor: '#ffffff',
+      highlightColor: '#e2b842',
+      subtitleColor: '#e2e8f0',
+      featureColor: '#e2b842',
+      loginTitle: 'Área Ejecutiva',
+      loginSubtitle: 'Inicie sesión con su identidad corporativa',
+      headlineSizeRem: '3.5',
+      subtitleSizeRem: '1.2',
+      featureSizeRem: '1.0',
+      loginTitleSizeRem: '2.0',
+    },
+    minimalist: {
+      themeId: 'minimalist',
+      fontFamily: "'Outfit', 'Inter', sans-serif",
+      backgroundMode: 'gradient',
+      gradientColorFrom: '#3b82f6',
+      gradientColorTo: '#8b5cf6',
+      gradientAngle: '145',
+      headline: 'Simple. Inteligente.',
+      headlineHighlight: 'Tus datos en orden.',
+      subtitle: 'La plataforma moderna de autoservicio que empodera a tus equipos y acelera la innovación.',
+      feature1: 'Búsqueda Semántica con IA',
+      feature2: 'Diseño Centrado en el Humano',
+      feature3: 'Integraciones Sin Fricciones',
+      headlineColor: '#ffffff',
+      highlightColor: '#fde047',
+      subtitleColor: '#f3e8ff',
+      featureColor: '#ffffff',
+      loginTitle: 'Hola de nuevo',
+      loginSubtitle: 'Ingresa para acceder a tu panel de control',
+      headlineSizeRem: '3.4',
+      subtitleSizeRem: '1.15',
+      featureSizeRem: '0.95',
+      loginTitleSizeRem: '1.9',
+    }
+  };
+
+  const handleApplyTheme = (themeName: 'classic' | 'cyberpunk' | 'luxury' | 'minimalist') => {
+    const themeData = THEMES[themeName];
+    setCfg(prev => ({ ...prev, ...themeData }));
+    const displayName = 
+      themeName === 'classic' ? 'Por Defecto (Clásico)' : 
+      themeName === 'cyberpunk' ? 'Distopía Cyberpunk' : 
+      themeName === 'luxury' ? 'Negocios de Elite' : 
+      'Minimalista Aurora';
+    setToast(`✨ Tema "${displayName}" seleccionado.`);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
@@ -300,8 +448,33 @@ export default function LoginConfigPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      update('loginSoundUrl', reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const handlePreviewSound = () => {
+    const src = cfg.loginSoundUrl;
+    if (!src) return;
+    try {
+      const audio = new Audio(src);
+      audio.volume = 0.8;
+      audio.play().catch(err => console.warn('Preview play failed:', err));
+    } catch (e) {
+      console.warn('Audio preview error:', e);
+    }
+  };
+
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', fontFamily: cfg.fontFamily || 'inherit' }}>
+      <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
       {/* Toast */}
       {toast && (
         <div style={{
@@ -328,6 +501,146 @@ export default function LoginConfigPage() {
           </button>
           <button onClick={handleSave} className="sa-btn sa-btn-primary">
             <Save size={16} /> Guardar Cambios
+          </button>
+        </div>
+      </div>
+
+      {/* ── THEME PRESETS SELECTOR ── */}
+      <div className="sa-card" style={{ gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+          <Sparkles size={18} style={{ color: '#fbbf24' }} />
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff' }}>Temas Preestablecidos (UX & Colores Cohesivos)</h3>
+        </div>
+        <p style={{ color: '#64748b', fontSize: '0.82rem', margin: 0 }}>
+          Selecciona uno de los estilos prediseñados para cambiar instantáneamente la paleta de colores, la tipografía, los textos y el fondo, creando un diseño unificado y premium.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+          {/* Classic theme button */}
+          <button
+            onClick={() => handleApplyTheme('classic')}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: `2px solid ${cfg.themeId === 'classic' ? '#3b82f6' : 'rgba(255,255,255,0.08)'}`,
+              background: cfg.themeId === 'classic' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255,255,255,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              textAlign: 'left',
+              color: '#fff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+              <span style={{ fontSize: '1.25rem' }}>🏢</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cfg.themeId === 'classic' ? '#3b82f6' : '#f8fafc' }}>Por Defecto (Clásico)</span>
+              {cfg.themeId === 'classic' && <Check size={14} style={{ marginLeft: 'auto', color: '#3b82f6' }} />}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4, margin: 0 }}>
+              El diseño corporativo original de GovData Nexus, con la paleta de colores azul oscuro, toques cian y tipografía predeterminada.
+            </p>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#003366', border: '1px solid #334155' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#1e40af' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#3b82f6' }} />
+            </div>
+          </button>
+
+          {/* Cyberpunk theme button */}
+          <button
+            onClick={() => handleApplyTheme('cyberpunk')}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: `2px solid ${cfg.themeId === 'cyberpunk' ? '#00ffcc' : 'rgba(255,255,255,0.08)'}`,
+              background: cfg.themeId === 'cyberpunk' ? 'rgba(0, 255, 204, 0.08)' : 'rgba(255,255,255,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              textAlign: 'left',
+              color: '#fff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+              <span style={{ fontSize: '1.25rem' }}>👾</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cfg.themeId === 'cyberpunk' ? '#00ffcc' : '#f8fafc' }}>Distopía Cyberpunk</span>
+              {cfg.themeId === 'cyberpunk' && <Check size={14} style={{ marginLeft: 'auto', color: '#00ffcc' }} />}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4, margin: 0 }}>
+              Estilo futurista de ciencia ficción con luces de neón cian, fondo oscuro y tipografía monospace técnica.
+            </p>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#0a0a16', border: '1px solid #334155' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#00ffcc' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#a78bfa' }} />
+            </div>
+          </button>
+
+          {/* Luxury theme button */}
+          <button
+            onClick={() => handleApplyTheme('luxury')}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: `2px solid ${cfg.themeId === 'luxury' ? '#e2b842' : 'rgba(255,255,255,0.08)'}`,
+              background: cfg.themeId === 'luxury' ? 'rgba(226, 184, 66, 0.08)' : 'rgba(255,255,255,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              textAlign: 'left',
+              color: '#fff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+              <span style={{ fontSize: '1.25rem' }}>👑</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cfg.themeId === 'luxury' ? '#e2b842' : '#f8fafc' }}>Negocios de Elite</span>
+              {cfg.themeId === 'luxury' && <Check size={14} style={{ marginLeft: 'auto', color: '#e2b842' }} />}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4, margin: 0 }}>
+              Diseño elegante para altos directivos, con fotografía de arquitectura, overlay oscuro y toques dorados sofisticados.
+            </p>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#0f172a', border: '1px solid #334155' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#e2b842' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#cbd5e1' }} />
+            </div>
+          </button>
+
+          {/* Minimalist theme button */}
+          <button
+            onClick={() => handleApplyTheme('minimalist')}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: `2px solid ${cfg.themeId === 'minimalist' ? '#8b5cf6' : 'rgba(255,255,255,0.08)'}`,
+              background: cfg.themeId === 'minimalist' ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255,255,255,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              textAlign: 'left',
+              color: '#fff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+              <span style={{ fontSize: '1.25rem' }}>✨</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cfg.themeId === 'minimalist' ? '#a78bfa' : '#f8fafc' }}>Minimalista Aurora</span>
+              {cfg.themeId === 'minimalist' && <Check size={14} style={{ marginLeft: 'auto', color: '#a78bfa' }} />}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4, margin: 0 }}>
+              Estilo moderno e innovador con un fondo degradado de aurora morado/azul, textos limpios y tipografía geométrica Outfit.
+            </p>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#3b82f6' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#8b5cf6' }} />
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fde047' }} />
+            </div>
           </button>
         </div>
       </div>
@@ -425,6 +738,24 @@ export default function LoginConfigPage() {
 
             {cfg.showLogo && (
               <>
+                <Field label="Posición del Logo">
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    {[
+                      { value: 'left-panel', label: '📍 Panel Izquierdo' },
+                      { value: 'top-right', label: '↗️ Superior Derecha' }
+                    ].map(pos => (
+                      <button key={pos.value} onClick={() => update('logoPosition', pos.value)} style={{
+                        flex: 1, padding: '0.55rem', borderRadius: '8px', fontWeight: 600,
+                        fontSize: '0.82rem', cursor: 'pointer', border: 'none',
+                        background: (cfg.logoPosition || 'left-panel') === pos.value ? '#3b82f6' : 'rgba(255,255,255,0.06)',
+                        color: (cfg.logoPosition || 'left-panel') === pos.value ? '#fff' : '#94a3b8',
+                      }}>
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
                 <Field label="Tipo de Logo">
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     {(['text', 'image'] as const).map(mode => (
@@ -507,7 +838,7 @@ export default function LoginConfigPage() {
                     {/* Height slider — always shown */}
                     <Field label={`Alto: ${cfg.logoImageHeightPx} px`}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input type="range" min="20" max="200" step="2" value={cfg.logoImageHeightPx}
+                        <input type="range" min="20" max="500" step="2" value={cfg.logoImageHeightPx}
                           onChange={e => update('logoImageHeightPx', e.target.value)}
                           style={{ flex: 1, accentColor: '#3b82f6' }} />
                         <span style={{ color: '#60a5fa', fontWeight: 700, fontSize: '0.85rem', minWidth: '3.5rem', textAlign: 'right' }}>{cfg.logoImageHeightPx} px</span>
@@ -518,7 +849,7 @@ export default function LoginConfigPage() {
                     {!cfg.logoKeepRatio && (
                       <Field label={`Ancho: ${cfg.logoImageWidthPx === 'auto' ? 'auto' : cfg.logoImageWidthPx + ' px'}`}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <input type="range" min="20" max="400" step="4"
+                          <input type="range" min="20" max="800" step="4"
                             value={cfg.logoImageWidthPx === 'auto' ? '200' : cfg.logoImageWidthPx}
                             onChange={e => update('logoImageWidthPx', e.target.value)}
                             style={{ flex: 1, accentColor: '#8b5cf6' }} />
@@ -634,11 +965,125 @@ export default function LoginConfigPage() {
             <ColorField label="Características" value={cfg.featureColor} onChange={v => update('featureColor', v)} />
           </Section>
 
-          <Section title="Tamaños de Texto" icon={Sliders}>
+          <Section title="Tamaños y Tipografía" icon={Sliders}>
+            <Field label="Fuente / Familia Tipográfica">
+              <select 
+                value={cfg.fontFamily || 'system-ui, -apple-system, sans-serif'} 
+                onChange={e => update('fontFamily', e.target.value)} 
+                style={inputStyle}
+              >
+                <option value="system-ui, -apple-system, sans-serif">Predeterminada (Sans-Serif)</option>
+                <option value="'Outfit', 'Inter', sans-serif">Outfit / Inter (Geométrica / Limpia)</option>
+                <option value="'Space Grotesk', 'Courier New', monospace">Space Grotesk / Monospace (Futurista / Cyberpunk)</option>
+                <option value="'Playfair Display', Georgia, serif">Playfair Display / Serif (Elegante / Luxury)</option>
+              </select>
+            </Field>
             <SizeField label="Título Principal" value={cfg.headlineSizeRem} onChange={v => update('headlineSizeRem', v)} />
             <SizeField label="Subtítulo" value={cfg.subtitleSizeRem} onChange={v => update('subtitleSizeRem', v)} />
             <SizeField label="Características" value={cfg.featureSizeRem} onChange={v => update('featureSizeRem', v)} />
             <SizeField label="Título del Formulario" value={cfg.loginTitleSizeRem} onChange={v => update('loginTitleSizeRem', v)} />
+          </Section>
+
+          <Section title="Efectos y Sonido" icon={Music}>
+            <Field label="Sonido de Inicio">
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                {([true, false] as const).map(v => (
+                  <button key={String(v)} onClick={() => update('enableLoginSound', v)} style={{
+                    flex: 1, padding: '0.55rem', borderRadius: '8px', fontWeight: 600,
+                    fontSize: '0.82rem', cursor: 'pointer', border: 'none',
+                    background: (cfg.enableLoginSound !== false ? true : false) === v ? '#3b82f6' : 'rgba(255,255,255,0.06)',
+                    color: (cfg.enableLoginSound !== false ? true : false) === v ? '#fff' : '#94a3b8',
+                  }}>
+                    {v ? '🔊 Activado' : '🔇 Desactivado'}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {cfg.enableLoginSound !== false && (
+              <Field label="Archivo de Sonido Personalizado">
+                {/* Hidden file input */}
+                <input
+                  ref={soundFileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  onChange={handleSoundUpload}
+                />
+
+                {cfg.loginSoundUrl ? (
+                  // ── Sound loaded: show name, preview, and clear ──
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)',
+                      borderRadius: '10px', padding: '0.625rem 0.875rem',
+                    }}>
+                      <Music size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: '0.82rem', color: '#93c5fd', fontWeight: 600, wordBreak: 'break-all' }}>
+                        Sonido personalizado cargado ✓
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={handlePreviewSound}
+                        style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: '0.4rem', padding: '0.5rem', borderRadius: '8px', fontWeight: 600,
+                          fontSize: '0.8rem', cursor: 'pointer', border: 'none',
+                          background: 'rgba(16,185,129,0.15)', color: '#34d399',
+                        }}
+                      >
+                        <Play size={14} /> Previsualizar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => soundFileInputRef.current?.click()}
+                        style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: '0.4rem', padding: '0.5rem', borderRadius: '8px', fontWeight: 600,
+                          fontSize: '0.8rem', cursor: 'pointer', border: 'none',
+                          background: 'rgba(255,255,255,0.06)', color: '#94a3b8',
+                        }}
+                      >
+                        <Upload size={14} /> Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => update('loginSoundUrl', '')}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: '0.4rem', padding: '0.5rem 0.75rem', borderRadius: '8px', fontWeight: 600,
+                          fontSize: '0.8rem', cursor: 'pointer', border: 'none',
+                          background: 'rgba(239,68,68,0.12)', color: '#f87171',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.72rem', color: '#475569', margin: 0 }}>
+                      El sonido personalizado reemplaza el efecto K.I.T.T. predeterminado.
+                    </p>
+                  </div>
+                ) : (
+                  // ── No sound uploaded: upload button + info ──
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => soundFileInputRef.current?.click()}
+                      className="sa-btn sa-btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '100%' }}
+                    >
+                      <Upload size={15} /> Subir archivo de audio (.mp3, .wav, .ogg…)
+                    </button>
+                    <p style={{ fontSize: '0.72rem', color: '#475569', margin: 0 }}>
+                      Si no subes un archivo, se usará el efecto K.I.T.T. sintetizado por defecto.
+                    </p>
+                  </div>
+                )}
+              </Field>
+            )}
           </Section>
         </div>
       </div>
