@@ -135,33 +135,48 @@ export default function Login() {
   const [demoSuccess, setDemoSuccess] = useState(false);
   const [demoError, setDemoError] = useState('');
 
-  // Load superadmin login config from localStorage
+  // Load config: show localStorage cache instantly, then fetch from DB
   useEffect(() => {
+    // 1. Instant render from local cache
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) setCfg({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
     } catch {}
+
+    // 2. Fetch from Supabase (authoritative global config)
+    const fetchFromDB = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tenant_config')
+          .select('config_value')
+          .eq('tenant_id', 'global')
+          .eq('config_key', 'govdata_login_config')
+          .single();
+        if (!error && data?.config_value) {
+          const parsed = typeof data.config_value === 'string'
+            ? JSON.parse(data.config_value)
+            : data.config_value;
+          // Sync to localStorage as cache for next load
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          setCfg({ ...DEFAULT_CONFIG, ...parsed });
+        }
+      } catch {}
+    };
+    fetchFromDB();
   }, []);
 
   // ── Play login sound ─────────────────────────────────────────────
   const playLoginSound = (onComplete: () => void) => {
-    const savedCfg = (() => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
-      } catch {}
-      return DEFAULT_CONFIG;
-    })();
-
-    if (savedCfg.enableLoginSound === false) {
+    // Use cfg state (already loaded from Supabase) instead of re-reading localStorage
+    if (cfg.enableLoginSound === false) {
       onComplete();
       return;
     }
 
     // Custom uploaded audio file
-    if (savedCfg.loginSoundUrl) {
+    if (cfg.loginSoundUrl) {
       try {
-        const audio = new Audio(savedCfg.loginSoundUrl);
+        const audio = new Audio(cfg.loginSoundUrl);
         audio.volume = 0.8;
         
         let completed = false;

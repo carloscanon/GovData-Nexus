@@ -6,6 +6,7 @@ import {
   Palette, AlignLeft, Monitor, Upload, Check,
   ChevronDown, ChevronUp, Layout, Sliders, Layers, Music, Play, Trash2, Sparkles
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export interface LoginPageConfig {
   // Background mode
@@ -96,6 +97,8 @@ export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
 };
 
 export const STORAGE_KEY = 'govdata_login_config';
+const SUPABASE_TENANT_ID = 'global';
+const SUPABASE_CONFIG_KEY = 'govdata_login_config';
 
 export function loadLoginConfig(): LoginPageConfig {
   if (typeof window === 'undefined') return DEFAULT_LOGIN_CONFIG;
@@ -104,6 +107,42 @@ export function loadLoginConfig(): LoginPageConfig {
     if (saved) return { ...DEFAULT_LOGIN_CONFIG, ...JSON.parse(saved) };
   } catch {}
   return DEFAULT_LOGIN_CONFIG;
+}
+
+export async function loadLoginConfigFromDB(): Promise<LoginPageConfig> {
+  try {
+    const { data, error } = await supabase
+      .from('tenant_config')
+      .select('config_value')
+      .eq('tenant_id', SUPABASE_TENANT_ID)
+      .eq('config_key', SUPABASE_CONFIG_KEY)
+      .single();
+    if (!error && data?.config_value) {
+      const parsed = typeof data.config_value === 'string'
+        ? JSON.parse(data.config_value)
+        : data.config_value;
+      // Also sync to localStorage as cache
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      return { ...DEFAULT_LOGIN_CONFIG, ...parsed };
+    }
+  } catch {}
+  return loadLoginConfig();
+}
+
+export async function saveLoginConfigToDB(cfg: LoginPageConfig): Promise<void> {
+  // Always save to localStorage immediately (fast)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  // Then persist to Supabase (shared across all browsers)
+  try {
+    await supabase.from('tenant_config').upsert({
+      tenant_id: SUPABASE_TENANT_ID,
+      config_key: SUPABASE_CONFIG_KEY,
+      config_value: cfg,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'tenant_id,config_key' });
+  } catch (e) {
+    console.warn('Could not save login config to DB:', e);
+  }
 }
 
 // ── helpers ────────────────────────────────────────────────────────
@@ -304,7 +343,11 @@ export default function LoginConfigPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const soundFileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setCfg(loadLoginConfig()); }, []);
+  useEffect(() => {
+    // Show localStorage cache instantly, then fetch latest from DB
+    setCfg(loadLoginConfig());
+    loadLoginConfigFromDB().then(dbCfg => setCfg(dbCfg));
+  }, []);
 
   const update = (key: keyof LoginPageConfig, value: any) =>
     setCfg(prev => ({ ...prev, [key]: value, themeId: 'custom' }));
@@ -422,16 +465,24 @@ export default function LoginConfigPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-    setToast('✅ Configuración del login guardada correctamente.');
+  const handleSave = async () => {
+    setToast('⏳ Guardando...');
+    await saveLoginConfigToDB(cfg);
+    setToast('✅ Configuración guardada y sincronizada en todos los navegadores.');
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (confirm('¿Restaurar la configuración predeterminada del login?')) {
       setCfg(DEFAULT_LOGIN_CONFIG);
       localStorage.removeItem(STORAGE_KEY);
+      // Clear from DB too
+      try {
+        await supabase.from('tenant_config')
+          .delete()
+          .eq('tenant_id', SUPABASE_TENANT_ID)
+          .eq('config_key', SUPABASE_CONFIG_KEY);
+      } catch {}
       setToast('↩ Configuración restaurada al estado original.');
       setTimeout(() => setToast(null), 3000);
     }
