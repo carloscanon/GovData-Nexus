@@ -62,6 +62,7 @@ export async function POST(req: Request) {
   const { data: role, error } = await supabase
     .from('roles')
     .insert({ name, description, tenant_id: tenantId })
+    .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -279,10 +279,12 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
       </nav>
 
       <div className={styles.footer}>
-        <Link href="/settings" className={styles.footerLink} onClick={handleLinkClick}>
-          <Settings size={22} />
-          {!isCollapsed && <span>Configuración</span>}
-        </Link>
+        {(userRole === 'admin' || userRole === 'superadmin') && (
+          <Link href="/settings" className={styles.footerLink} onClick={handleLinkClick}>
+            <Settings size={22} />
+            {!isCollapsed && <span>Configuración</span>}
+          </Link>
+        )}
         <button 
           className={styles.footerLink} 
           onClick={(e) => {

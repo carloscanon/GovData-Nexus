@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 // GET /api/roles/[id] – fetch a role with its modules
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const roleId = params.id;
+  const roleId = (await params).id;
   const { data: role, error } = await supabase
     .from('roles')
     .select('id, name, description')
@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // PUT /api/roles/[id] – update role name/description and its module list
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -47,7 +47,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const roleId = params.id;
+  const roleId = (await params).id;
   const { name, description, modules } = await request.json();
   if (!name || !Array.isArray(modules)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
@@ -69,7 +69,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/roles/[id] – remove role and cascade delete mappings
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -82,7 +82,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const roleId = params.id;
+  const roleId = (await params).id;
   // Delete role – foreign keys cascade to role_modules and user_roles
   const { error } = await supabase.from('roles').delete().eq('id', roleId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

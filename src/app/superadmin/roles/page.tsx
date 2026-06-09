@@ -1,6 +1,7 @@
+"use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 // Simple modal component
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {

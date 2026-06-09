@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 // GET /api/users/[id]/roles – list roles assigned to a user
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const userId = params.id;
+  const userId = (await params).id;
   const { data, error } = await supabase
     .from('user_roles')
     .select('role_id, roles!inner(name, description)')
@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // POST /api/users/[id]/roles – assign a set of roles to a user (replace existing)
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const userId = params.id;
+  const userId = (await params).id;
   const { roleIds } = await request.json(); // expect array of role UUIDs
   if (!Array.isArray(roleIds)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 }
 
 // DELETE /api/users/[id]/roles/:roleId – remove a specific role from a user
-export async function DELETE(request: Request, { params }: { params: { id: string; roleId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
@@ -73,7 +73,10 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { id: userId, roleId } = params;
+  const { id: userId } = await params;
+  const { searchParams } = new URL(request.url);
+  const roleId = searchParams.get('roleId');
+  if (!roleId) return NextResponse.json({ error: 'Missing roleId parameter' }, { status: 400 });
   const { error } = await supabase.from('user_roles').delete().eq('user_id', userId).eq('role_id', roleId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

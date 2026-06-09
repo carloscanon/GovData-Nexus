@@ -88,6 +88,15 @@ export default function Settings() {
   const [isSavingDashboard, setIsSavingDashboard] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('govdata_role');
+      if (role && role !== 'admin' && role !== 'superadmin') {
+        window.location.href = '/';
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentTenant?.dashboardType) {
       setSelectedDashboardType(currentTenant.dashboardType);
     }
