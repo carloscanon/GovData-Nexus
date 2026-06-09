@@ -67,13 +67,52 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [isMounted, setIsMounted] = React.useState(false);
 
+  const [userAllowedModules, setUserAllowedModules] = React.useState<string[]>([]);
+
   React.useEffect(() => {
     setIsMounted(true);
+    const role = typeof window !== 'undefined' ? localStorage.getItem('govdata_role') : null;
+    const email = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+    
+    setUserRole(role);
     if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('govdata_role'));
       setUserName(localStorage.getItem('govdata_user_name'));
       setUserAvatar(localStorage.getItem('govdata_avatar_url'));
-      setUserEmail(localStorage.getItem('govdata_user_email'));
+      setUserEmail(email);
+    }
+
+    // Fetch allowed modules for custom DB roles if not a standard system role (superadmin/admin/viewer/editor/steward)
+    const fetchCustomRolePermissions = async () => {
+      if (!role || !currentTenant || ['superadmin', 'admin', 'viewer', 'editor', 'steward'].includes(role.toLowerCase())) {
+        return;
+      }
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        // Get the role's modules
+        const { data: roleData } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('tenant_id', currentTenant.id)
+          .eq('name', role)
+          .single();
+          
+        if (roleData) {
+          const { data: moduleData } = await supabase
+            .from('role_modules')
+            .select('module')
+            .eq('role_id', roleData.id);
+            
+          if (moduleData) {
+            setUserAllowedModules(moduleData.map((m: any) => m.module));
+          }
+        }
+      } catch (err) {
+        console.error('Error loading custom role permissions:', err);
+      }
+    };
+
+    if (currentTenant?.id) {
+      fetchCustomRolePermissions();
     }
 
     // Listen for profile updates from the access management module
@@ -96,7 +135,7 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
       window.removeEventListener('govdata_user_updated', handleUserUpdated);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [currentTenant?.id, userRole]);
 
   // Logout handler
   const handleLogout = () => {
@@ -112,8 +151,14 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const filteredMenuItems = menuItems.filter(item => {
     if (userRole === 'superadmin') return true; // Superadmin ve absolutamente todo
     if (userRole === 'admin') return true;       // Admin del tenant ve todos los módulos
-    if (!item.module) return true;               // Dashboard siempre visible
-    // Usuarios normales: solo módulos habilitados del tenant
+    if (!item.module) return true;               // Launchpad/Command center siempre visible
+    
+    // Si es un rol personalizado de base de datos
+    if (userRole && !['viewer', 'editor', 'steward'].includes(userRole.toLowerCase())) {
+      return userAllowedModules.includes(item.module);
+    }
+    
+    // Mapeo tradicional por defecto
     return currentTenant?.modules?.includes(item.module);
   });
 

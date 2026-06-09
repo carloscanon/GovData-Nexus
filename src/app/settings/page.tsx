@@ -39,7 +39,7 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import styles from './settings.module.css';
 
-type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'notifications' | 'integrations' | 'branding';
+type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'roles' | 'notifications' | 'integrations' | 'branding';
 
 export default function Settings() {
   const { 
@@ -202,6 +202,100 @@ export default function Settings() {
     fetchUsers();
   }, [currentTenant?.id]);
 
+  const [roles, setRoles] = useState<any[]>([]);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  // Granular module permissions: { [moduleKey]: { view, create, edit, delete } }
+  type ModulePerms = { view: boolean; create: boolean; edit: boolean; delete: boolean };
+  type RolePerms = { [key: string]: ModulePerms };
+
+  const AVAILABLE_MODULES = [
+    { key: 'metadata', label: 'Metadata Intelligence', icon: '🧠' },
+    { key: 'catalog', label: 'Catálogo de Datos', icon: '📂' },
+    { key: 'quality', label: 'Calidad de Datos', icon: '✅' },
+    { key: 'security', label: 'Seguridad y Riesgos', icon: '🔐' },
+    { key: 'team', label: 'Roles y Equipo', icon: '👥' },
+    { key: 'workflows', label: 'Workflows', icon: '⚡' },
+    { key: 'maturity', label: 'Madurez', icon: '📊' },
+    { key: 'policies', label: 'Políticas', icon: '📋' },
+  ];
+
+  const PERMISSION_LABELS: { key: keyof ModulePerms; label: string; color: string }[] = [
+    { key: 'view', label: 'Ver', color: '#3b82f6' },
+    { key: 'create', label: 'Crear', color: '#10b981' },
+    { key: 'edit', label: 'Editar', color: '#f59e0b' },
+    { key: 'delete', label: 'Eliminar', color: '#ef4444' },
+  ];
+
+  const emptyPerms = (): RolePerms => {
+    const p: RolePerms = {};
+    AVAILABLE_MODULES.forEach(m => { p[m.key] = { view: false, create: false, edit: false, delete: false }; });
+    return p;
+  };
+
+  // Convert flat modules[] to granular RolePerms (legacy compatibility)
+  const modulesToPerms = (modules: string[]): RolePerms => {
+    const p = emptyPerms();
+    modules.forEach(mod => {
+      if (p[mod]) { p[mod].view = true; p[mod].create = true; p[mod].edit = true; p[mod].delete = false; }
+    });
+    return p;
+  };
+
+  // Flatten granular perms back to simple module key list (modules with at least view access)
+  const permsToModules = (perms: RolePerms): string[] =>
+    Object.entries(perms).filter(([, v]) => v.view || v.create || v.edit || v.delete).map(([k]) => k);
+
+  const [newRole, setNewRole] = useState<{ name: string; description: string; perms: RolePerms }>({ name: '', description: '', perms: emptyPerms() });
+  const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<{ id: string; name: string; description: string; perms: RolePerms } | null>(null);
+
+  // Fetch roles with their modules from Supabase
+  useEffect(() => {
+    if (!currentTenant) return;
+    const fetchRoles = async () => {
+      // Validate if currentTenant.id is a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isValidUuid = uuidRegex.test(currentTenant.id);
+
+      try {
+        let query = supabase.from('roles').select('*');
+        
+        if (isValidUuid) {
+          query = query.eq('tenant_id', currentTenant.id);
+        } else {
+          // If it is a mock string ID (like "1"), query globally or return default starter roles
+          query = query.is('tenant_id', null);
+        }
+
+        const { data: rolesData, error: rolesError } = await query.order('created_at', { ascending: false });
+        if (rolesError) throw rolesError;
+
+        if (rolesData && rolesData.length > 0) {
+          // Fetch module mappings for all roles of this tenant
+          const roleIds = rolesData.map((r: any) => r.id);
+          const { data: modulesData, error: modulesError } = await supabase
+            .from('role_modules')
+            .select('role_id, module')
+            .in('role_id', roleIds);
+          
+          if (modulesError) throw modulesError;
+
+          // Merge modules list into roles structure
+          const combined = rolesData.map((r: any) => ({
+            ...r,
+            modules: modulesData ? modulesData.filter((m: any) => m.role_id === r.id).map((m: any) => m.module) : []
+          }));
+          setRoles(combined);
+        } else {
+          setRoles([]);
+        }
+      } catch (e: any) {
+        console.error('Error fetching roles:', e.message || e.details || e);
+      }
+    };
+    fetchRoles();
+  }, [currentTenant?.id]);
+
   const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'editor', password: '', avatar: '' });
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -281,7 +375,7 @@ export default function Settings() {
   const handleEditUser = (user: any) => {
     setSelectedUser(user);
     const allowed = getRolesForPlan();
-    const isAllowed = allowed.some(r => r.value === user.role);
+    const isAllowed = allowed.some(r => r.value === user.role) || roles.some(r => r.name === user.role);
     setEditForm({
       name: user.name,
       email: user.email,
@@ -370,6 +464,12 @@ export default function Settings() {
             onClick={() => setActiveTab('users')}
           >
             <UserCheck size={20} /> Gestión de Accesos
+          </button>
+          <button 
+            className={`${styles.navItem} ${activeTab === 'roles' ? styles.activeNavItem : ''}`}
+            onClick={() => setActiveTab('roles')}
+          >
+            <KeyIcon size={20} /> Roles y Permisos
           </button>
           <button 
             className={`${styles.navItem} ${activeTab === 'notifications' ? styles.activeNavItem : ''}`}
@@ -1099,6 +1199,98 @@ export default function Settings() {
               </>
             )}
 
+             {activeTab === 'roles' && (
+              <>
+                <div className={styles.panelHeader}>
+                  <h2>Definición de Roles</h2>
+                  <p>Administra los roles de los usuarios en plataforma y decide a qué tienen acceso.</p>
+                </div>
+                <div className={styles.section} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                  <button className={styles.primaryBtn} onClick={() => setIsRoleModalOpen(true)}>
+                    <KeyIcon size={16} /> Crear Rol
+                  </button>
+                </div>
+
+                <div className={styles.rolesGrid}>
+                  {roles.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🔑</div>
+                      <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '4px' }}>Sin roles personalizados</div>
+                      <div style={{ fontSize: '0.9rem' }}>Crea roles para controlar qué módulos puede ver y editar cada tipo de usuario.</div>
+                    </div>
+                  )}
+                  {roles.map(r => {
+                    const rolePerms: RolePerms = r.perms || modulesToPerms(r.modules || []);
+                    return (
+                    <div key={r.id} className={styles.roleCard}>
+                      <div className={styles.roleHeader}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1rem' }}>🔑</div>
+                          <div className={styles.roleName}>{r.name}</div>
+                        </div>
+                        <div className={styles.roleActions}>
+                          <button className={styles.iconBtn} onClick={() => {
+                            setEditingRole({
+                              id: r.id,
+                              name: r.name,
+                              description: r.description || '',
+                              perms: r.perms || modulesToPerms(r.modules || [])
+                            });
+                            setIsEditRoleModalOpen(true);
+                          }} title="Editar"><Edit size={14} /></button>
+                          <button className={styles.iconBtn} onClick={async () => {
+                            if (confirm('¿Eliminar rol?')) {
+                              const { error } = await supabase.from('roles').delete().eq('id', r.id);
+                              if (!error) setRoles(roles.filter(v => v.id !== r.id));
+                            }
+                          }} title="Eliminar"><Trash2 size={14} color="#ef4444" /></button>
+                        </div>
+                      </div>
+                      <div className={styles.roleDesc}>{r.description || 'Sin descripción del rol.'}</div>
+                      
+                      <hr className={styles.divider} />
+                      
+                      <div className={styles.moduleAccessTitle}>Matriz de Permisos:</div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left', padding: '4px 6px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulo</th>
+                              {PERMISSION_LABELS.map(p => (
+                                <th key={p.key} style={{ textAlign: 'center', padding: '4px 6px', color: p.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '48px' }}>{p.label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {AVAILABLE_MODULES.map(mod => {
+                              const mp = rolePerms[mod.key] || { view: false, create: false, edit: false, delete: false };
+                              const hasAny = mp.view || mp.create || mp.edit || mp.delete;
+                              return (
+                                <tr key={mod.key} style={{ background: hasAny ? 'rgba(99,102,241,0.04)' : 'transparent', borderRadius: '6px' }}>
+                                  <td style={{ padding: '5px 6px', fontWeight: hasAny ? 700 : 400, color: hasAny ? '#1e293b' : '#cbd5e1', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <span>{mod.icon}</span><span>{mod.label}</span>
+                                  </td>
+                                  {PERMISSION_LABELS.map(p => (
+                                    <td key={p.key} style={{ textAlign: 'center', padding: '5px 6px' }}>
+                                      {mp[p.key]
+                                        ? <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: p.color, color: 'white' }}><Check size={12} strokeWidth={3} /></span>
+                                        : <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: '#f1f5f9', color: '#cbd5e1', fontSize: '14px', fontWeight: 800 }}>−</span>
+                                      }
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
             {activeTab === 'users' && (
               <>
                 <div className={styles.panelHeader}>
@@ -1262,7 +1454,296 @@ export default function Settings() {
         </main>
       </div>
 
-      {/* Modal: Crear Usuario */}
+        {/* Modal: Crear Rol */}
+        <AnimatePresence>
+          {isRoleModalOpen && (
+            <div className={styles.modalOverlay} onClick={() => setIsRoleModalOpen(false)}>
+              <motion.div
+                className={styles.modalContent}
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={styles.modalHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>🔑</div>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Crear Nuevo Rol</h2>
+                  </div>
+                  <button className={styles.closeBtn} onClick={() => setIsRoleModalOpen(false)}><XCircle size={28} /></button>
+                </div>
+                <div className={styles.modalBody} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div className={styles.field}>
+                      <label>Nombre del Rol</label>
+                      <input type="text" className={styles.input} placeholder="Ej: Analista de Datos" value={newRole.name} onChange={e => setNewRole({ ...newRole, name: e.target.value })} />
+                    </div>
+                    <div className={styles.field}>
+                      <label>Descripción</label>
+                      <input type="text" className={styles.input} placeholder="Breve descripción del rol..." value={newRole.description} onChange={e => setNewRole({ ...newRole, description: e.target.value })} />
+                    </div>
+                  </div>
+                  
+                  <div className={styles.field} style={{ marginTop: '0' }}>
+                    <label style={{ fontWeight: 700, display: 'block', marginBottom: '12px', color: '#1e293b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔐 Matriz de Permisos por Módulo</label>
+                    <div style={{ borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc' }}>
+                            <th style={{ textAlign: 'left', padding: '10px 16px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulo</th>
+                            {PERMISSION_LABELS.map(p => (
+                              <th key={p.key} style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: p.color }}>{p.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {AVAILABLE_MODULES.map((mod, idx) => (
+                            <tr key={mod.key} style={{ background: idx % 2 === 0 ? 'white' : '#fafbfc', borderTop: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '1.1rem' }}>{mod.icon}</span>
+                                <span>{mod.label}</span>
+                              </td>
+                              {PERMISSION_LABELS.map(p => {
+                                const val = newRole.perms[mod.key]?.[p.key] || false;
+                                return (
+                                  <td key={p.key} style={{ textAlign: 'center', padding: '12px' }}>
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={val}
+                                        onChange={e => {
+                                          const updated: RolePerms = { ...newRole.perms };
+                                          updated[mod.key] = { ...(updated[mod.key] || { view: false, create: false, edit: false, delete: false }), [p.key]: e.target.checked };
+                                          // Auto-enable 'view' if any other permission is enabled
+                                          if (p.key !== 'view' && e.target.checked) updated[mod.key].view = true;
+                                          setNewRole({ ...newRole, perms: updated });
+                                        }}
+                                        style={{ display: 'none' }}
+                                      />
+                                      <span style={{
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        width: '24px', height: '24px', borderRadius: '6px',
+                                        background: val ? p.color : '#f1f5f9',
+                                        color: val ? 'white' : '#cbd5e1',
+                                        border: val ? `2px solid ${p.color}` : '2px solid #e2e8f0',
+                                        transition: 'all 0.15s',
+                                        cursor: 'pointer'
+                                      }}>
+                                        {val ? <Check size={14} strokeWidth={3} /> : <span style={{ fontSize: '12px', fontWeight: 800 }}>−</span>}
+                                      </span>
+                                    </label>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#94a3b8', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      {PERMISSION_LABELS.map(p => <span key={p.key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: p.color }}></span>{p.label}: puede {p.key === 'view' ? 'visualizar' : p.key === 'create' ? 'crear registros' : p.key === 'edit' ? 'modificar' : 'eliminar'}</span>)}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.modalActions}>
+                  <button className={styles.secondaryBtn} onClick={() => setIsRoleModalOpen(false)}>Cancelar</button>
+                  <button className={styles.primaryBtn} onClick={async () => {
+                    if (!newRole.name) { alert('Nombre requerido'); return; }
+                    if (!currentTenant) return;
+                    
+                    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentTenant.id);
+                    
+                    try {
+                      // Insert Role (use null tenant_id if non-UUID mock ID)
+                      const { data: roleData, error: roleError } = await supabase
+                        .from('roles')
+                        .insert({ 
+                          name: newRole.name, 
+                          description: newRole.description,
+                          tenant_id: isValidUuid ? currentTenant.id : null
+                        })
+                        .select()
+                        .single();
+                        
+                      if (roleError) throw roleError;
+                      
+                      // Insert granular permissions as role_modules entries
+                      const moduleKeys = permsToModules(newRole.perms);
+                      if (moduleKeys.length > 0) {
+                        const mappings = moduleKeys.map(mod => ({
+                          role_id: roleData.id,
+                          module: mod
+                        }));
+                        const { error: mapError } = await supabase
+                          .from('role_modules')
+                          .insert(mappings);
+                          
+                        if (mapError) throw mapError;
+                      }
+                      
+                      // Update State and Close
+                      setRoles([{ ...roleData, perms: newRole.perms, modules: moduleKeys }, ...roles]);
+                      setIsRoleModalOpen(false);
+                      setNewRole({ name: '', description: '', perms: emptyPerms() });
+                      alert('✅ Rol creado exitosamente con matriz de permisos configurada.');
+                    } catch (e: any) {
+                      console.error(e);
+                      alert('❌ Error al crear el rol: ' + (e.message || e.details || e));
+                    }
+                  }}>
+                    <Check size={18} /> Crear Rol
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+        {/* Modal: Editar Rol */}
+        <AnimatePresence>
+          {isEditRoleModalOpen && editingRole && (
+            <div className={styles.modalOverlay} onClick={() => setIsEditRoleModalOpen(false)}>
+              <motion.div
+                className={styles.modalContent}
+                style={{ width: '800px', maxWidth: '95vw' }}
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={styles.modalHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>🔑</div>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Editar Rol: {editingRole.name}</h2>
+                  </div>
+                  <button className={styles.closeBtn} onClick={() => setIsEditRoleModalOpen(false)}><XCircle size={28} /></button>
+                </div>
+                <div className={styles.modalBody} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div className={styles.field}>
+                      <label>Nombre del Rol</label>
+                      <input type="text" className={styles.input} value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} />
+                    </div>
+                    <div className={styles.field}>
+                      <label>Descripción</label>
+                      <input type="text" className={styles.input} value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} />
+                    </div>
+                  </div>
+                  
+                  <div className={styles.field} style={{ marginTop: '0' }}>
+                    <label style={{ fontWeight: 700, display: 'block', marginBottom: '12px', color: '#1e293b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔐 Matriz de Permisos por Módulo</label>
+                    <div style={{ borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc' }}>
+                            <th style={{ textAlign: 'left', padding: '10px 16px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulo</th>
+                            {PERMISSION_LABELS.map(p => (
+                              <th key={p.key} style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: p.color }}>{p.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {AVAILABLE_MODULES.map((mod, idx) => (
+                            <tr key={mod.key} style={{ background: idx % 2 === 0 ? 'white' : '#fafbfc', borderTop: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '1.1rem' }}>{mod.icon}</span>
+                                <span>{mod.label}</span>
+                              </td>
+                              {PERMISSION_LABELS.map(p => {
+                                const val = editingRole.perms[mod.key]?.[p.key] || false;
+                                return (
+                                  <td key={p.key} style={{ textAlign: 'center', padding: '12px' }}>
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={val}
+                                        onChange={e => {
+                                          const updated: RolePerms = { ...editingRole.perms };
+                                          updated[mod.key] = { ...(updated[mod.key] || { view: false, create: false, edit: false, delete: false }), [p.key]: e.target.checked };
+                                          if (p.key !== 'view' && e.target.checked) updated[mod.key].view = true;
+                                          setEditingRole({ ...editingRole, perms: updated });
+                                        }}
+                                        style={{ display: 'none' }}
+                                      />
+                                      <span style={{
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        width: '24px', height: '24px', borderRadius: '6px',
+                                        background: val ? p.color : '#f1f5f9',
+                                        color: val ? 'white' : '#cbd5e1',
+                                        border: val ? `2px solid ${p.color}` : '2px solid #e2e8f0',
+                                        transition: 'all 0.15s',
+                                        cursor: 'pointer'
+                                      }}>
+                                        {val ? <Check size={14} strokeWidth={3} /> : <span style={{ fontSize: '12px', fontWeight: 800 }}>−</span>}
+                                      </span>
+                                    </label>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#94a3b8', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      {PERMISSION_LABELS.map(p => <span key={p.key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: p.color }}></span>{p.label}</span>)}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.modalActions}>
+                  <button className={styles.secondaryBtn} onClick={() => setIsEditRoleModalOpen(false)}>Cancelar</button>
+                  <button className={styles.primaryBtn} onClick={async () => {
+                    if (!editingRole.name) { alert('Nombre requerido'); return; }
+                    try {
+                      // Update Role
+                      const { error: roleError } = await supabase
+                        .from('roles')
+                        .update({ 
+                          name: editingRole.name, 
+                          description: editingRole.description
+                        })
+                        .eq('id', editingRole.id);
+                        
+                      if (roleError) throw roleError;
+                      
+                      // Delete old mappings
+                      const { error: deleteError } = await supabase
+                        .from('role_modules')
+                        .delete()
+                        .eq('role_id', editingRole.id);
+                        
+                      if (deleteError) throw deleteError;
+
+                      // Insert updated granular permissions
+                      const moduleKeys = permsToModules(editingRole.perms);
+                      if (moduleKeys.length > 0) {
+                        const mappings = moduleKeys.map(mod => ({
+                          role_id: editingRole.id,
+                          module: mod
+                        }));
+                        const { error: mapError } = await supabase
+                          .from('role_modules')
+                          .insert(mappings);
+                          
+                        if (mapError) throw mapError;
+                      }
+                      
+                      // Update state list
+                      setRoles(roles.map(r => r.id === editingRole.id ? { ...editingRole, modules: moduleKeys } : r));
+                      setIsEditRoleModalOpen(false);
+                      setEditingRole(null);
+                      alert('✅ Rol actualizado exitosamente.');
+                    } catch (e: any) {
+                      console.error(e);
+                      alert('❌ Error al actualizar el rol: ' + (e.message || e.details || e));
+                    }
+                  }}>
+                    <Check size={18} /> Guardar Cambios
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       <AnimatePresence>
         {isInviteModalOpen && (
           <div className={styles.modalOverlay} onClick={() => setIsInviteModalOpen(false)}>
@@ -1340,9 +1821,16 @@ export default function Settings() {
                       value={inviteForm.role}
                       onChange={e => setInviteForm({...inviteForm, role: e.target.value})}
                     >
+                      {/* Default Plan Roles */}
                       {getRolesForPlan().map(role => (
                         <option key={role.value} value={role.value}>
                           {role.label}
+                        </option>
+                      ))}
+                      {/* Custom DB Roles */}
+                      {roles.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name} (Personalizado)
                         </option>
                       ))}
                     </select>
@@ -1456,9 +1944,16 @@ export default function Settings() {
                       value={editForm.role}
                       onChange={e => setEditForm({...editForm, role: e.target.value})}
                     >
+                      {/* Default Plan Roles */}
                       {getRolesForPlan().map(role => (
                         <option key={role.value} value={role.value}>
                           {role.label}
+                        </option>
+                      ))}
+                      {/* Custom DB Roles */}
+                      {roles.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name} (Personalizado)
                         </option>
                       ))}
                     </select>
