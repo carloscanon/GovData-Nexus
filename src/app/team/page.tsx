@@ -292,18 +292,12 @@ const governanceDomains: GovernanceDomain[] = [
 
 
 
-const raciData = [
-
+const DEFAULT_RACI = [
   { process: 'Definición de Glosario', owner: 'A', steward: 'R', custodian: 'C', analyst: 'C' },
-
   { process: 'Validación de Calidad', owner: 'A', steward: 'R', custodian: 'I', analyst: 'C' },
-
   { process: 'Aprobación de Acceso', owner: 'A', steward: 'C', custodian: 'R', analyst: 'I' },
-
   { process: 'Modelado de Datos', owner: 'C', steward: 'C', custodian: 'R', analyst: 'A' },
-
   { process: 'Gestión de Incidentes', owner: 'I', steward: 'R', custodian: 'A', analyst: 'C' },
-
 ];
 
 
@@ -338,6 +332,9 @@ export default function Team() {
   const [teamForm, setTeamForm] = useState({ capacity: 50, maturity: 50, details: '' });
 
   const [members, setMembers] = useState<any[]>([]);
+  const [raciMatrix, setRaciMatrix] = useState<any[]>(DEFAULT_RACI);
+  const [isEditingRaci, setIsEditingRaci] = useState(false);
+  const [isSavingRaci, setIsSavingRaci] = useState(false);
 
   const [domains, setDomains] = useState<GovernanceDomain[]>([]);
 
@@ -405,14 +402,16 @@ export default function Team() {
       setTenantUsers(freshUsers);
 
       // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
-      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes, teamCapacityRes] = await Promise.all([
+      // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
+      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes, teamCapacityRes, raciRes] = await Promise.all([
         supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
         supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).neq('status', 'Cerrado'),
         supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id),
-        supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1)
+        supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
+        supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true })
       ]);
 
       if (teamCapacityRes && teamCapacityRes.data && teamCapacityRes.data.length > 0) {
@@ -423,6 +422,18 @@ export default function Team() {
           maturity: teamCapacityRes.data[0].maturity_score || 50,
           details: teamCapacityRes.data[0].details?.notas || ''
         });
+      }
+
+      if (raciRes && raciRes.data && raciRes.data.length > 0) {
+        setRaciMatrix(raciRes.data.map((r: any) => ({
+          process: r.process,
+          owner: r.owner_role,
+          steward: r.steward_role,
+          custodian: r.custodian_role,
+          analyst: r.analyst_role
+        })));
+      } else {
+        setRaciMatrix(DEFAULT_RACI);
       }
 
       if (membersRes.data) {
@@ -1514,75 +1525,139 @@ export default function Team() {
 
 
         {activeTab === 'raci' && (
-
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.raciView}>
-
-             <div className={styles.raciInfo}>
-
-                <h3>Matriz RACI: Gobierno Operativo</h3>
-
-                <p>Definición de niveles de responsabilidad por proceso clave de gobierno.</p>
-
+             <div className={styles.raciInfo} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#1e293b' }}>Matriz RACI: Gobierno Operativo</h3>
+                  <p style={{ margin: '8px 0 0 0', color: '#64748b' }}>Definición de niveles de responsabilidad por proceso clave de gobierno.</p>
+                </div>
+                <div>
+                  {!isEditingRaci ? (
+                    <button className={styles.secondaryBtn} onClick={() => setIsEditingRaci(true)}><Edit3 size={16} /> Editar Matriz</button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button className={styles.secondaryBtn} onClick={() => { setIsEditingRaci(false); fetchAllData(); }}>Cancelar</button>
+                      <button 
+                        className={styles.primaryBtn} 
+                        disabled={isSavingRaci}
+                        onClick={async () => {
+                          if (!currentTenant?.id) return;
+                          setIsSavingRaci(true);
+                          try {
+                            await supabase.from('team_raci_matrix').delete().eq('tenant_id', currentTenant.id);
+                            const inserts = raciMatrix.map(r => ({
+                              tenant_id: currentTenant.id,
+                              process: r.process,
+                              owner_role: r.owner,
+                              steward_role: r.steward,
+                              custodian_role: r.custodian,
+                              analyst_role: r.analyst
+                            }));
+                            const { error } = await supabase.from('team_raci_matrix').insert(inserts);
+                            if (error) throw error;
+                            setIsEditingRaci(false);
+                            alert('✅ Matriz RACI guardada exitosamente.');
+                          } catch (err: any) {
+                            alert('❌ Error guardando matriz RACI: ' + err.message);
+                          } finally {
+                            setIsSavingRaci(false);
+                          }
+                        }}
+                      >
+                        {isSavingRaci ? 'Guardando...' : 'Guardar Cambios'}
+                      </button>
+                    </div>
+                  )}
+                </div>
              </div>
 
              <div className={styles.raciLegend}>
-
                 <div className={styles.legendItem}><span className={styles.raciA}>A</span> Accountable (Rinde cuentas)</div>
-
                 <div className={styles.legendItem}><span className={styles.raciR}>R</span> Responsible (Ejecuta)</div>
-
                 <div className={styles.legendItem}><span className={styles.raciC}>C</span> Consulted (Consultado)</div>
-
                 <div className={styles.legendItem}><span className={styles.raciI}>I</span> Informed (Informado)</div>
-
              </div>
 
              <table className={styles.raciTable}>
-
                 <thead>
-
                   <tr>
-
                     <th>Proceso / Actividad</th>
-
                     <th>Data Owner</th>
-
                     <th>Data Steward</th>
-
                     <th>Data Custodian</th>
-
                     <th>Data Analyst</th>
-
+                    {isEditingRaci && <th style={{ width: '40px' }}></th>}
                   </tr>
-
                 </thead>
-
                 <tbody>
-
-                  {raciData.map((row, i) => (
-
+                  {raciMatrix.map((row, i) => (
                     <tr key={i}>
-
-                      <td className={styles.processName}>{row.process}</td>
-
-                      <td><span className={styles.raciBadge} data-type={row.owner}>{row.owner}</span></td>
-
-                      <td><span className={styles.raciBadge} data-type={row.steward}>{row.steward}</span></td>
-
-                      <td><span className={styles.raciBadge} data-type={row.custodian}>{row.custodian}</span></td>
-
-                      <td><span className={styles.raciBadge} data-type={row.analyst}>{row.analyst}</span></td>
-
+                      <td className={styles.processName}>
+                        {isEditingRaci ? (
+                          <input 
+                            type="text" 
+                            value={row.process} 
+                            onChange={(e) => {
+                              const newMatrix = [...raciMatrix];
+                              newMatrix[i].process = e.target.value;
+                              setRaciMatrix(newMatrix);
+                            }}
+                            style={{ padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', width: '100%', outline: 'none' }}
+                          />
+                        ) : row.process}
+                      </td>
+                      {['owner', 'steward', 'custodian', 'analyst'].map((role) => (
+                        <td key={role}>
+                          {isEditingRaci ? (
+                            <select 
+                              value={row[role]} 
+                              onChange={(e) => {
+                                const newMatrix = [...raciMatrix];
+                                newMatrix[i][role] = e.target.value;
+                                setRaciMatrix(newMatrix);
+                              }}
+                              style={{ padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', fontWeight: 600, color: '#1e293b' }}
+                            >
+                              <option value="A">A</option>
+                              <option value="R">R</option>
+                              <option value="C">C</option>
+                              <option value="I">I</option>
+                              <option value="-">-</option>
+                            </select>
+                          ) : (
+                            <span className={styles.raciBadge} data-type={row[role]}>{row[role]}</span>
+                          )}
+                        </td>
+                      ))}
+                      {isEditingRaci && (
+                        <td>
+                          <button 
+                            onClick={() => {
+                              const newMatrix = [...raciMatrix];
+                              newMatrix.splice(i, 1);
+                              setRaciMatrix(newMatrix);
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
-
                   ))}
-
                 </tbody>
-
              </table>
-
+             {isEditingRaci && (
+               <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+                 <button 
+                   className={styles.secondaryBtn} 
+                   onClick={() => setRaciMatrix([...raciMatrix, { process: 'Nuevo Proceso', owner: '-', steward: '-', custodian: '-', analyst: '-' }])}
+                 >
+                   + Añadir Proceso
+                 </button>
+               </div>
+             )}
           </motion.div>
-
         )}
 
         {activeTab === 'coverage' && (
