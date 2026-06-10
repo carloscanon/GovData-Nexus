@@ -32,7 +32,9 @@ export default function Simulator() {
   const [validations, setValidations] = useState({
     dama: false,
     roles: false,
-    raci: false
+    raci: false,
+    missingRoles: [] as string[],
+    missingRaci: 0
   });
   const [isValidating, setIsValidating] = useState(false);
 
@@ -89,14 +91,22 @@ export default function Simulator() {
         .eq('tenant_id', currentTenant.id);
       
       let hasRoles = false;
-      if (membersData) {
-        const roleTypes = membersData.map(m => m.roleType?.toLowerCase());
+      let missingRoles: string[] = ['Data Owner', 'Data Steward', 'Data Custodian', 'CDO o Auditor'];
+
+      if (membersData && membersData.length > 0) {
+        const roleTypes = membersData.map(m => m.roleType?.toLowerCase() || '');
         const hasOwner = roleTypes.includes('data owner');
         const hasSteward = roleTypes.includes('data steward');
         const hasCustodian = roleTypes.includes('data custodian');
         const hasCdoOrAuditor = roleTypes.includes('cdo') || roleTypes.includes('ciso') || roleTypes.includes('auditor');
         
-        hasRoles = hasOwner && hasSteward && hasCustodian && hasCdoOrAuditor;
+        missingRoles = [];
+        if (!hasOwner) missingRoles.push('Data Owner');
+        if (!hasSteward) missingRoles.push('Data Steward');
+        if (!hasCustodian) missingRoles.push('Data Custodian');
+        if (!hasCdoOrAuditor) missingRoles.push('CDO o Auditor');
+
+        hasRoles = missingRoles.length === 0;
       }
 
       // 3. Check RACI
@@ -106,12 +116,16 @@ export default function Simulator() {
         .eq('tenant_id', currentTenant.id);
       
       // RACI should have at least 5 processes configured
-      const hasRaci = (raciData?.length ?? 0) >= 5;
+      const raciCount = raciData?.length ?? 0;
+      const hasRaci = raciCount >= 5;
+      const missingRaci = hasRaci ? 0 : 5 - raciCount;
 
       setValidations({
         dama: hasDama,
         roles: hasRoles,
-        raci: hasRaci
+        raci: hasRaci,
+        missingRoles: missingRoles,
+        missingRaci: missingRaci
       });
 
       // Si todo está ok, insertar certificado en base de datos
@@ -209,6 +223,13 @@ export default function Simulator() {
             <div className={styles.checkContent}>
               <h4 className={styles.checkTitle}>2. Estructuración del Equipo Base</h4>
               <p className={styles.checkDesc}>Diseña tu red de gobierno en "Roles y Equipo". Necesitas tener asignados al menos a: Data Owner, Data Steward, Data Custodian y un CDO/CISO/Auditor.</p>
+              
+              {!validations.roles && validations.missingRoles.length > 0 && (
+                <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#be123c' }}>
+                  <strong>Faltan por asignar:</strong> {validations.missingRoles.join(', ')}
+                </div>
+              )}
+
               <span className={`${styles.checkStatus} ${validations.roles ? styles.statusCompleted : styles.statusPending}`}>
                 {validations.roles ? 'Completado' : 'Pendiente: Faltan roles críticos'}
               </span>
@@ -222,7 +243,14 @@ export default function Simulator() {
             </div>
             <div className={styles.checkContent}>
               <h4 className={styles.checkTitle}>3. Parametrización de Matriz RACI</h4>
-              <p className={styles.checkDesc}>Configura la matriz RACI de operaciones. Debes editarla, parametrizar los responsables y guardarla en base de datos.</p>
+              <p className={styles.checkDesc}>Configura la matriz RACI de operaciones. Debes editarla, parametrizar los responsables y guardarla en base de datos (mínimo 5 procesos).</p>
+              
+              {!validations.raci && validations.missingRaci > 0 && (
+                <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#be123c' }}>
+                  <strong>Te faltan:</strong> {validations.missingRaci} proceso(s) por parametrizar en el RACI.
+                </div>
+              )}
+
               <span className={`${styles.checkStatus} ${validations.raci ? styles.statusCompleted : styles.statusPending}`}>
                 {validations.raci ? 'Completado' : 'Pendiente: Configurar RACI'}
               </span>
