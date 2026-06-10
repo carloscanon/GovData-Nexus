@@ -24,13 +24,6 @@ export default function CommandCenter() {
   const [riskLevel, setRiskLevel] = useState('Bajo');
   const [adoption, setAdoption] = useState(0);
 
-  // Estados de Capacidad y Madurez del Equipo
-  const [teamCapacityScore, setTeamCapacityScore] = useState(0);
-  const [teamMaturityScore, setTeamMaturityScore] = useState(0);
-  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
-  const [teamForm, setTeamForm] = useState({ capacity: 50, maturity: 50, details: '' });
-  const [isSavingTeam, setIsSavingTeam] = useState(false);
-
   const [wfStats, setWfStats] = useState({ total: 0, pending: 0, sla: 0, time: 0, active: 0, approved: 0 });
   const [assetStats, setAssetStats] = useState({ total: 0, withOwner: 0, withSteward: 0, classified: 0, lineage: 0 });
   const [secStats, setSecStats] = useState({ critical: 0, high: 0, policiesExpired: 0 });
@@ -310,8 +303,7 @@ export default function CommandCenter() {
           { data: committeesData },
           { data: committeeDocsData },
           { data: risks },
-          { data: controls },
-          { data: teamCapacityData }
+          { data: controls }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
           supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id),
@@ -325,21 +317,12 @@ export default function CommandCenter() {
           supabase.from('gov_committees').select('id').eq('tenant_id', currentTenant.id),
           supabase.from('gov_committee_documents').select('id, committee_id'),
           supabase.from('security_risks').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('security_controls').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1)
+          supabase.from('security_controls').select('*').eq('tenant_id', currentTenant.id)
         ]);
 
         // 1. Madurez
         const matScore = maturity && maturity.length > 0 ? maturity[0].score : 0;
         setMaturityScore(matScore);
-
-        if (teamCapacityData && teamCapacityData.length > 0) {
-          setTeamCapacityScore(teamCapacityData[0].capacity_score || 0);
-          setTeamMaturityScore(teamCapacityData[0].maturity_score || 0);
-        } else {
-          setTeamCapacityScore(0);
-          setTeamMaturityScore(0);
-        }
 
         // 2. Activos
         const totalA = assets ? assets.length : 0;
@@ -683,14 +666,6 @@ export default function CommandCenter() {
           </div>
           <div className={styles.kpiValue}>{docStats.progress}%</div>
           <div className={styles.kpiSub}>Docs, Estándares y Procedimientos</div>
-        </div>
-        <div className={styles.kpiCard} style={{ '--kpi-color': '#f97316', cursor: 'pointer', border: '1px solid #f9731655', background: 'linear-gradient(180deg, rgba(249,115,22,0.05) 0%, rgba(249,115,22,0) 100%)' } as any} onClick={() => setIsTeamModalOpen(true)}>
-          <div className={styles.kpiHeader}>
-            <span className={styles.kpiTitle}>Capacidad y Madurez</span>
-            <Award size={20} color="#f97316" />
-          </div>
-          <div className={styles.kpiValue}>{Math.round((teamCapacityScore + teamMaturityScore) / 2)}%</div>
-          <div className={styles.kpiSub}>Capacidad: {teamCapacityScore}% | Madurez: {teamMaturityScore}%</div>
         </div>
       </div>
 
@@ -1075,85 +1050,6 @@ export default function CommandCenter() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Evaluación de Capacidad y Madurez del Equipo */}
-      <AnimatePresence>
-        {isTeamModalOpen && (
-          <div className={styles.modalOverlay}>
-            <motion.div
-              className={styles.modalContent}
-              initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
-              style={{ maxWidth: '600px' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0 }}>Evaluar Capacidad y Madurez del Equipo</h2>
-                <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }} onClick={() => setIsTeamModalOpen(false)}>
-                  <X size={24} />
-                </button>
-              </div>
-              <div className={styles.modalBody}>
-                <p style={{ marginBottom: '20px', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  Ajusta los niveles actuales de capacidad operativa (herramientas, tiempo) y madurez (roles definidos, capacitación) de tu equipo de gobierno de datos. Esto se guardará en el historial.
-                </p>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', color: '#1e293b' }}>Capacidad Operativa ({teamForm.capacity}%)</label>
-                  <input 
-                    type="range" min="0" max="100" value={teamForm.capacity}
-                    onChange={e => setTeamForm({...teamForm, capacity: Number(e.target.value)})}
-                    style={{ width: '100%', accentColor: '#f97316' }}
-                  />
-                  <small style={{ color: '#64748b', display: 'block', marginTop: '6px' }}>¿El equipo tiene el tiempo y las herramientas para ejecutar su rol?</small>
-                </div>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', color: '#1e293b' }}>Madurez de Roles ({teamForm.maturity}%)</label>
-                  <input 
-                    type="range" min="0" max="100" value={teamForm.maturity}
-                    onChange={e => setTeamForm({...teamForm, maturity: Number(e.target.value)})}
-                    style={{ width: '100%', accentColor: '#10b981' }}
-                  />
-                  <small style={{ color: '#64748b', display: 'block', marginTop: '6px' }}>¿Los roles (Stewards, Owners) están formalmente definidos y asimilados?</small>
-                </div>
-                <div style={{ marginBottom: '32px' }}>
-                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', color: '#1e293b' }}>Detalles de la Evaluación</label>
-                  <textarea 
-                    value={teamForm.details}
-                    onChange={e => setTeamForm({...teamForm, details: e.target.value})}
-                    placeholder="Ej. Se asignaron 2 nuevos data stewards esta semana..."
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical' }}
-                  />
-                </div>
-                <button 
-                  className={styles.primaryBtn}
-                  style={{ width: '100%', background: '#f97316', padding: '14px', borderRadius: '8px', fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
-                  onClick={async () => {
-                    if (!currentTenant?.id) return;
-                    setIsSavingTeam(true);
-                    try {
-                      const { error } = await supabase.from('team_capacity_assessments').insert([{
-                        tenant_id: currentTenant.id,
-                        capacity_score: teamForm.capacity,
-                        maturity_score: teamForm.maturity,
-                        details: teamForm.details ? { notas: teamForm.details } : {}
-                      }]);
-                      if (error) throw error;
-                      setTeamCapacityScore(teamForm.capacity);
-                      setTeamMaturityScore(teamForm.maturity);
-                      setIsTeamModalOpen(false);
-                      alert('✅ Evaluación guardada exitosamente en la base de datos.');
-                    } catch (err: any) {
-                      alert('❌ Error al guardar en base de datos. Verifica si corriste el script SQL. Detalle: ' + err.message);
-                    } finally {
-                      setIsSavingTeam(false);
-                    }
-                  }}
-                  disabled={isSavingTeam}
-                >
-                  {isSavingTeam ? 'Guardando en Base de Datos...' : 'Guardar Evaluación'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
 
   );

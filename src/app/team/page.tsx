@@ -35,7 +35,8 @@ import {
   Settings,
   Upload,
   Edit3,
-  Trash2
+  Trash2,
+  ShieldCheck
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
