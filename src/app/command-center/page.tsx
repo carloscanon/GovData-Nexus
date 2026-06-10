@@ -323,6 +323,7 @@ export default function CommandCenter() {
         // 1. Madurez
         const matScore = maturity && maturity.length > 0 ? maturity[0].score : 0;
         setMaturityScore(matScore);
+        const hasAssessment = matScore > 0;
 
         // 2. Activos
         const totalA = assets ? assets.length : 0;
@@ -348,7 +349,7 @@ export default function CommandCenter() {
         setWfStats({
           total: wTotal,
           pending: wPend,
-          sla: wTotal > 0 ? Math.round((wOk / wTotal) * 100) : 100,
+          sla: hasAssessment ? (wTotal > 0 ? Math.round((wOk / wTotal) * 100) : 100) : 0,
           time: 2.3, // Promedio estático hasta tener tracking
           active: wPend,
           approved: wApp
@@ -414,8 +415,8 @@ export default function CommandCenter() {
         }).length : 0;
         
         setSecStats({
-          critical: rCrit,
-          high: rHigh,
+          critical: hasAssessment ? rCrit : 0,
+          high: hasAssessment ? rHigh : 0,
           policiesExpired: pExp
         });
 
@@ -428,9 +429,9 @@ export default function CommandCenter() {
           return Math.round(((ok + partial * 0.5) / fw.length) * 100);
         });
         const hasControls = controls && controls.length > 0;
-        const sciScore = hasControls
-          ? Math.round(fwScores.reduce((a, b) => a + b, 0) / fwScores.length)
-          : 89; // fallback realista si no hay controles configurados todavía
+        const sciScore = hasAssessment 
+          ? (hasControls ? Math.round(fwScores.reduce((a, b) => a + b, 0) / fwScores.length) : 89)
+          : 0; // Si no hay madurez, el cumplimiento es cero.
         setComplianceScore(sciScore);
 
         // 4.5. Gestión Documental (Políticas, Estándares, Procedimientos)
@@ -458,7 +459,7 @@ export default function CommandCenter() {
 
         setDocStats({
            total: totalDocs,
-           progress: docProgress,
+           progress: hasAssessment ? docProgress : 0, // Avance real en cero si no hay evaluación
            policies: policiesList.length,
            standards: standardsList.length,
            procedures: proceduresList.length,
@@ -467,13 +468,10 @@ export default function CommandCenter() {
 
 
         let currentRisk = 'Desconocido';
-        if (maturity && maturity.length > 0) {
+        if (hasAssessment) {
           if (segScore < 40 || rCrit > 0) currentRisk = 'Alto';
           else if (segScore < 70 || rHigh > 0) currentRisk = 'Medio';
           else currentRisk = 'Bajo';
-        } else {
-          if (rCrit > 0) currentRisk = 'Alto';
-          else if (rHigh > 0) currentRisk = 'Medio';
         }
         setRiskLevel(currentRisk);
 
