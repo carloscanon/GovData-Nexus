@@ -52,7 +52,7 @@ export default function Simulator() {
         .eq('tenant_id', currentTenant.id)
         .limit(1);
       
-      const hasDama = damaData && damaData.length > 0;
+      const hasDama = (damaData?.length ?? 0) > 0;
 
       // 2. Check Roles (Needs Data Owner, Data Steward, Data Custodian, CDO/CISO/Auditor)
       const { data: membersData } = await supabase
@@ -78,7 +78,7 @@ export default function Simulator() {
         .eq('tenant_id', currentTenant.id);
       
       // RACI should have at least 5 processes configured
-      const hasRaci = raciData && raciData.length >= 5;
+      const hasRaci = (raciData?.length ?? 0) >= 5;
 
       setValidations({
         dama: hasDama,
