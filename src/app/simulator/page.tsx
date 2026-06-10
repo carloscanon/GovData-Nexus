@@ -144,6 +144,66 @@ export default function Simulator() {
     }
   }, [currentTenant?.id, activeCase]);
 
+  const exportCertificate = () => {
+    if (!currentTenant || !selectedCase) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const dateStr = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    
+    const html = `
+      <html>
+        <head>
+          <title>Certificado - ${currentTenant.name}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 40px; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+            .certificate { background: white; padding: 60px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; max-width: 800px; border: 8px solid #4f46e5; position: relative; width: 100%; }
+            .certificate::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 2px solid #e2e8f0; border-radius: 10px; pointer-events: none; }
+            h1 { color: #1e293b; font-size: 3rem; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase; }
+            h2 { color: #4f46e5; font-size: 1.8rem; margin-bottom: 40px; }
+            p { color: #64748b; font-size: 1.2rem; line-height: 1.6; margin-bottom: 20px; }
+            .tenant-name { font-size: 2.5rem; color: #0f172a; font-weight: bold; margin: 20px 0; border-bottom: 2px solid #4f46e5; display: inline-block; padding-bottom: 10px; }
+            .footer { margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end; color: #94a3b8; }
+            .signature { border-top: 2px solid #cbd5e1; padding-top: 10px; font-weight: bold; color: #1e293b; width: 200px; margin-top: 20px; }
+            .seal { width: 100px; height: 100px; background: #4f46e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; transform: rotate(-15deg); margin: 0 auto; margin-top: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            @media print {
+              body { background: white; padding: 0; align-items: flex-start; }
+              .certificate { box-shadow: none; border: 4px solid #4f46e5; padding: 40px; margin: 0 auto; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="certificate">
+            <h1>Certificado de Aprobación</h1>
+            <h2>GovData Nexus - Simulator</h2>
+            <p>Se otorga el presente reconocimiento a la organización:</p>
+            <div class="tenant-name">${currentTenant.name}</div>
+            <p>Por haber completado satisfactoriamente los requerimientos técnicos y estratégicos de Gobierno de Datos en el escenario:</p>
+            <h3 style="color:#1e293b; font-size: 1.5rem;">${selectedCase.title}</h3>
+            <p style="font-size: 1rem;">Demostrando competencia en diagnóstico de madurez, estructuración de roles y parametrización de la matriz operativa RACI.</p>
+            <div class="seal">CERTIFIED</div>
+            <div class="footer">
+              <div style="text-align: left;">
+                <p style="font-size:1rem; margin:0; padding:0;">Fecha de Emisión:</p>
+                <strong style="color: #1e293b">${dateStr}</strong>
+              </div>
+              <div class="signature">Director Académico</div>
+            </div>
+          </div>
+          <script>
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     checkProgress();
   }, [checkProgress]);
@@ -271,7 +331,10 @@ export default function Simulator() {
               Has completado satisfactoriamente los requerimientos críticos para el <strong>{selectedCase?.title}</strong>. 
               La plataforma ha validado tu red de gobierno, tu matriz operativa y tu diagnóstico base.
             </p>
-            <button style={{ background: 'white', color: '#4f46e5', padding: '12px 24px', borderRadius: '12px', fontWeight: 800, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
+            <button 
+              onClick={exportCertificate}
+              style={{ background: 'white', color: '#4f46e5', padding: '12px 24px', borderRadius: '12px', fontWeight: 800, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}
+            >
               Exportar Certificado Digital <ArrowRight size={18} />
             </button>
           </motion.div>
