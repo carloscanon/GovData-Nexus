@@ -331,6 +331,11 @@ export default function Team() {
 
   const [reassignTargetId, setReassignTargetId] = useState('');
 
+  const [teamCapacityScore, setTeamCapacityScore] = useState(0);
+  const [teamMaturityScore, setTeamMaturityScore] = useState(0);
+  const [isSavingTeam, setIsSavingTeam] = useState(false);
+  const [teamForm, setTeamForm] = useState({ capacity: 50, maturity: 50, details: '' });
+
   const [members, setMembers] = useState<any[]>([]);
 
   const [domains, setDomains] = useState<GovernanceDomain[]>([]);
@@ -399,14 +404,25 @@ export default function Team() {
       setTenantUsers(freshUsers);
 
       // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
-      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes] = await Promise.all([
+      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes, teamCapacityRes] = await Promise.all([
         supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
         supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).neq('status', 'Cerrado'),
         supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
-        supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id)
+        supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id),
+        supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1)
       ]);
+
+      if (teamCapacityRes && teamCapacityRes.data && teamCapacityRes.data.length > 0) {
+        setTeamCapacityScore(teamCapacityRes.data[0].capacity_score || 0);
+        setTeamMaturityScore(teamCapacityRes.data[0].maturity_score || 0);
+        setTeamForm({
+          capacity: teamCapacityRes.data[0].capacity_score || 50,
+          maturity: teamCapacityRes.data[0].maturity_score || 50,
+          details: teamCapacityRes.data[0].details?.notas || ''
+        });
+      }
 
       if (membersRes.data) {
         const freshAssets = assetsRes.data || [];
@@ -1566,6 +1582,85 @@ export default function Team() {
 
           </motion.div>
 
+        )}
+
+        {activeTab === 'coverage' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.coverageView} style={{ padding: '24px', background: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+             <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#1e293b' }}>Evaluación de Capacidad y Madurez del Equipo</h3>
+                <p style={{ margin: '8px 0 0 0', color: '#64748b' }}>Ajusta los niveles actuales de capacidad operativa (herramientas, tiempo) y madurez (roles definidos, capacitación) de tu equipo de gobierno de datos.</p>
+             </div>
+             
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+                <div style={{ padding: '20px', background: '#fff7ed', borderRadius: '12px', border: '1px solid #fed7aa' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontWeight: 600, color: '#9a3412', display: 'flex', alignItems: 'center', gap: '8px' }}><Award size={18} /> Capacidad Operativa</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f97316' }}>{teamForm.capacity}%</span>
+                   </div>
+                   <input 
+                     type="range" min="0" max="100" value={teamForm.capacity}
+                     onChange={e => setTeamForm({...teamForm, capacity: Number(e.target.value)})}
+                     style={{ width: '100%', accentColor: '#f97316' }}
+                   />
+                   <small style={{ color: '#9a3412', display: 'block', marginTop: '12px', lineHeight: 1.4 }}>¿El equipo tiene el tiempo y las herramientas para ejecutar su rol?</small>
+                </div>
+                
+                <div style={{ padding: '20px', background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontWeight: 600, color: '#065f46', display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /> Madurez de Roles</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981' }}>{teamForm.maturity}%</span>
+                   </div>
+                   <input 
+                     type="range" min="0" max="100" value={teamForm.maturity}
+                     onChange={e => setTeamForm({...teamForm, maturity: Number(e.target.value)})}
+                     style={{ width: '100%', accentColor: '#10b981' }}
+                   />
+                   <small style={{ color: '#065f46', display: 'block', marginTop: '12px', lineHeight: 1.4 }}>¿Los roles (Stewards, Owners) están formalmente definidos y asimilados?</small>
+                </div>
+             </div>
+
+             <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', color: '#1e293b' }}>Detalles / Justificación de la Evaluación</label>
+                <textarea 
+                  value={teamForm.details}
+                  onChange={e => setTeamForm({...teamForm, details: e.target.value})}
+                  placeholder="Ej. Se asignaron 2 nuevos data stewards esta semana y se liberó presupuesto para capacitación..."
+                  style={{ width: '100%', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', minHeight: '100px', fontFamily: 'inherit', resize: 'vertical' }}
+                />
+             </div>
+             
+             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px' }}>
+                <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                  Promedio Actualizado: <strong style={{ color: '#1e293b', fontSize: '1.1rem' }}>{Math.round((teamForm.capacity + teamForm.maturity) / 2)}%</strong>
+                </div>
+                <button 
+                  className={styles.primaryBtn}
+                  onClick={async () => {
+                    if (!currentTenant?.id) return;
+                    setIsSavingTeam(true);
+                    try {
+                      const { error } = await supabase.from('team_capacity_assessments').insert([{
+                        tenant_id: currentTenant.id,
+                        capacity_score: teamForm.capacity,
+                        maturity_score: teamForm.maturity,
+                        details: teamForm.details ? { notas: teamForm.details } : {}
+                      }]);
+                      if (error) throw error;
+                      setTeamCapacityScore(teamForm.capacity);
+                      setTeamMaturityScore(teamForm.maturity);
+                      alert('✅ Evaluación de Capacidad y Madurez guardada exitosamente en la base de datos.');
+                    } catch (err: any) {
+                      alert('❌ Error al guardar en base de datos. Verifica si corriste el script SQL. Detalle: ' + err.message);
+                    } finally {
+                      setIsSavingTeam(false);
+                    }
+                  }}
+                  disabled={isSavingTeam}
+                >
+                  {isSavingTeam ? 'Guardando...' : 'Guardar Evaluación'}
+                </button>
+             </div>
+          </motion.div>
         )}
 
       </div>
