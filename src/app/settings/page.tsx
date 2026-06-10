@@ -1817,6 +1817,16 @@ export default function Settings() {
                     />
                   </div>
                   <div className={styles.field}>
+                    <label>Alias (Opcional, para certificados)</label>
+                    <input 
+                      type="text" 
+                      className={styles.input} 
+                      placeholder="Ej: CyberNinja"
+                      value={inviteForm.alias} 
+                      onChange={e => setInviteForm({...inviteForm, alias: e.target.value})} 
+                    />
+                  </div>
+                  <div className={styles.field}>
                     <label>Email Corporativo</label>
                     <input 
                       type="email" 
