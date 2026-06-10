@@ -381,7 +381,7 @@ export default function Settings() {
     }
   };
 
-  const [editForm, setEditForm] = useState({ name: '', email: '', role: '', status: '', avatar: '' });
+  const [editForm, setEditForm] = useState({ name: '', alias: '', email: '', role: '', status: '', avatar: '' });
 
   const handleEditUser = (user: any) => {
     setSelectedUser(user);
@@ -389,6 +389,7 @@ export default function Settings() {
     const isAllowed = allowed.some(r => r.value === user.role) || roles.some(r => r.name === user.role);
     setEditForm({
       name: user.name,
+      alias: user.alias || '',
       email: user.email,
       role: isAllowed ? user.role : (allowed[0]?.value || 'viewer'),
       status: user.status,
@@ -403,6 +404,7 @@ export default function Settings() {
     try {
       const updates = {
         name: editForm.name,
+        alias: editForm.alias,
         email: editForm.email,
         role: editForm.role,
         status: editForm.status,
@@ -1948,6 +1950,16 @@ export default function Settings() {
                       className={styles.input} 
                       value={editForm.name} 
                       onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Alias (Opcional, para certificados)</label>
+                    <input 
+                      type="text" 
+                      className={styles.input} 
+                      placeholder="Ej: CyberNinja"
+                      value={editForm.alias} 
+                      onChange={e => setEditForm({...editForm, alias: e.target.value})} 
                     />
                   </div>
                   <div className={styles.field}>
