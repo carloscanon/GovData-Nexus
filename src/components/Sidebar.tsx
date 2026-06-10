@@ -26,7 +26,8 @@ import {
   Sparkles,
   LayoutGrid,
   Brain,
-  Rocket
+  Rocket,
+  GraduationCap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -43,8 +44,9 @@ const menuItems = [
   { icon: FileText, label: 'Políticas', href: '/policies', module: 'catalog' },
   { icon: Users, label: 'Roles y Equipo', href: '/team', module: 'team' },
   { icon: Users, label: 'Comités de Gobierno', href: '/data-governance/committees', module: 'team' },
-  { icon: Zap, label: 'Workflows', href: '/workflows', module: 'workflows' },
-  { icon: BarChart3, label: 'Madurez', href: '/maturity', module: 'maturity' },
+  { icon: Zap, label: 'Gestión de Workflows', href: '/workflows', module: 'quality' },
+  { icon: BarChart3, label: 'Madurez DAMA', href: '/maturity', module: 'maturity' },
+  { icon: GraduationCap, label: 'Simulador CDO', href: '/simulator' },
 ];
 
 interface SidebarProps {

@@ -1,0 +1,228 @@
+.container {
+  padding: 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.header {
+  margin-bottom: 40px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header p {
+  color: #64748b;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.casesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  margin-bottom: 40px;
+}
+
+.caseCard {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.caseCard.active {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.caseCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+.caseBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.active .caseBadge {
+  background: #4f46e5;
+  color: white;
+}
+
+.caseTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+}
+
+.caseDesc {
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.validationSection {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.validationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.validationTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.progressCircle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.progressText {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #4f46e5;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.checkItem.completed {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+.checkIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pendingIcon {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.completedIcon {
+  background: #10b981;
+  color: white;
+}
+
+.checkContent {
+  flex: 1;
+}
+
+.checkTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.checkDesc {
+  color: #64748b;
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.checkStatus {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.statusPending {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.statusCompleted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.certificateBox {
+  margin-top: 40px;
+  padding: 40px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border-radius: 20px;
+  color: white;
+  text-align: center;
+  animation: slideUp 0.5s ease-out;
+}
+
+.certTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 16px 0;
+}
+
+.certDesc {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0 0 24px 0;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
