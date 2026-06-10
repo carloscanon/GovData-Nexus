@@ -194,6 +194,7 @@ export default function Settings() {
           setUsers(data.map(u => ({
             id: u.id,
             name: u.name,
+            alias: u.alias,
             email: u.email,
             role: u.role,
             status: u.status,
@@ -305,7 +306,7 @@ export default function Settings() {
     fetchRoles();
   }, [currentTenant?.id]);
 
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'editor', password: '', avatar: '' });
+  const [inviteForm, setInviteForm] = useState({ name: '', alias: '', email: '', role: 'editor', password: '', avatar: '' });
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -335,6 +336,7 @@ export default function Settings() {
       const { data, error } = await supabase.from('tenant_users').insert({
         tenant_id: currentTenant.id,
         name: inviteForm.name,
+        alias: inviteForm.alias,
         email: inviteForm.email,
         password: inviteForm.password,
         role: inviteForm.role,
@@ -356,7 +358,7 @@ export default function Settings() {
 
       setUsers([newUser, ...users]);
       setIsInviteModalOpen(false);
-      setInviteForm({ name: '', email: '', role: 'editor', password: '', avatar: '' });
+      setInviteForm({ name: '', alias: '', email: '', role: 'editor', password: '', avatar: '' });
       alert(`✅ Usuario ${newUser.name} creado exitosamente.`);
     } catch (e: any) {
       console.error('Error creating user:', e);
@@ -1313,6 +1315,7 @@ export default function Settings() {
                         const allowed = getRolesForPlan();
                         setInviteForm({
                           name: '',
+                          alias: '',
                           email: '',
                           role: allowed[0]?.value || 'viewer',
                           password: '',

@@ -144,9 +144,35 @@ export default function Simulator() {
     }
   }, [currentTenant?.id, activeCase]);
 
-  const exportCertificate = () => {
+  const exportCertificate = async () => {
     if (!currentTenant || !selectedCase) return;
     
+    // Fetch CDO Signature
+    const { data: cdoData } = await supabase.from('team_members')
+      .select('name')
+      .eq('tenant_id', currentTenant.id)
+      .or('role.ilike.%cdo%,role.ilike.%ciso%,role.ilike.%auditor%')
+      .limit(1);
+    const signatureName = cdoData && cdoData.length > 0 ? cdoData[0].name : 'CDO Global';
+
+    // Fetch User Alias
+    const userEmail = localStorage.getItem('govdata_user_email');
+    let certName = localStorage.getItem('govdata_user_name') || 'Estudiante';
+    
+    if (userEmail) {
+      const { data: userData } = await supabase.from('tenant_users')
+        .select('alias, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('email', userEmail)
+        .single();
+        
+      if (userData?.alias) {
+        certName = userData.alias;
+      } else if (userData?.name) {
+        certName = userData.name;
+      }
+    }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -177,8 +203,9 @@ export default function Simulator() {
           <div class="certificate">
             <h1>Certificado de Aprobación</h1>
             <h2>GovData Nexus - Simulator</h2>
-            <p>Se otorga el presente reconocimiento a la organización:</p>
-            <div class="tenant-name">${currentTenant.name}</div>
+            <p>Se otorga el presente reconocimiento a:</p>
+            <div class="tenant-name">${certName}</div>
+            <p style="margin-top: 0; color: #4f46e5; font-weight: bold;">Representando a: ${currentTenant.name}</p>
             <p>Por haber completado satisfactoriamente los requerimientos técnicos y estratégicos de Gobierno de Datos en el escenario:</p>
             <h3 style="color:#1e293b; font-size: 1.5rem;">${selectedCase.title}</h3>
             <p style="font-size: 1rem;">Demostrando competencia en diagnóstico de madurez, estructuración de roles y parametrización de la matriz operativa RACI.</p>
@@ -188,7 +215,7 @@ export default function Simulator() {
                 <p style="font-size:1rem; margin:0; padding:0;">Fecha de Emisión:</p>
                 <strong style="color: #1e293b">${dateStr}</strong>
               </div>
-              <div class="signature">Director Académico</div>
+              <div class="signature">Firma: ${signatureName}<br/><span style="font-size: 0.8rem; color: #94a3b8;">Chief Data Officer</span></div>
             </div>
           </div>
           <script>
