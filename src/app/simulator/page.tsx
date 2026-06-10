@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -10,30 +8,25 @@ import {
   Briefcase, 
   ShieldAlert,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import styles from './simulator.module.css';
 
-const CASES = [
-  {
-    id: 'c1',
-    title: 'Caso 1: Fuga en Fintech Nexus',
-    description: 'La Fintech ha experimentado un problema crítico de calidad de datos que derivó en reportes erróneos al regulador. Necesitan urgentemente que establezcas el Gobierno de Datos: evalúa la madurez actual, asigna un equipo completo (CDO, Owner, Steward, Custodian, Auditor) y configura el RACI básico.',
-    icon: Briefcase
-  },
-  {
-    id: 'c2',
-    title: 'Caso 2: Compliance en Salud',
-    description: 'Un hospital necesita cumplir urgentemente con normativas de privacidad de pacientes. Aplica el assessment DAMA, crea la estructura organizativa requerida y define explícitamente en el RACI quién será responsable de auditar los accesos.',
-    icon: ShieldAlert
-  }
-];
+const ICON_MAP: Record<string, any> = {
+  Briefcase: Briefcase,
+  ShieldAlert: ShieldAlert,
+  Database: Database
+};
 
 export default function Simulator() {
   const { currentTenant } = usePlatform();
-  const [activeCase, setActiveCase] = useState(CASES[0].id);
+  const [cases, setCases] = useState<any[]>([]);
+  const [activeCase, setActiveCase] = useState<string | null>(null);
+  const [hasCertificate, setHasCertificate] = useState(false);
+  
   const [validations, setValidations] = useState({
     dama: false,
     roles: false,
@@ -41,10 +34,43 @@ export default function Simulator() {
   });
   const [isValidating, setIsValidating] = useState(false);
 
+  // Load cases from Supabase
+  useEffect(() => {
+    async function loadCases() {
+      try {
+        const { data } = await supabase.from('simulator_cases').select('*').order('id', { ascending: true });
+        if (data && data.length > 0) {
+          setCases(data);
+          setActiveCase(data[0].id);
+        }
+      } catch (err) {
+        console.error('Error loading cases', err);
+      }
+    }
+    loadCases();
+  }, []);
+
   const checkProgress = useCallback(async () => {
-    if (!currentTenant?.id) return;
+    if (!currentTenant?.id || !activeCase) return;
     setIsValidating(true);
     try {
+      // 0. Check if already certified
+      const { data: certData } = await supabase
+        .from('simulator_certificates')
+        .select('id')
+        .eq('tenant_id', currentTenant.id)
+        .eq('case_id', activeCase)
+        .limit(1);
+
+      if (certData && certData.length > 0) {
+        setHasCertificate(true);
+        setValidations({ dama: true, roles: true, raci: true });
+        setIsValidating(false);
+        return;
+      } else {
+        setHasCertificate(false);
+      }
+
       // 1. Check DAMA Assessment
       const { data: damaData } = await supabase
         .from('maturity_assessments')
@@ -86,21 +112,34 @@ export default function Simulator() {
         raci: hasRaci
       });
 
+      // Si todo está ok, insertar certificado en base de datos
+      if (hasDama && hasRoles && hasRaci) {
+        await supabase.from('simulator_certificates').insert([{
+          tenant_id: currentTenant.id,
+          case_id: activeCase
+        }]);
+        setHasCertificate(true);
+      }
+
     } catch (err) {
       console.error('Error validating simulator progress', err);
     } finally {
       setIsValidating(false);
     }
-  }, [currentTenant?.id]);
+  }, [currentTenant?.id, activeCase]);
 
   useEffect(() => {
     checkProgress();
   }, [checkProgress]);
 
-  const selectedCase = CASES.find(c => c.id === activeCase);
+  const selectedCase = cases.find(c => c.id === activeCase);
   const progressPercent = Math.round(
     ((validations.dama ? 1 : 0) + (validations.roles ? 1 : 0) + (validations.raci ? 1 : 0)) / 3 * 100
   );
+
+  if (cases.length === 0) {
+    return <div className={styles.container}>Cargando casos...</div>;
+  }
 
   return (
     <div className={styles.container}>
@@ -111,8 +150,8 @@ export default function Simulator() {
 
       {/* Case Selector */}
       <div className={styles.casesGrid}>
-        {CASES.map(c => {
-          const Icon = c.icon;
+        {cases.map(c => {
+          const Icon = ICON_MAP[c.icon] || Briefcase;
           const isActive = activeCase === c.id;
           return (
             <div 
@@ -190,7 +229,7 @@ export default function Simulator() {
         </div>
 
         {/* Certificate / Success */}
-        {progressPercent === 100 && (
+        {hasCertificate && (
           <motion.div 
             className={styles.certificateBox}
             initial={{ opacity: 0, y: 20 }}
