@@ -68,7 +68,7 @@ export default function Simulator() {
 
       if (certData && certData.length > 0) {
         setHasCertificate(true);
-        setValidations({ dama: true, roles: true, raci: true });
+        setValidations({ dama: true, roles: true, raci: true, missingRoles: [], missingRaci: 0 });
         setIsValidating(false);
         return;
       } else {
