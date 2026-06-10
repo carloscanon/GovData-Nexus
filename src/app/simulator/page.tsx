@@ -11,7 +11,8 @@ import {
   ShieldAlert,
   ArrowRight,
   RefreshCw,
-  Database
+  Database,
+  Network
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +21,8 @@ import styles from './simulator.module.css';
 const ICON_MAP: Record<string, any> = {
   Briefcase: Briefcase,
   ShieldAlert: ShieldAlert,
-  Database: Database
+  Database: Database,
+  Network: Network
 };
 
 export default function Simulator() {
