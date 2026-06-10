@@ -87,14 +87,14 @@ export default function Simulator() {
       // 2. Check Roles (Needs Data Owner, Data Steward, Data Custodian, CDO/CISO/Auditor)
       const { data: membersData } = await supabase
         .from('team_members')
-        .select('roleType')
+        .select('role')
         .eq('tenant_id', currentTenant.id);
       
       let hasRoles = false;
       let missingRoles: string[] = ['Data Owner', 'Data Steward', 'Data Custodian', 'CDO o Auditor'];
 
       if (membersData && membersData.length > 0) {
-        const roleTypes = membersData.map(m => m.roleType?.toLowerCase() || '');
+        const roleTypes = membersData.map(m => m.role?.toLowerCase() || '');
         const hasOwner = roleTypes.includes('data owner');
         const hasSteward = roleTypes.includes('data steward');
         const hasCustodian = roleTypes.includes('data custodian');
