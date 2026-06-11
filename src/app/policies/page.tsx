@@ -89,6 +89,9 @@ export default function PoliciesModule() {
   const [evidences, setEvidences] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>(DEFAULT_TEAM_MEMBERS);
 
+  const [companyUsers, setCompanyUsers] = useState<any[]>([]);
+  const [draggedStepIdx, setDraggedStepIdx] = useState<number | null>(null);
+
   // Load All Data from DB
   useEffect(() => {
     if (!currentTenant?.id) return;
@@ -103,7 +106,8 @@ export default function PoliciesModule() {
           { data: procData },
           { data: ctrlData },
           { data: evData },
-          { data: membersData }
+          { data: membersData },
+          { data: usersData }
         ] = await Promise.all([
           supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
           supabase.from('policy_workflows').select('*').eq('tenant_id', currentTenant.id),
@@ -111,7 +115,8 @@ export default function PoliciesModule() {
           supabase.from('policy_procedures').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_controls').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_evidences').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('team_members').select('name, role').eq('tenant_id', currentTenant.id)
+          supabase.from('team_members').select('name, role').eq('tenant_id', currentTenant.id),
+          supabase.from('tenant_users').select('name, role').eq('tenant_id', currentTenant.id)
         ]);
 
         if (polData) {
@@ -137,6 +142,14 @@ export default function PoliciesModule() {
           setTeamMembers(membersData);
         } else {
           setTeamMembers(DEFAULT_TEAM_MEMBERS);
+        }
+
+        if (usersData && usersData.length > 0) {
+          setCompanyUsers(usersData);
+        } else if (membersData && membersData.length > 0) {
+          setCompanyUsers(membersData);
+        } else {
+          setCompanyUsers(DEFAULT_TEAM_MEMBERS);
         }
         
       } catch (e: any) {
@@ -1305,87 +1318,260 @@ export default function PoliciesModule() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.owner}
-                          onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Custodio (TI Custodian)</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.data_custodian}
-                          onChange={e => setNewPolicy({...newPolicy, data_custodian: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Auditor Designado</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.auditor_designado}
-                          onChange={e => setNewPolicy({...newPolicy, auditor_designado: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                  </div>
+                      <div>
+                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
+                         <select 
+                           style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                           value={newPolicy.owner}
+                           onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
+                         >
+                            {companyUsers.map((m, i) => (
+                              <option key={i} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>
+                            ))}
+                         </select>
+                      </div>
+                      <div>
+                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Custodio (TI Custodian)</label>
+                         <select 
+                           style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                           value={newPolicy.data_custodian}
+                           onChange={e => setNewPolicy({...newPolicy, data_custodian: e.target.value})}
+                         >
+                            {companyUsers.map((m, i) => (
+                              <option key={i} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>
+                            ))}
+                         </select>
+                      </div>
+                      <div>
+                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Auditor Designado</label>
+                         <select 
+                           style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                           value={newPolicy.auditor_designado}
+                           onChange={e => setNewPolicy({...newPolicy, auditor_designado: e.target.value})}
+                         >
+                            {companyUsers.map((m, i) => (
+                              <option key={i} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>
+                            ))}
+                         </select>
+                      </div>
+                   </div>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                    <div>
-                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Vigencia (Año)</label>
-                       <input 
-                         type="number" 
-                         value={newPolicy.expiry}
-                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                         onChange={e => setNewPolicy({...newPolicy, expiry: e.target.value})}
-                       />
-                    </div>
-                    <div>
-                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Versión Inicial</label>
-                       <input 
-                         type="text" 
-                         value={newPolicy.version}
-                         style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                         onChange={e => setNewPolicy({...newPolicy, version: e.target.value})}
-                       />
-                    </div>
-                 </div>
+                    <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+                       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: '#1e293b' }}>Definición de Contenido de la Política</h3>
+                       
+                       <div style={{ marginBottom: '20px' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo de la Política</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Defina el objetivo principal de la política (ej: Garantizar la privacidad de los datos personales...)" 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '80px', resize: 'vertical', background: '#ffffff', color: '#000000' }}
+                            value={newPolicy.objective}
+                            onChange={e => setNewPolicy({...newPolicy, objective: e.target.value})}
+                          />
+                       </div>
 
-                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo de la Política</label>
-                    <textarea 
-                      rows={3} 
-                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                      value={newPolicy.objective}
-                      onChange={e => setNewPolicy({...newPolicy, objective: e.target.value})}
-                    />
-                 </div>
+                       <div style={{ marginBottom: '20px' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Alcance (Scope)</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Defina a quiénes y a qué sistemas aplica (ej: Todos los colaboradores y proveedores que traten PII...)" 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '80px', resize: 'vertical', background: '#ffffff', color: '#000000' }}
+                            value={newPolicy.scope}
+                            onChange={e => setNewPolicy({...newPolicy, scope: e.target.value})}
+                          />
+                       </div>
+
+                       <div style={{ marginBottom: '20px' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Descripción / Lineamiento Principal</label>
+                          <textarea 
+                            rows={4}
+                            placeholder="Describa en detalle las directrices o reglas que se deben cumplir..." 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '100px', resize: 'vertical', background: '#ffffff', color: '#000000' }}
+                            value={newPolicy.guidelines[0] || ''}
+                            onChange={e => {
+                              const newG = [...newPolicy.guidelines];
+                              newG[0] = e.target.value;
+                              setNewPolicy({...newPolicy, guidelines: newG});
+                            }}
+                          />
+                       </div>
+                    </div>
+                </div>
+                <div className={styles.footer} style={{ padding: '24px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                   <button onClick={() => setIsCreateModalOpen(false)} className={styles.secondaryBtn}>Cancelar</button>
+                   <button onClick={handleAddPolicy} className={styles.primaryBtn}>Crear Política</button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Workflow Editor Modal */}
+      <AnimatePresence>
+        {isWfModalOpen && editingWf && (
+          <div className={styles.modalOverlay} onClick={() => setIsWfModalOpen(false)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '600px', width: '90%' }}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>{String(editingWf.id).startsWith('new_') ? 'Nuevo Flujo de Aprobación' : 'Editar Flujo de Aprobación'}</h2>
+                  <p style={{ color: '#64748b' }}>Configure los pasos y el orden del flujo.</p>
+                </div>
+                <button onClick={() => setIsWfModalOpen(false)} className={styles.modalCloseBtn}>
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className={styles.footer}>
-                 <button className={styles.secondaryBtn} onClick={() => setIsCreateModalOpen(false)}>Cancelar</button>
-                 <button className={styles.primaryBtn} onClick={handleAddPolicy}>Crear Borrador</button>
+              <div className={styles.modalBody} style={{ padding: '32px', display: 'block', overflowY: 'auto' }}>
+                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Nombre del Flujo</label>
+                       <input 
+                         type="text" 
+                         value={editingWf.name || ''}
+                         onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
+                         className={styles.modalInput}
+                       />
+                    </div>
+                    <div>
+                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Color Identificador</label>
+                       <input 
+                         type="color" 
+                         value={editingWf.color || '#6366f1'}
+                         onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
+                         className={styles.modalInput}
+                         style={{ padding: '4px', height: '46px' }}
+                       />
+                    </div>
+                 </div>
+
+                 <label className={styles.modalLabel} style={{ marginBottom: '12px', display: 'block' }}>Pasos del Ciclo de Vida (Arrastra con el mouse para cambiar el orden)</label>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                    {(editingWf.steps || []).map((step: string, idx: number) => (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          display: 'flex', 
+                          gap: '12px', 
+                          alignItems: 'center', 
+                          cursor: 'grab',
+                          background: draggedStepIdx === idx ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                          borderRadius: '10px',
+                          padding: '6px',
+                          border: '1px dashed rgba(0,0,0,0.05)',
+                          transition: 'background 0.2s'
+                        }}
+                        draggable
+                        onDragStart={() => setDraggedStepIdx(idx)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (draggedStepIdx !== null && draggedStepIdx !== idx) {
+                            const newSteps = [...(editingWf.steps || [])];
+                            const [removed] = newSteps.splice(draggedStepIdx, 1);
+                            newSteps.splice(idx, 0, removed);
+                            setEditingWf({ ...editingWf, steps: newSteps });
+                          }
+                          setDraggedStepIdx(null);
+                        }}
+                      >
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'grab', flexShrink: 0 }}>
+                           <GitBranch size={16} style={{ color: '#94a3b8' }} />
+                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: editingWf.color || '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700 }}>
+                             {idx + 1}
+                           </div>
+                         </div>
+                         <input 
+                           type="text" 
+                           value={step || ''}
+                           onChange={e => {
+                             const newSteps = [...(editingWf.steps || [])];
+                             newSteps[idx] = e.target.value;
+                             setEditingWf({ ...editingWf, steps: newSteps });
+                           }}
+                           className={styles.modalInput}
+                           placeholder="Ej. Revisión Legal"
+                         />
+                         <button 
+                           onClick={() => {
+                             const newSteps = (editingWf.steps || []).filter((_: any, i: number) => i !== idx);
+                             setEditingWf({ ...editingWf, steps: newSteps });
+                           }}
+                           style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+                         >
+                            <Trash2 size={18} />
+                         </button>
+                      </div>
+                    ))}
+                    <button 
+                      onClick={() => setEditingWf({ ...editingWf, steps: [...(editingWf.steps || []), 'Nuevo Paso'] })}
+                      className={styles.secondaryBtn}
+                      style={{ marginTop: '8px', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                       <Plus size={16} /> Añadir Paso
+                    </button>
+                 </div>
+              </div>
+              <div className={styles.footer} style={{ padding: '24px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                 <button onClick={() => setIsWfModalOpen(false)} className={styles.secondaryBtn}>Cancelar</button>
+                 <button onClick={saveWorkflow} className={styles.primaryBtn} style={{ background: editingWf.color || '#6366f1' }}>
+                    {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
+                 </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Policy Detail Modal with Approval Workflow */}
+      {/* KPI Explainer Modal */}
       <AnimatePresence>
+        {selectedKPI && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', padding: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ padding: '10px', background: `${selectedKPI.color}20`, borderRadius: '12px', display: 'flex', color: selectedKPI.color }}>
+                     <Award size={24} />
+                   </div>
+                   <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
+                </div>
+                <button onClick={() => setSelectedKPI(null)} className={styles.modalCloseBtn}>
+                   <X size={18} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
+                   {selectedKPI.explanation}
+                 </p>
+                 <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <Info size={20} color="#6366f1" style={{ flexShrink: 0 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Este indicador se calcula en tiempo real y refleja el estado de gobierno normativo de la organización.
+                    </p>
+                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
+                 <button className={styles.primaryBtn} onClick={() => setSelectedKPI(null)}>
+                   Entendido
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
         {selectedPolicy && (
           <div className={styles.modalOverlay} onClick={() => setSelectedPolicy(null)}>
             <motion.div 
@@ -1498,16 +1684,72 @@ export default function PoliciesModule() {
                              </div>
                              {(selectedPolicy.currentStep || 0) < (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 && (
                                <div>
-                                 {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' || (selectedPolicy.currentStep === 0 && !selectedPolicy.documentUrl) ? (
+                                 {((selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador') && !selectedPolicy.documentUrl) ? (
                                    <>
                                      <input 
                                        type="file" 
                                        id={`workflow-file-upload-${selectedPolicy.id}`} 
                                        style={{ display: 'none' }} 
-                                       onChange={(e) => {
-                                         if (e.target.files && e.target.files.length > 0) {
-                                           handleFileUpload(selectedPolicy.id, e.target.files[0].name);
-                                           advanceWorkflow(selectedPolicy.id);
+                                       onChange={async (e) => {
+                                         const file = e.target.files?.[0];
+                                         if (!file || !currentTenant?.id) return;
+                                         try {
+                                            const fileExt = file.name.split('.').pop();
+                                            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                                            const filePath = `${currentTenant.id}/politicas/${Date.now()}_${safeName}`;
+                                            
+                                            // Upload to Supabase Storage
+                                            const { error: uploadErr } = await supabase.storage
+                                              .from('policy-documents')
+                                              .upload(filePath, file, { upsert: false });
+                                            if (uploadErr) throw uploadErr;
+
+                                            // Create signed URL
+                                            const { data: signedData, error: signErr } = await supabase.storage
+                                              .from('policy-documents')
+                                              .createSignedUrl(filePath, 31536000);
+                                            if (signErr || !signedData?.signedUrl) throw signErr || new Error('Error al firmar url');
+                                            
+                                            const docUrl = signedData.signedUrl;
+
+                                            // Save to data_policies table
+                                            const pIndex = policies.findIndex(p => p.id === selectedPolicy.id);
+                                            if (pIndex === -1) return;
+                                            const policy = policies[pIndex];
+                                            const wf = getPolicyWorkflow(policy.workflowId);
+                                            if (!wf) return;
+
+                                            const nextStepIdx = (policy.currentStep || 0) + 1;
+                                            if (nextStepIdx >= wf.steps.length) return;
+
+                                            const nextStepObj = wf.steps[nextStepIdx];
+                                            const nextStatus = typeof nextStepObj === 'string' ? nextStepObj : nextStepObj.name;
+
+                                            const { error: dbErr } = await supabase
+                                              .from('data_policies')
+                                              .update({ 
+                                                document_url: docUrl,
+                                                current_step: nextStepIdx,
+                                                status: nextStatus
+                                              })
+                                              .eq('id', selectedPolicy.id);
+                                            if (dbErr) throw dbErr;
+
+                                            const updatedPolicy = { 
+                                              ...policy, 
+                                              documentUrl: docUrl, 
+                                              currentStep: nextStepIdx, 
+                                              status: nextStatus 
+                                            };
+
+                                            setPolicies(policies.map(p => p.id === selectedPolicy.id ? updatedPolicy : p));
+                                            setSelectedPolicy(updatedPolicy);
+                                            handleFileUpload(selectedPolicy.id, file.name);
+                                            alert("Documento cargado y flujo avanzado correctamente.");
+
+                                         } catch (err: any) {
+                                            console.error(err);
+                                            alert(`Error al cargar el documento: ${err.message}`);
                                          }
                                        }} 
                                      />
@@ -1522,7 +1764,11 @@ export default function PoliciesModule() {
                                  ) : (
                                    <button 
                                      className={styles.primaryBtn} 
-                                     onClick={() => advanceWorkflow(selectedPolicy.id)}
+                                     onClick={() => {
+                                        setPolicyToApprove(selectedPolicy.id);
+                                        setApproveAssignee(companyUsers[0] ? `${companyUsers[0].name} (${companyUsers[0].role || 'Usuario'})` : '');
+                                        setIsApproveModalOpen(true);
+                                     }}
                                      style={{ padding: '10px 20px', background: '#f59e0b' }}
                                    >
                                       <CheckCircle size={16} style={{ marginRight: '8px' }} /> Asignar Aprobador y Avanzar
@@ -1557,8 +1803,9 @@ export default function PoliciesModule() {
                       <div className={styles.richText}>
                         {!isEditing ? (
                           <>
-                            <p><strong>Objetivo:</strong> {selectedPolicy.objective}</p>
-                            <p style={{ marginTop: '24px' }}><strong>Alcance:</strong> {selectedPolicy.scope}</p>
+                            <p><strong>Objetivo:</strong> {selectedPolicy.objective || 'No especificado.'}</p>
+                            <p style={{ marginTop: '24px' }}><strong>Alcance (Scope):</strong> {selectedPolicy.scope || 'No especificado.'}</p>
+                            <p style={{ marginTop: '24px' }}><strong>Descripción / Lineamiento Principal:</strong> {selectedPolicy.guidelines?.[0] || 'No especificada.'}</p>
                           </>
                         ) : (
                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1579,7 +1826,7 @@ export default function PoliciesModule() {
                                      value={editForm.owner}
                                      onChange={e => setEditForm({...editForm, owner: e.target.value})}
                                    >
-                                      {teamMembers.map((m, i) => (
+                                      {companyUsers.map((m, i) => (
                                         <option key={i} style={{ color: 'black' }}>{m.name} ({m.role})</option>
                                       ))}
                                    </select>
@@ -1638,14 +1885,27 @@ export default function PoliciesModule() {
                                    onChange={e => setEditForm({...editForm, scope: e.target.value})}
                                  />
                               </div>
+                              <div>
+                                 <label className={styles.modalLabel}>Descripción / Lineamiento Principal</label>
+                                 <textarea 
+                                   rows={4}
+                                   className={styles.modalInput} 
+                                   style={{ minHeight: '100px' }}
+                                   value={editForm.guidelines?.[0] || ''}
+                                   onChange={e => {
+                                     const newG = [...(editForm.guidelines || [])];
+                                     newG[0] = e.target.value;
+                                     setEditForm({...editForm, guidelines: newG});
+                                   }}
+                                 />
+                              </div>
                            </div>
                         )}
                         <div style={{ marginTop: '32px', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                           <h5 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Definiciones Clave</h5>
-                           <ul style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                              <li><strong>Dato Sensible:</strong> Aquel que afecta la intimidad del titular.</li>
-                              <li><strong>PII:</strong> Personally Identifiable Information.</li>
-                           </ul>
+                           <h5 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>Información de Base de Datos</h5>
+                           <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                              Esta política está registrada activamente en la base de datos de <strong>GovData Nexus</strong> bajo el origen regulatorio: <strong>{selectedPolicy.framework_origin || 'General'}</strong>.
+                           </p>
                         </div>
                       </div>
                     </motion.div>
@@ -1705,7 +1965,7 @@ export default function PoliciesModule() {
                                       value={editForm.owner}
                                       onChange={e => setEditForm({...editForm, owner: e.target.value})}
                                     >
-                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                       {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
                                     </select>
                                  ) : (
                                     <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
@@ -1722,7 +1982,7 @@ export default function PoliciesModule() {
                                       value={editForm.data_custodian}
                                       onChange={e => setEditForm({...editForm, data_custodian: e.target.value})}
                                     >
-                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                       {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
                                     </select>
                                  ) : (
                                     <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.data_custodian}</div>
@@ -1739,7 +1999,7 @@ export default function PoliciesModule() {
                                       value={editForm.auditor_designado}
                                       onChange={e => setEditForm({...editForm, auditor_designado: e.target.value})}
                                     >
-                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                       {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
                                     </select>
                                  ) : (
                                     <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.auditor_designado}</div>
@@ -1859,261 +2119,6 @@ export default function PoliciesModule() {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
-
-      {/* --- Template Formal para Exportación PDF --- */}
-      {selectedPolicy && (
-        <div id="formal-policy-document" className={styles.printableDocument}>
-          <div 
-            className={styles.printWatermark} 
-            style={{ 
-              color: selectedPolicy.status === 'Vigente' || selectedPolicy.status === 'Publicado' || selectedPolicy.status?.includes('Aproba') ? 'rgba(16, 185, 129, 0.1)' : 
-                     selectedPolicy.status === 'Borrador' ? 'rgba(100, 116, 139, 0.1)' : 'rgba(239, 68, 68, 0.1)'
-            }}
-          >
-            {selectedPolicy.status}
-          </div>
-          <div className={styles.printHeader}>
-             <div style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>GovData<span style={{ color: '#6366f1' }}>Nexus</span></div>
-             <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{selectedPolicy.title}</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id?.substring(0,8).toUpperCase()} | Versión: {selectedPolicy.version}</div>
-             </div>
-          </div>
-
-          <div className={styles.printBody}>
-             <div className={styles.printMetaGrid}>
-                <div><strong>Estado:</strong> {selectedPolicy.status}</div>
-                <div><strong>Vigencia:</strong> {selectedPolicy.expiry}</div>
-                <div><strong>Propietario:</strong> {selectedPolicy.owner}</div>
-                <div><strong>Clasificación:</strong> Confidencial / Uso Interno</div>
-             </div>
-
-             <section>
-                <h2 className={styles.printSectionTitle}>1. Objetivo</h2>
-                <div className={styles.printSectionContent}>{selectedPolicy.objective || 'No especificado.'}</div>
-             </section>
-
-             <section>
-                <h2 className={styles.printSectionTitle}>2. Alcance</h2>
-                <div className={styles.printSectionContent}>{selectedPolicy.scope || 'No especificado.'}</div>
-             </section>
-
-             <section>
-                <h2 className={styles.printSectionTitle}>3. Lineamientos</h2>
-                <div className={styles.printSectionContent}>
-                  <ul>
-                     {selectedPolicy.guidelines?.filter(Boolean).length > 0 ? selectedPolicy.guidelines.map((g: string, i: number) => (
-                       <li key={i}>{g}</li>
-                     )) : <li>No hay lineamientos especificados.</li>}
-                  </ul>
-                </div>
-             </section>
-
-             <section>
-                <h2 className={styles.printSectionTitle}>4. Controles Asociados</h2>
-                <div className={styles.printSectionContent}>
-                  <ul>
-                     {selectedPolicy.controls?.filter(Boolean).length > 0 ? selectedPolicy.controls.map((c: string, i: number) => (
-                       <li key={i}>{c}</li>
-                     )) : <li>No hay controles especificados.</li>}
-                  </ul>
-                </div>
-             </section>
-
-             <section>
-                <h2 className={styles.printSectionTitle}>5. Sanciones</h2>
-                <div className={styles.printSectionContent}>{selectedPolicy.sancions || 'No especificado.'}</div>
-             </section>
-
-             <div className={styles.printSignatureArea}>
-                <div className={styles.signatureBox}>
-                   <div className={styles.sigLine}></div>
-                   <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
-                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Responsable de la Política</div>
-                </div>
-                <div className={styles.signatureBox}>
-                   <div className={styles.sigLine}></div>
-                   <div style={{ fontWeight: 700 }}>Elena Gomez</div>
-                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Auditoría y Cumplimiento</div>
-                </div>
-             </div>
-          </div>
-          
-          <div className={styles.printFooter}>
-             Documento generado automáticamente por GovData Nexus - © 2024 - Todos los derechos reservados.
-          </div>
-        </div>
-      )}
-      {/* Workflow Editor Modal */}
-      <AnimatePresence>
-        {isWfModalOpen && editingWf && (
-          <div className={styles.modalOverlay} onClick={() => setIsWfModalOpen(false)}>
-              <motion.div 
-                className={styles.modalContent}
-                style={{ 
-                  maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
-                }}
-               initial={{ opacity: 0, scale: 0.9 }}
-               animate={{ opacity: 1, scale: 1 }}
-               onClick={e => e.stopPropagation()}
-             >
-                <div className={styles.modalHeader}>
-                   <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{String(editingWf.id).startsWith('new_') ? 'Crear Nuevo Flujo' : `Configurar Flujo: ${editingWf.name}`}</h2>
-                   <button onClick={() => setIsWfModalOpen(false)} className={styles.modalCloseBtn}><X size={18} /></button>
-                </div>
-                <div className={styles.modalBody} style={{ padding: '32px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'block' }}
-                   >
-                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                     <div>
-                        <label className={styles.modalLabel}>Nombre del Flujo</label>
-                        <input 
-                          type="text" 
-                          value={editingWf.name}
-                          onChange={e => setEditingWf({ ...editingWf, name: e.target.value })}
-                          className={styles.modalInput}
-                        />
-                     </div>
-                     <div>
-                        <label className={styles.modalLabel}>Color Identificador</label>
-                        <input 
-                          type="color" 
-                          value={editingWf.color}
-                          onChange={e => setEditingWf({ ...editingWf, color: e.target.value })}
-                          style={{ width: '100%', height: '50px', padding: '4px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
-                        />
-                     </div>
-                   </div>
-                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Propietario (Owner)</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.owner}
-                          onChange={e => setNewPolicy({...newPolicy, owner: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Custodio (TI Custodian)</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.data_custodian}
-                          onChange={e => setNewPolicy({...newPolicy, data_custodian: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                     <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Auditor Designado</label>
-                        <select 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
-                          value={newPolicy.auditor_designado}
-                          onChange={e => setNewPolicy({...newPolicy, auditor_designado: e.target.value})}
-                        >
-                           {teamMembers.map((m, i) => (
-                             <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>
-                           ))}
-                        </select>
-                     </div>
-                  </div>
-                   <label className={styles.modalLabel} style={{ marginBottom: '12px', display: 'block' }}>Pasos del Ciclo de Vida</label>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                      {editingWf.steps.map((step: string, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: editingWf.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
-                             {idx + 1}
-                           </div>
-                           <input 
-                             type="text" 
-                             value={step}
-                             onChange={e => {
-                               const newSteps = [...editingWf.steps];
-                               newSteps[idx] = e.target.value;
-                               setEditingWf({ ...editingWf, steps: newSteps });
-                             }}
-                             className={styles.modalInput}
-                             placeholder="Ej. Revisión Legal"
-                           />
-                           <button 
-                             onClick={() => {
-                               const newSteps = editingWf.steps.filter((_: any, i: number) => i !== idx);
-                               setEditingWf({ ...editingWf, steps: newSteps });
-                             }}
-                             style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
-                           >
-                              <Trash2 size={18} />
-                           </button>
-                        </div>
-                      ))}
-                      <button 
-                        onClick={() => setEditingWf({ ...editingWf, steps: [...editingWf.steps, 'Nuevo Paso'] })}
-                        className={styles.secondaryBtn}
-                        style={{ marginTop: '8px', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                         <Plus size={16} /> Añadir Paso
-                      </button>
-                   </div>
-                </div>
-                <div className={styles.footer}>
-                   <button onClick={() => setIsWfModalOpen(false)} className={styles.secondaryBtn}>Cancelar</button>
-                   <button onClick={saveWorkflow} className={styles.primaryBtn} style={{ background: editingWf.color }}>
-                      {String(editingWf.id).startsWith('new_') ? 'Crear Flujo' : 'Guardar Cambios'}
-                   </button>
-                </div>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* KPI Explainer Modal */}
-      <AnimatePresence>
-        {selectedKPI && (
-          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
-            <motion.div 
-              className={styles.modalContent}
-              style={{ maxWidth: '500px', padding: 0, overflow: 'hidden' }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className={styles.modalHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div style={{ padding: '10px', background: `${selectedKPI.color}20`, borderRadius: '12px', display: 'flex', color: selectedKPI.color }}>
-                     <Award size={24} />
-                   </div>
-                   <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: 800 }}>{selectedKPI.label}</h3>
-                </div>
-                <button onClick={() => setSelectedKPI(null)} className={styles.modalCloseBtn}>
-                   <X size={18} />
-                </button>
-              </div>
-              <div style={{ padding: '32px' }}>
-                 <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
-                   {selectedKPI.explanation}
-                 </p>
-                 <div style={{ marginTop: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <Info size={20} color="#6366f1" style={{ flexShrink: 0 }} />
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.4 }}>
-                      Este indicador se calcula en tiempo real y refleja el estado de gobierno normativo de la organización.
-                    </p>
-                 </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 32px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
-                 <button className={styles.primaryBtn} onClick={() => setSelectedKPI(null)}>
-                   Entendido
-                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Standard Modal */}
       <AnimatePresence>
@@ -2487,6 +2492,147 @@ export default function PoliciesModule() {
       </AnimatePresence>
 
       {/* Approve Workflow Modal */}
+      <AnimatePresence>
+        {isApproveModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => { setIsApproveModalOpen(false); setPolicyToApprove(null); }}>
+            <motion.div 
+              className={styles.modalContent}
+              style={{ maxWidth: '500px', width: '90%', display: 'flex', flexDirection: 'column' }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>Asignar Aprobador y Avanzar</h2>
+                  <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Seleccione el usuario responsable de aprobar el paso actual de la política.</p>
+                </div>
+                <button onClick={() => { setIsApproveModalOpen(false); setPolicyToApprove(null); }} className={styles.modalCloseBtn}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div style={{ padding: '32px' }}>
+                <div className={styles.modalFormGroup} style={{ marginBottom: '24px' }}>
+                  <label className={styles.modalLabel} style={{ fontWeight: 700, marginBottom: '8px', display: 'block' }}>Aprobador Asignado</label>
+                  <select 
+                    value={approveAssignee} 
+                    onChange={e => setApproveAssignee(e.target.value)} 
+                    className={styles.modalInput}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#000000' }}
+                  >
+                    {companyUsers.map((u, i) => (
+                      <option key={i} value={`${u.name} (${u.role || 'Usuario'})`}>{u.name} ({u.role || 'Usuario'})</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className={styles.secondaryBtn} onClick={() => { setIsApproveModalOpen(false); setPolicyToApprove(null); }}>Cancelar</button>
+                  <button 
+                    className={styles.primaryBtn} 
+                    style={{ background: '#f59e0b' }}
+                    onClick={async () => {
+                      if (policyToApprove) {
+                        await advanceWorkflow(policyToApprove);
+                        alert(`Flujo avanzado y notificado al aprobador: ${approveAssignee}`);
+                      }
+                      setIsApproveModalOpen(false);
+                      setPolicyToApprove(null);
+                    }}
+                  >
+                    Asignar y Avanzar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+            {/* --- Template Formal para Exportación PDF --- */}
+      {selectedPolicy && (
+        <div id="formal-policy-document" className={styles.printableDocument}>
+          <div 
+            className={styles.printWatermark} 
+            style={{ 
+              color: selectedPolicy.status === 'Vigente' || selectedPolicy.status === 'Publicado' || selectedPolicy.status?.includes('Aproba') ? 'rgba(16, 185, 129, 0.1)' : 
+                     selectedPolicy.status === 'Borrador' ? 'rgba(100, 116, 139, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            {selectedPolicy.status}
+          </div>
+          <div className={styles.printHeader}>
+             <div style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>GovData<span style={{ color: '#6366f1' }}>Nexus</span></div>
+             <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{selectedPolicy.title}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id?.substring(0,8).toUpperCase()} | Versión: {selectedPolicy.version}</div>
+             </div>
+          </div>
+
+          <div className={styles.printBody}>
+             <div className={styles.printMetaGrid}>
+                <div><strong>Estado:</strong> {selectedPolicy.status}</div>
+                <div><strong>Vigencia:</strong> {selectedPolicy.expiry}</div>
+                <div><strong>Propietario:</strong> {selectedPolicy.owner}</div>
+                <div><strong>Clasificación:</strong> Confidencial / Uso Interno</div>
+             </div>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>1. Objetivo</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.objective || 'No especificado.'}</div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>2. Alcance</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.scope || 'No especificado.'}</div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>3. Lineamientos</h2>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.guidelines?.filter(Boolean).length > 0 ? selectedPolicy.guidelines.map((g: string, i: number) => (
+                       <li key={i}>{g}</li>
+                     )) : <li>No hay lineamientos especificados.</li>}
+                  </ul>
+                </div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>4. Controles Asociados</h2>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.controls?.filter(Boolean).length > 0 ? selectedPolicy.controls.map((c: string, i: number) => (
+                       <li key={i}>{c}</li>
+                     )) : <li>No hay controles especificados.</li>}
+                  </ul>
+                </div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>5. Sanciones</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.sancions || 'No especificado.'}</div>
+             </section>
+
+             <div className={styles.printSignatureArea}>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Responsable de la Política</div>
+                </div>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>Elena Gomez</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Auditoría y Cumplimiento</div>
+                </div>
+             </div>
+          </div>
+          
+          <div className={styles.printFooter}>
+             Documento generado automáticamente por GovData Nexus - © 2024 - Todos los derechos reservados.
+          </div>
+        </div>
+      )}
       {/* Manage Control Modal */}
       <AnimatePresence>
         {isControlModalOpen && (

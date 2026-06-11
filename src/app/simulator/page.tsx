@@ -39,6 +39,8 @@ export default function Simulator() {
   
   const [validations, setValidations] = useState<Record<string, any>>({});
   const [isValidating, setIsValidating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [adminData, setAdminData] = useState<any[]>([]);
   const [superAdminData, setSuperAdminData] = useState<any[]>([]);
@@ -48,22 +50,33 @@ export default function Simulator() {
     setUserRole(role);
     const email = localStorage.getItem('govdata_user_email') || '';
     setUserEmail(email);
-    
-    // Auto-select tab if superadmin
-    if (role === 'superadmin') setActiveTab('superadmin');
   }, []);
 
-  // Fetch Modules & Steps
-  useEffect(() => {
-    const fetchConfig = async () => {
-      const { data: mData } = await supabase.from('simulator_modules').select('*').order('order_index');
-      const { data: sData } = await supabase.from('simulator_steps').select('*');
+  const fetchConfig = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const { data: mData, error: mError } = await supabase.from('simulator_modules').select('*').order('order_index');
+      if (mError) throw mError;
+      
+      const { data: sData, error: sError } = await supabase.from('simulator_steps').select('*');
+      if (sError) throw sError;
+
       if (mData) {
         setModules(mData);
         if (mData.length > 0) setActiveSession(mData[0].id);
       }
       if (sData) setSteps(sData);
-    };
+    } catch (err: any) {
+      console.error("Error fetching simulator config:", err);
+      setErrorMsg(err.message || "Error al conectar con la base de datos.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch Modules & Steps
+  useEffect(() => {
     fetchConfig();
   }, []);
 
@@ -71,7 +84,9 @@ export default function Simulator() {
     try {
       if (activeTab === 'superadmin') {
         // Superadmin: view average progress across ALL tenants
-        const { data: allProgress } = await supabase.from('simulator_user_progress').select('tenant_id, module_id, user_email');
+        const { data: allProgress } = await supabase.from('simulator_user_step_progress')
+          .select('tenant_id, step_key, user_email')
+          .eq('completed', true);
         const { data: tenants } = await supabase.from('tenants').select('id, name');
         
         if (tenants && allProgress) {
@@ -80,8 +95,9 @@ export default function Simulator() {
             // Count unique users in tenant
             const users = new Set(tenantProgs.map(p => p.user_email));
             
-            // Expected completions per user = modules.length
-            const totalPossible = users.size > 0 ? users.size * modules.length : modules.length;
+            // Expected completions per user = steps.length (9 steps total)
+            const totalStepsCount = steps.length || 9;
+            const totalPossible = users.size > 0 ? users.size * totalStepsCount : totalStepsCount;
             const progress = Math.round((tenantProgs.length / totalPossible) * 100);
             
             return {
@@ -97,23 +113,36 @@ export default function Simulator() {
       } 
       else if (activeTab === 'admin' && currentTenant) {
         // Admin: view breakdown per user inside current tenant
-        const { data: progress } = await supabase.from('simulator_user_progress')
-          .select('user_email, module_id')
-          .eq('tenant_id', currentTenant.id);
+        const { data: progress } = await supabase.from('simulator_user_step_progress')
+          .select('user_email, step_key')
+          .eq('tenant_id', currentTenant.id)
+          .eq('completed', true);
           
         if (progress) {
           // Group by user
           const usersMap: Record<string, string[]> = {};
           progress.forEach(p => {
             if (!usersMap[p.user_email]) usersMap[p.user_email] = [];
-            usersMap[p.user_email].push(p.module_id);
+            usersMap[p.user_email].push(p.step_key);
           });
           
-          const stats = Object.keys(usersMap).map(email => ({
-            email,
-            progress: Math.round((usersMap[email].length / modules.length) * 100),
-            badges: usersMap[email]
-          }));
+          const stats = Object.keys(usersMap).map(email => {
+            const totalStepsCount = steps.length || 9;
+            const progressPct = Math.round((usersMap[email].length / totalStepsCount) * 100);
+            
+            // Calculate badges dynamically based on completed steps of each module
+            const badges = modules.filter(m => {
+              const modSteps = steps.filter(s => s.module_id === m.id);
+              if (modSteps.length === 0) return false;
+              return modSteps.every(s => usersMap[email].includes(s.key_name));
+            }).map(m => m.id);
+
+            return {
+              email,
+              progress: isNaN(progressPct) ? 0 : progressPct,
+              badges
+            };
+          });
           setAdminData(stats);
         }
       }
@@ -226,6 +255,17 @@ export default function Simulator() {
 
       setValidations(v);
 
+      // Upsert each step's completion status to DB
+      for (const step of sessionSteps) {
+        await supabase.from('simulator_user_step_progress').upsert({
+          tenant_id: currentTenant.id,
+          user_email: userEmail,
+          step_key: step.key_name,
+          module_id: activeSession,
+          completed: !!v[step.key_name]
+        }, { onConflict: 'tenant_id,user_email,step_key' });
+      }
+
       if (allStepsValid && sessionSteps.length > 0) {
         await supabase.from('simulator_user_progress').insert([{ 
           tenant_id: currentTenant.id, 
@@ -314,8 +354,37 @@ export default function Simulator() {
   const completedChecks = sessionSteps.filter(c => validations[c.key_name]).length || 0;
   const progressPercent = Math.round((completedChecks / totalChecks) * 100);
 
+  if (isLoading) {
+    return (
+      <div className={styles.container} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '16px' }}>
+        <RefreshCw size={40} className="animate-spin" style={{ color: '#4f46e5' }} />
+        <p style={{ fontWeight: 600, color: '#64748b' }}>Cargando entorno de simulación...</p>
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className={styles.container} style={{ padding: '40px', textAlign: 'center' }}>
+        <h2 style={{ color: '#ef4444', marginBottom: '16px' }}>Error de Conexión</h2>
+        <p style={{ marginBottom: '24px', color: '#64748b' }}>{errorMsg}</p>
+        <button onClick={fetchConfig} style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+          Reintentar Cargar
+        </button>
+      </div>
+    );
+  }
+
   if (modules.length === 0) {
-    return <div className={styles.container}>Cargando entorno de simulación...</div>;
+    return (
+      <div className={styles.container} style={{ padding: '40px', textAlign: 'center' }}>
+        <h2 style={{ marginBottom: '16px' }}>No hay módulos disponibles</h2>
+        <p style={{ marginBottom: '24px', color: '#64748b' }}>No se encontraron sesiones del simulador configuradas en la base de datos.</p>
+        <button onClick={fetchConfig} style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+          Actualizar
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -327,16 +396,14 @@ export default function Simulator() {
             <p>Aplica tus conocimientos y gana insignias de manera progresiva.</p>
           </div>
           <div style={{ display: 'flex', gap: '10px', background: '#f1f5f9', padding: '6px', borderRadius: '12px' }}>
-            {userRole !== 'superadmin' && (
-              <button 
-                onClick={() => setActiveTab('participant')}
-                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, background: activeTab === 'participant' ? '#4f46e5' : 'transparent', color: activeTab === 'participant' ? 'white' : '#64748b' }}
-              >
-                Mi Ruta
-              </button>
-            )}
+            <button 
+              onClick={() => setActiveTab('participant')}
+              style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, background: activeTab === 'participant' ? '#4f46e5' : 'transparent', color: activeTab === 'participant' ? 'white' : '#64748b' }}
+            >
+              Mi Ruta
+            </button>
             
-            {(userRole === 'admin' || userRole === 'owner') && (
+            {(userRole === 'admin' || userRole === 'owner' || userRole === 'superadmin') && (
               <button 
                 onClick={() => setActiveTab('admin')}
                 style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, background: activeTab === 'admin' ? '#4f46e5' : 'transparent', color: activeTab === 'admin' ? 'white' : '#64748b' }}

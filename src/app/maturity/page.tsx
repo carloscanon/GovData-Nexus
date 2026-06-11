@@ -141,10 +141,19 @@ export default function Maturity() {
 
           // Map history (last 12)
           const history = data.slice(-12).map(row => {
-            const dateObj = new Date(row.assessment_date);
-            const monthName = dateObj.toLocaleString('es-ES', { month: 'short' });
+            let monthName = 'Ene';
+            if (row.assessment_date) {
+              const parts = row.assessment_date.split('-');
+              if (parts.length >= 2) {
+                const monthIdx = parseInt(parts[1], 10) - 1;
+                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                if (monthIdx >= 0 && monthIdx < 12) {
+                  monthName = months[monthIdx];
+                }
+              }
+            }
             return {
-              name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+              name: monthName,
               score: Number(row.score),
               benchmark: 62 // Static benchmark for UI
             };
@@ -170,7 +179,7 @@ export default function Maturity() {
           .order('phase', { ascending: true });
         setRoadmaps(roadmapsData || []);
       } catch (e: any) {
-        console.error('Error fetching maturity data:', e);
+        console.error('Error fetching maturity data details:', e.message, e.code, e.details, e.stack || e);
         if (e.code === '42P01') {
           alert('Falta la tabla maturity_assessments. Por favor ejecuta los scripts SQL.');
         }
