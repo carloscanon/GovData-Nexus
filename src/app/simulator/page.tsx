@@ -8,177 +8,210 @@ import {
   Circle, 
   Award, 
   Briefcase, 
-  ShieldAlert,
   ArrowRight,
   RefreshCw,
   Database,
-  Network
+  Activity,
+  BookOpen
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import styles from './simulator.module.css';
 
-const ICON_MAP: Record<string, any> = {
-  Briefcase: Briefcase,
-  ShieldAlert: ShieldAlert,
-  Database: Database,
-  Network: Network
-};
+const SESSIONS = [
+  {
+    id: 'session_1',
+    title: 'Sesión 1: Fundamentos',
+    badge: 'Arquitecto de Gobierno',
+    icon: Briefcase,
+    desc: 'Diagnóstico DAMA, Roles (Owner, Steward, CDO), RACI.',
+    checks: [
+      { key: 'dama', title: 'Diagnóstico DAMA Inicial', desc: 'Realiza la evaluación de madurez.' },
+      { key: 'roles', title: 'Estructura del Equipo Base', desc: 'Asigna Data Owner, Steward, Custodian y CDO.' },
+      { key: 'raci', title: 'Matriz RACI Operativa', desc: 'Configura mínimo 5 procesos en la matriz RACI.' }
+    ]
+  },
+  {
+    id: 'session_2',
+    title: 'Sesión 2: Framework',
+    badge: 'Policy Maker',
+    icon: BookOpen,
+    desc: 'Políticas, Dominios y Estructura de dominio.',
+    checks: [
+      { key: 'policies', title: 'Políticas de Datos', desc: 'Crea al menos 1 política de gobierno de datos.' },
+      { key: 'domains', title: 'Dominios Definidos', desc: 'Crea al menos 1 dominio de datos en el Catálogo.' }
+    ]
+  },
+  {
+    id: 'session_3',
+    title: 'Sesión 3: Calidad y Metadatos',
+    badge: 'Quality Champion',
+    icon: Database,
+    desc: 'Gestión de activos, diccionario y reglas de calidad.',
+    checks: [
+      { key: 'metadata', title: 'Diccionario de Datos', desc: 'Documenta al menos 2 activos en el Catálogo.' },
+      { key: 'quality', title: 'Reglas de Calidad', desc: 'Configura al menos 1 regla de calidad.' }
+    ]
+  },
+  {
+    id: 'session_4',
+    title: 'Sesión 4: Operación',
+    badge: 'CDO Master',
+    icon: Activity,
+    desc: 'Flujos de trabajo, incidentes y seguridad continua.',
+    checks: [
+      { key: 'workflows', title: 'Flujos de Trabajo', desc: 'Genera al menos 1 flujo de trabajo (workflow).' },
+      { key: 'security', title: 'Seguridad', desc: 'Registra al menos 1 control o incidente de seguridad.' }
+    ]
+  }
+];
 
 export default function Simulator() {
   const { currentTenant } = usePlatform();
-  const [cases, setCases] = useState<any[]>([]);
-  const [activeCase, setActiveCase] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'participant' | 'admin'>('participant');
+  const [activeSession, setActiveSession] = useState<string>('session_1');
   const [hasCertificate, setHasCertificate] = useState(false);
+  const [userRole, setUserRole] = useState('');
   
-  const [validations, setValidations] = useState({
-    dama: false,
-    roles: false,
-    raci: false,
-    missingRoles: [] as string[],
-    missingRaci: 0
-  });
+  const [validations, setValidations] = useState<Record<string, any>>({});
   const [isValidating, setIsValidating] = useState(false);
+  const [adminData, setAdminData] = useState<any[]>([]);
 
-  // Load cases from Supabase
   useEffect(() => {
-    async function loadCases() {
-      try {
-        const { data } = await supabase.from('simulator_cases').select('*').order('id', { ascending: true });
-        if (data && data.length > 0) {
-          setCases(data);
-          setActiveCase(data[0].id);
-        }
-      } catch (err) {
-        console.error('Error loading cases', err);
-      }
-    }
-    loadCases();
+    const role = localStorage.getItem('govdata_role') || '';
+    setUserRole(role);
   }, []);
 
+  const loadAdminData = async () => {
+    try {
+      const { data: certs } = await supabase.from('simulator_certificates').select('tenant_id, case_id');
+      const { data: tenants } = await supabase.from('tenants').select('id, name');
+      
+      if (certs && tenants) {
+        const stats = tenants.map(t => {
+          const tCerts = certs.filter(c => c.tenant_id === t.id).map(c => c.case_id);
+          return {
+            id: t.id,
+            name: t.name,
+            progress: Math.round((tCerts.length / 4) * 100),
+            badges: tCerts
+          };
+        });
+        setAdminData(stats);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'admin') {
+      loadAdminData();
+    }
+  }, [activeTab]);
+
   const checkProgress = useCallback(async () => {
-    if (!currentTenant?.id || !activeCase) return;
+    if (!currentTenant?.id || !activeSession) return;
     setIsValidating(true);
     try {
-      // 0. Check if already certified
+      // Check if this session is already certified
       const { data: certData } = await supabase
         .from('simulator_certificates')
         .select('id')
         .eq('tenant_id', currentTenant.id)
-        .eq('case_id', activeCase)
+        .eq('case_id', activeSession)
         .limit(1);
 
       if (certData && certData.length > 0) {
         setHasCertificate(true);
-        setValidations({ dama: true, roles: true, raci: true, missingRoles: [], missingRaci: 0 });
+        if (activeSession === 'session_1') setValidations({ dama: true, roles: true, raci: true, missingRoles: [], missingRaci: 0 });
+        if (activeSession === 'session_2') setValidations({ policies: true, domains: true });
+        if (activeSession === 'session_3') setValidations({ metadata: true, quality: true });
+        if (activeSession === 'session_4') setValidations({ workflows: true, security: true });
         setIsValidating(false);
         return;
       } else {
         setHasCertificate(false);
       }
 
-      // 1. Check DAMA Assessment
-      const { data: damaData } = await supabase
-        .from('maturity_assessments')
-        .select('id')
-        .eq('tenant_id', currentTenant.id)
-        .limit(1);
-      
-      const hasDama = (damaData?.length ?? 0) > 0;
+      let sessionValid = false;
+      const v: Record<string, any> = {};
 
-      // 2. Check Roles (Needs Data Owner, Data Steward, Data Custodian, CDO/CISO/Auditor)
-      const { data: membersData } = await supabase
-        .from('team_members')
-        .select('role')
-        .eq('tenant_id', currentTenant.id);
-      
-      let hasRoles = false;
-      let missingRoles: string[] = ['Data Owner', 'Data Steward', 'Data Custodian', 'CDO o Auditor'];
+      if (activeSession === 'session_1') {
+        const { data: dama } = await supabase.from('maturity_assessments').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.dama = (dama?.length ?? 0) > 0;
 
-      if (membersData && membersData.length > 0) {
-        const roleTypes = membersData.map(m => m.role?.toLowerCase() || '');
-        const hasOwner = roleTypes.includes('data owner');
-        const hasSteward = roleTypes.includes('data steward');
-        const hasCustodian = roleTypes.includes('data custodian');
-        const hasCdoOrAuditor = roleTypes.includes('cdo') || roleTypes.includes('ciso') || roleTypes.includes('auditor');
+        const { data: members } = await supabase.from('team_members').select('role').eq('tenant_id', currentTenant.id);
+        const roleTypes = (members || []).map(m => m.role?.toLowerCase() || '');
+        v.roles = roleTypes.includes('data owner') && roleTypes.includes('data steward') && roleTypes.includes('data custodian') && (roleTypes.includes('cdo') || roleTypes.includes('ciso') || roleTypes.includes('auditor'));
         
-        missingRoles = [];
-        if (!hasOwner) missingRoles.push('Data Owner');
-        if (!hasSteward) missingRoles.push('Data Steward');
-        if (!hasCustodian) missingRoles.push('Data Custodian');
-        if (!hasCdoOrAuditor) missingRoles.push('CDO o Auditor');
+        const { data: raci } = await supabase.from('team_raci_matrix').select('id').eq('tenant_id', currentTenant.id);
+        v.raci = (raci?.length ?? 0) >= 5;
 
-        hasRoles = missingRoles.length === 0;
+        sessionValid = v.dama && v.roles && v.raci;
+      } 
+      else if (activeSession === 'session_2') {
+        const { data: policies } = await supabase.from('policies').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.policies = (policies?.length ?? 0) > 0;
+
+        const { data: domains } = await supabase.from('data_domains').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.domains = (domains?.length ?? 0) > 0;
+
+        sessionValid = v.policies && v.domains;
+      }
+      else if (activeSession === 'session_3') {
+        const { data: assets } = await supabase.from('data_assets').select('id').eq('tenant_id', currentTenant.id).limit(2);
+        v.metadata = (assets?.length ?? 0) >= 2;
+
+        const { data: rules } = await supabase.from('data_quality_rules').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.quality = (rules?.length ?? 0) > 0;
+
+        sessionValid = v.metadata && v.quality;
+      }
+      else if (activeSession === 'session_4') {
+        const { data: wf } = await supabase.from('workflows').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.workflows = (wf?.length ?? 0) > 0;
+
+        const { data: sec } = await supabase.from('security_controls').select('id').eq('tenant_id', currentTenant.id).limit(1);
+        v.security = (sec?.length ?? 0) > 0;
+
+        sessionValid = v.workflows && v.security;
       }
 
-      // 3. Check RACI
-      const { data: raciData } = await supabase
-        .from('team_raci_matrix')
-        .select('id')
-        .eq('tenant_id', currentTenant.id);
-      
-      // RACI should have at least 5 processes configured
-      const raciCount = raciData?.length ?? 0;
-      const hasRaci = raciCount >= 5;
-      const missingRaci = hasRaci ? 0 : 5 - raciCount;
+      setValidations(v);
 
-      setValidations({
-        dama: hasDama,
-        roles: hasRoles,
-        raci: hasRaci,
-        missingRoles: missingRoles,
-        missingRaci: missingRaci
-      });
-
-      // Si todo está ok, insertar certificado en base de datos
-      if (hasDama && hasRoles && hasRaci) {
-        await supabase.from('simulator_certificates').insert([{
-          tenant_id: currentTenant.id,
-          case_id: activeCase
-        }]);
+      if (sessionValid) {
+        await supabase.from('simulator_certificates').insert([{ tenant_id: currentTenant.id, case_id: activeSession }]);
         setHasCertificate(true);
       }
 
     } catch (err) {
-      console.error('Error validating simulator progress', err);
+      console.error(err);
     } finally {
       setIsValidating(false);
     }
-  }, [currentTenant?.id, activeCase]);
+  }, [currentTenant?.id, activeSession]);
 
   const exportCertificate = async () => {
-    if (!currentTenant || !selectedCase) return;
+    if (!currentTenant) return;
     
-    // Fetch CDO Signature
-    const { data: cdoData } = await supabase.from('team_members')
-      .select('name')
-      .eq('tenant_id', currentTenant.id)
-      .or('role.ilike.%cdo%,role.ilike.%ciso%,role.ilike.%auditor%')
-      .limit(1);
+    const { data: cdoData } = await supabase.from('team_members').select('name').eq('tenant_id', currentTenant.id).or('role.ilike.%cdo%,role.ilike.%ciso%,role.ilike.%auditor%').limit(1);
     const signatureName = cdoData && cdoData.length > 0 ? cdoData[0].name : 'CDO Global';
 
-    // Fetch User Alias
     const userEmail = localStorage.getItem('govdata_user_email');
     let certName = localStorage.getItem('govdata_user_name') || 'Estudiante';
     
     if (userEmail) {
-      const { data: userData } = await supabase.from('tenant_users')
-        .select('alias, name')
-        .eq('tenant_id', currentTenant.id)
-        .eq('email', userEmail)
-        .single();
-        
-      if (userData?.alias) {
-        certName = userData.alias;
-      } else if (userData?.name) {
-        certName = userData.name;
-      }
+      const { data: userData } = await supabase.from('tenant_users').select('alias, name').eq('tenant_id', currentTenant.id).eq('email', userEmail).single();
+      if (userData?.alias) certName = userData.alias;
+      else if (userData?.name) certName = userData.name;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     const dateStr = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const sessionObj = SESSIONS.find(s => s.id === activeSession);
     
     const html = `
       <html>
@@ -195,36 +228,25 @@ export default function Simulator() {
             .footer { margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end; color: #94a3b8; }
             .signature { border-top: 2px solid #cbd5e1; padding-top: 10px; font-weight: bold; color: #1e293b; width: 200px; margin-top: 20px; }
             .seal { width: 100px; height: 100px; background: #4f46e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; transform: rotate(-15deg); margin: 0 auto; margin-top: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            @media print {
-              body { background: white; padding: 0; align-items: flex-start; }
-              .certificate { box-shadow: none; border: 4px solid #4f46e5; padding: 40px; margin: 0 auto; }
-            }
+            @media print { body { background: white; padding: 0; align-items: flex-start; } .certificate { box-shadow: none; border: 4px solid #4f46e5; padding: 40px; margin: 0 auto; } }
           </style>
         </head>
         <body>
           <div class="certificate">
-            <h1>Certificado de Aprobación</h1>
-            <h2>GovData Nexus - Simulator</h2>
+            <h1>Insignia Obtenida</h1>
+            <h2>${sessionObj?.badge || 'CDO Master'}</h2>
             <p>Se otorga el presente reconocimiento a:</p>
             <div class="tenant-name">${certName}</div>
             <p style="margin-top: 0; color: #4f46e5; font-weight: bold;">Representando a: ${currentTenant.name}</p>
-            <p>Por haber completado satisfactoriamente los requerimientos técnicos y estratégicos de Gobierno de Datos en el escenario:</p>
-            <h3 style="color:#1e293b; font-size: 1.5rem;">${selectedCase.title}</h3>
-            <p style="font-size: 1rem;">Demostrando competencia en diagnóstico de madurez, estructuración de roles y parametrización de la matriz operativa RACI.</p>
-            <div class="seal">CERTIFIED</div>
+            <p>Por haber completado satisfactoriamente los requerimientos de la sesión:</p>
+            <h3 style="color:#1e293b; font-size: 1.5rem;">${sessionObj?.title}</h3>
+            <div class="seal">BADGE</div>
             <div class="footer">
-              <div style="text-align: left;">
-                <p style="font-size:1rem; margin:0; padding:0;">Fecha de Emisión:</p>
-                <strong style="color: #1e293b">${dateStr}</strong>
-              </div>
+              <div style="text-align: left;"><p style="font-size:1rem; margin:0; padding:0;">Fecha de Emisión:</p><strong style="color: #1e293b">${dateStr}</strong></div>
               <div class="signature">Firma: ${signatureName}<br/><span style="font-size: 0.8rem; color: #94a3b8;">Chief Data Officer</span></div>
             </div>
           </div>
-          <script>
-            setTimeout(() => {
-              window.print();
-            }, 500);
-          </script>
+          <script>setTimeout(() => { window.print(); }, 500);</script>
         </body>
       </html>
     `;
@@ -237,139 +259,152 @@ export default function Simulator() {
     checkProgress();
   }, [checkProgress]);
 
-  const selectedCase = cases.find(c => c.id === activeCase);
-  const progressPercent = Math.round(
-    ((validations.dama ? 1 : 0) + (validations.roles ? 1 : 0) + (validations.raci ? 1 : 0)) / 3 * 100
-  );
-
-  if (cases.length === 0) {
-    return <div className={styles.container}>Cargando casos...</div>;
-  }
+  const activeS = SESSIONS.find(s => s.id === activeSession);
+  const totalChecks = activeS?.checks.length || 1;
+  const completedChecks = activeS?.checks.filter(c => validations[c.key]).length || 0;
+  const progressPercent = Math.round((completedChecks / totalChecks) * 100);
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1><GraduationCap size={40} color="#4f46e5" /> Simulador de CDO</h1>
-        <p>Aplica tus conocimientos en escenarios reales y deja que GovData Nexus valide tu trabajo.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1><GraduationCap size={40} color="#4f46e5" /> GovData Academy (CDO Simulator)</h1>
+            <p>Aplica tus conocimientos en 4 sesiones prácticas. Gana insignias en cada paso de tu camino.</p>
+          </div>
+          {(userRole === 'admin' || userRole === 'superadmin') && (
+            <div style={{ display: 'flex', gap: '10px', background: '#f1f5f9', padding: '6px', borderRadius: '12px' }}>
+              <button 
+                onClick={() => setActiveTab('participant')}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, background: activeTab === 'participant' ? '#4f46e5' : 'transparent', color: activeTab === 'participant' ? 'white' : '#64748b' }}
+              >
+                Mi Ruta
+              </button>
+              <button 
+                onClick={() => setActiveTab('admin')}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, background: activeTab === 'admin' ? '#4f46e5' : 'transparent', color: activeTab === 'admin' ? 'white' : '#64748b' }}
+              >
+                Monitoreo Global
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      {/* Case Selector */}
-      <div className={styles.casesGrid}>
-        {cases.map(c => {
-          const Icon = ICON_MAP[c.icon] || Briefcase;
-          const isActive = activeCase === c.id;
-          return (
-            <div 
-              key={c.id} 
-              className={`${styles.caseCard} ${isActive ? styles.active : ''}`}
-              onClick={() => setActiveCase(c.id)}
-            >
-              <div className={styles.caseBadge}>{isActive ? 'Caso Activo' : 'Caso Disponible'}</div>
-              <h3 className={styles.caseTitle}><Icon size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} /> {c.title}</h3>
-              <p className={styles.caseDesc}>{c.description}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Validation Panel */}
-      <div className={styles.validationSection}>
-        <div className={styles.validationHeader}>
-          <h2 className={styles.validationTitle}>Progreso de la Certificación</h2>
-          <div className={styles.progressCircle}>
-            <button 
-              onClick={checkProgress} 
-              disabled={isValidating}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <RefreshCw size={20} className={isValidating ? 'animate-spin' : ''} />
-              {isValidating ? 'Validando...' : 'Revalidar'}
-            </button>
-            <span className={styles.progressText}>{progressPercent}% Completado</span>
-          </div>
-        </div>
-
-        <div className={styles.checkList}>
-          {/* DAMA Check */}
-          <div className={`${styles.checkItem} ${validations.dama ? styles.completed : ''}`}>
-            <div className={`${styles.checkIcon} ${validations.dama ? styles.completedIcon : styles.pendingIcon}`}>
-              {validations.dama ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-            </div>
-            <div className={styles.checkContent}>
-              <h4 className={styles.checkTitle}>1. Diagnóstico DAMA Inicial</h4>
-              <p className={styles.checkDesc}>Realiza la evaluación de 100 preguntas en el módulo de Madurez para tener un punto de partida justificable.</p>
-              <span className={`${styles.checkStatus} ${validations.dama ? styles.statusCompleted : styles.statusPending}`}>
-                {validations.dama ? 'Completado' : 'Pendiente: Ir a Madurez DAMA'}
-              </span>
-            </div>
-          </div>
-
-          {/* Roles Check */}
-          <div className={`${styles.checkItem} ${validations.roles ? styles.completed : ''}`}>
-            <div className={`${styles.checkIcon} ${validations.roles ? styles.completedIcon : styles.pendingIcon}`}>
-              {validations.roles ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-            </div>
-            <div className={styles.checkContent}>
-              <h4 className={styles.checkTitle}>2. Estructuración del Equipo Base</h4>
-              <p className={styles.checkDesc}>Diseña tu red de gobierno en "Roles y Equipo". Necesitas tener asignados al menos a: Data Owner, Data Steward, Data Custodian y un CDO/CISO/Auditor.</p>
-              
-              {!validations.roles && validations.missingRoles.length > 0 && (
-                <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#be123c' }}>
-                  <strong>Faltan por asignar:</strong> {validations.missingRoles.join(', ')}
+      {activeTab === 'participant' && (
+        <>
+          <div className={styles.casesGrid}>
+            {SESSIONS.map(s => {
+              const Icon = s.icon;
+              const isActive = activeSession === s.id;
+              return (
+                <div key={s.id} className={`${styles.caseCard} ${isActive ? styles.active : ''}`} onClick={() => setActiveSession(s.id)}>
+                  <div className={styles.caseBadge}>{isActive ? 'Sesión Activa' : 'Disponible'}</div>
+                  <h3 className={styles.caseTitle}><Icon size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} /> {s.title}</h3>
+                  <p className={styles.caseDesc} style={{ marginBottom: '10px' }}>{s.desc}</p>
+                  <div style={{ display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    Insignia: {s.badge}
+                  </div>
                 </div>
-              )}
-
-              <span className={`${styles.checkStatus} ${validations.roles ? styles.statusCompleted : styles.statusPending}`}>
-                {validations.roles ? 'Completado' : 'Pendiente: Faltan roles críticos'}
-              </span>
-            </div>
+              );
+            })}
           </div>
 
-          {/* RACI Check */}
-          <div className={`${styles.checkItem} ${validations.raci ? styles.completed : ''}`}>
-            <div className={`${styles.checkIcon} ${validations.raci ? styles.completedIcon : styles.pendingIcon}`}>
-              {validations.raci ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+          <div className={styles.validationSection}>
+            <div className={styles.validationHeader}>
+              <h2 className={styles.validationTitle}>Validación de {activeS?.title}</h2>
+              <div className={styles.progressCircle}>
+                <button onClick={checkProgress} disabled={isValidating} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RefreshCw size={20} className={isValidating ? 'animate-spin' : ''} />
+                  {isValidating ? 'Validando...' : 'Revalidar'}
+                </button>
+                <span className={styles.progressText}>{progressPercent}% Completado</span>
+              </div>
             </div>
-            <div className={styles.checkContent}>
-              <h4 className={styles.checkTitle}>3. Parametrización de Matriz RACI</h4>
-              <p className={styles.checkDesc}>Configura la matriz RACI de operaciones. Debes editarla, parametrizar los responsables y guardarla en base de datos (mínimo 5 procesos).</p>
-              
-              {!validations.raci && validations.missingRaci > 0 && (
-                <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '0.9rem', color: '#be123c' }}>
-                  <strong>Te faltan:</strong> {validations.missingRaci} proceso(s) por parametrizar en el RACI.
-                </div>
-              )}
 
-              <span className={`${styles.checkStatus} ${validations.raci ? styles.statusCompleted : styles.statusPending}`}>
-                {validations.raci ? 'Completado' : 'Pendiente: Configurar RACI'}
-              </span>
+            <div className={styles.checkList}>
+              {activeS?.checks.map(chk => {
+                const isOk = validations[chk.key];
+                return (
+                  <div key={chk.key} className={`${styles.checkItem} ${isOk ? styles.completed : ''}`}>
+                    <div className={`${styles.checkIcon} ${isOk ? styles.completedIcon : styles.pendingIcon}`}>
+                      {isOk ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                    </div>
+                    <div className={styles.checkContent}>
+                      <h4 className={styles.checkTitle}>{chk.title}</h4>
+                      <p className={styles.checkDesc}>{chk.desc}</p>
+                      <span className={`${styles.checkStatus} ${isOk ? styles.statusCompleted : styles.statusPending}`}>
+                        {isOk ? 'Requisito Cumplido' : 'Pendiente de Configuración'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            {hasCertificate && (
+              <motion.div className={styles.certificateBox} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <Award size={64} style={{ marginBottom: '16px' }} color="#4f46e5" />
+                <h2 className={styles.certTitle}>¡Insignia Desbloqueada!</h2>
+                <p className={styles.certDesc}>Has completado todos los requisitos de esta sesión. Ahora eres oficialmente un <strong>{activeS?.badge}</strong>.</p>
+                <button onClick={exportCertificate} style={{ background: 'white', color: '#4f46e5', padding: '12px 24px', borderRadius: '12px', fontWeight: 800, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
+                  Descargar Insignia PDF <ArrowRight size={18} />
+                </button>
+              </motion.div>
+            )}
           </div>
-        </div>
+        </>
+      )}
 
-        {/* Certificate / Success */}
-        {hasCertificate && (
-          <motion.div 
-            className={styles.certificateBox}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Award size={64} style={{ marginBottom: '16px' }} />
-            <h2 className={styles.certTitle}>¡Práctica Aprobada!</h2>
-            <p className={styles.certDesc}>
-              Has completado satisfactoriamente los requerimientos críticos para el <strong>{selectedCase?.title}</strong>. 
-              La plataforma ha validado tu red de gobierno, tu matriz operativa y tu diagnóstico base.
-            </p>
-            <button 
-              onClick={exportCertificate}
-              style={{ background: 'white', color: '#4f46e5', padding: '12px 24px', borderRadius: '12px', fontWeight: 800, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}
-            >
-              Exportar Certificado Digital <ArrowRight size={18} />
+      {activeTab === 'admin' && (
+        <div style={{ background: 'white', padding: '30px', borderRadius: '24px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2>Tablero de Monitoreo de Participantes</h2>
+            <button onClick={loadAdminData} className={styles.primaryBtn} style={{ padding: '8px 16px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RefreshCw size={16}/> Actualizar Datos
             </button>
-          </motion.div>
-        )}
-
-      </div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '16px' }}>Empresa / Participante</th>
+                <th style={{ padding: '16px' }}>Progreso Global</th>
+                <th style={{ padding: '16px' }}>Sesiones Aprobadas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adminData.map(t => (
+                <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '16px', fontWeight: 600 }}>{t.name}</td>
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '150px', height: '8px', background: '#e2e8f0', borderRadius: '4px' }}>
+                        <div style={{ width: \`\${t.progress}%\`, height: '100%', background: t.progress === 100 ? '#10b981' : '#4f46e5', borderRadius: '4px' }}></div>
+                      </div>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b' }}>{t.progress}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {SESSIONS.map((s, i) => {
+                        const hasB = t.badges.includes(s.id);
+                        return (
+                          <div key={s.id} title={s.badge} style={{ width: '32px', height: '32px', borderRadius: '50%', background: hasB ? '#10b981' : '#f1f5f9', color: hasB ? 'white' : '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                            {i + 1}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {adminData.length === 0 && (
+                <tr><td colSpan={3} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>No hay datos de participantes aún.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
