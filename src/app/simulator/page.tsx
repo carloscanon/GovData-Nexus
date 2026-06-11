@@ -379,7 +379,7 @@ export default function Simulator() {
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '150px', height: '8px', background: '#e2e8f0', borderRadius: '4px' }}>
-                        <div style={{ width: \`\${t.progress}%\`, height: '100%', background: t.progress === 100 ? '#10b981' : '#4f46e5', borderRadius: '4px' }}></div>
+                        <div style={{ width: `${t.progress}%`, height: '100%', background: t.progress === 100 ? '#10b981' : '#4f46e5', borderRadius: '4px' }}></div>
                       </div>
                       <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b' }}>{t.progress}%</span>
                     </div>
