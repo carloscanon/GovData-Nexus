@@ -97,6 +97,8 @@ export default function SecurityModule() {
   const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
   const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '', policy_id: '' });
   const [isControlModalOpen, setIsControlModalOpen] = useState(false);
+  const [isFrameworkModalOpen, setIsFrameworkModalOpen] = useState(false);
+  const [newFramework, setNewFramework] = useState({ name: '', code: '', status: 'Activo' });
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   const simulateAiControlGeneration = async () => {
@@ -306,6 +308,21 @@ export default function SecurityModule() {
     }
   };
 
+  const handleAddFramework = async () => {
+    if (!newFramework.name || !currentTenant?.id) return;
+    const { error } = await supabase.from('security_frameworks').insert([{
+      ...newFramework,
+      tenant_id: currentTenant.id
+    }]);
+    if (!error) {
+      fetchData();
+      setIsFrameworkModalOpen(false);
+      setNewFramework({ name: '', code: '', status: 'Activo' });
+    } else {
+      alert('Error: ' + error.message);
+    }
+  };
+
   const handleLoadStandardControls = async () => {
     if (!currentTenant?.id) return;
     const standardControls = [
@@ -471,6 +488,10 @@ export default function SecurityModule() {
                 Cargar Controles Estándar
               </button>
             )}
+            <button onClick={() => setIsFrameworkModalOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '12px', background: 'white', color: '#6366f1', border: '1px solid #e2e8f0', cursor: 'pointer', fontWeight: 700 }}>
+              <Plus size={16} /> Nuevo Framework
+            </button>
             <button onClick={() => setIsControlModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
               <Plus size={16} /> Nuevo Control
@@ -1095,6 +1116,50 @@ export default function SecurityModule() {
                   <button onClick={() => setIsControlModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
                   <button onClick={handleAddControl} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Save size={15} /> Guardar Control
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Framework Modal */}
+      <AnimatePresence>
+        {isFrameworkModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsFrameworkModalOpen(false)}>
+            <motion.div className={styles.modalContent} style={{ maxWidth: '440px' }}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                <h2 style={{ margin: 0, color: 'white', fontSize: '1.25rem' }}>Nuevo Framework de Cumplimiento</h2>
+                <button onClick={() => setIsFrameworkModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={18} /></button>
+              </div>
+              <div className={styles.modalBody} style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Nombre del Framework *</label>
+                  <input 
+                    type="text" 
+                    value={newFramework.name} 
+                    onChange={e => setNewFramework({ ...newFramework, name: e.target.value })} 
+                    placeholder="Ej: PCI-DSS, HIPAA, Ley de Protección"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', color: '#1e293b' }} 
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Código / Sigla</label>
+                  <input 
+                    type="text" 
+                    value={newFramework.code} 
+                    onChange={e => setNewFramework({ ...newFramework, code: e.target.value })} 
+                    placeholder="Ej: PCI"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', color: '#1e293b' }} 
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+                  <button onClick={() => setIsFrameworkModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                  <button onClick={handleAddFramework} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                    Crear Framework
                   </button>
                 </div>
               </div>
