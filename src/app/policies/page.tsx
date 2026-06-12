@@ -287,10 +287,15 @@ export default function PoliciesModule() {
       if (data && data.length > 0) {
         const newDoc = {
           ...data[0],
+          owner: data[0].owner || 'Usuario Asignado',
+          type: data[0].type || 'Gobierno de Datos',
+          version: data[0].version || '1.0',
+          expiry: data[0].expiry || '2026',
           workflowId: data[0].workflow_id || selectedWf?.id,
           currentStep: data[0].current_step || 0,
-          data_custodian: data[0].data_custodian || newPolicy.data_custodian,
-          auditor_designado: data[0].auditor_designado || newPolicy.auditor_designado
+          documentUrl: data[0].document_url || null,
+          data_custodian: data[0].data_custodian || newPolicy.data_custodian || 'Sofía Rodríguez (TI Ops)',
+          auditor_designado: data[0].auditor_designado || newPolicy.auditor_designado || 'Elena Gómez (Auditor)'
         };
         setPolicies([newDoc, ...policies]);
       }
@@ -756,8 +761,15 @@ export default function PoliciesModule() {
       if (data && data.length > 0) {
         const updated = {
           ...data[0],
+          owner: data[0].owner || 'Usuario Asignado',
+          type: data[0].type || 'Gobierno de Datos',
+          version: data[0].version || '1.0',
+          expiry: data[0].expiry || '2026',
           workflowId: data[0].workflow_id || editForm.workflowId,
-          currentStep: data[0].current_step || editForm.currentStep
+          currentStep: data[0].current_step || editForm.currentStep,
+          documentUrl: data[0].document_url || null,
+          data_custodian: data[0].data_custodian || 'Sofía Rodríguez (TI Ops)',
+          auditor_designado: data[0].auditor_designado || 'Elena Gómez (Auditor)'
         };
         setPolicies(policies.map(p => p.id === editForm.id ? updated : p));
         setSelectedPolicy(updated);
