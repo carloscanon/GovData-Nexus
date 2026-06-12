@@ -41,7 +41,7 @@ const menuItems = [
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
   { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
   { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
-  { icon: FileText, label: 'Políticas', href: '/policies', module: 'catalog' },
+  { icon: FileText, label: 'Políticas', href: '/policies', module: 'policies' },
   { icon: Users, label: 'Roles y Equipo', href: '/team', module: 'team' },
   { icon: Users, label: 'Comités de Gobierno', href: '/data-governance/committees', module: 'team' },
   { icon: Zap, label: 'Gestión de Workflows', href: '/workflows', module: 'quality' },
@@ -161,6 +161,9 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     }
     
     // Mapeo tradicional por defecto
+    if (item.module === 'policies') {
+      return currentTenant?.modules?.includes('policies') || currentTenant?.modules?.includes('catalog');
+    }
     return currentTenant?.modules?.includes(item.module);
   });
 
