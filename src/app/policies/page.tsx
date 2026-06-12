@@ -1396,7 +1396,7 @@ export default function PoliciesModule() {
             </>
           ) : null
         }
-        configOverride={{ width: '600px' }}
+        configOverride={{ width: '720px' }}
       >
         {editingWf && (
           <div style={{ display: 'block' }}>
@@ -1479,7 +1479,7 @@ export default function PoliciesModule() {
                                 }}
                                 className={styles.modalInput}
                                 placeholder="Ej: Revisión Legal"
-                                style={{ height: '38px', fontSize: '0.875rem' }}
+                                style={{ height: '38px', fontSize: '0.875rem', padding: '6px 12px' }}
                               />
                             </div>
                             <div>
@@ -1497,7 +1497,7 @@ export default function PoliciesModule() {
                                   setEditingWf({ ...editingWf, steps: newSteps });
                                 }}
                                 className={styles.modalInput}
-                                style={{ height: '38px', fontSize: '0.875rem', color: 'black' }}
+                                style={{ height: '38px', fontSize: '0.875rem', color: 'black', padding: '0 8px' }}
                               >
                                 <option value="" style={{ color: 'black' }}>-- Seleccionar Aprobador --</option>
                                 {companyUsers.map((m: any, i: number) => (
