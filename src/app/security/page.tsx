@@ -76,7 +76,7 @@ export default function SecurityModule() {
   const [controls, setControls] = useState<Control[]>([]);
   const [accessReviews, setAccessReviews] = useState<AccessReview[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
-  const [frameworks, setFrameworks] = useState<string[]>(['ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework']);
+  const [frameworks, setFrameworks] = useState<string[]>(['DAMA DMBoK', 'ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework']);
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +95,7 @@ export default function SecurityModule() {
   const [newRisk, setNewRisk] = useState({ name: '', description: '', asset: '', severity: 'Medio', impact: 'Medio', probability: 'Media', owner: '', action_plan: '' });
   const [newIncident, setNewIncident] = useState({ type: '', description: '', severity: 'Medio', assigned_to: '' });
   const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
-  const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '', policy_id: '' });
+  const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'DAMA DMBoK', status: 'OK', evidence: '', notes: '', policy_id: '' });
   const [isControlModalOpen, setIsControlModalOpen] = useState(false);
   const [isFrameworkModalOpen, setIsFrameworkModalOpen] = useState(false);
   const [newFramework, setNewFramework] = useState({ name: '', code: '', status: 'Activo' });
@@ -107,6 +107,12 @@ export default function SecurityModule() {
 
     const selectedFw = newControl.framework;
     const templates: Record<string, { control_id: string; name: string; notes: string; evidence: string }[]> = {
+      'DAMA DMBoK': [
+        { control_id: 'DAMA-DG-01', name: 'Gobierno de Datos - Definición de Roles y Responsabilidades', notes: 'Establecer una estructura organizativa formal para el gobierno de datos, incluyendo data stewards y data owners.', evidence: 'Acta de constitución del comité de gobierno de datos' },
+        { control_id: 'DAMA-DQ-02', name: 'Gestión de la Calidad de Datos - Perfilado e Indicadores', notes: 'Implementar reglas automatizadas de calidad de datos para medir exactitud, completitud y consistencia de los datos críticos.', evidence: 'Tableros de calidad de datos en producción' },
+        { control_id: 'DAMA-MD-03', name: 'Gestión de Metadatos - Catálogo de Datos Activo', notes: 'Mantener un repositorio centralizado de metadatos de negocio y técnicos accesible para todos los usuarios autorizados.', evidence: 'Catálogo de datos GovData Nexus actualizado' },
+        { control_id: 'DAMA-SE-04', name: 'Seguridad de Datos - Clasificación y Enmascaramiento', notes: 'Definir políticas de clasificación de datos y aplicar enmascaramiento dinámico a datos sensibles (PII) en entornos de prueba y producción.', evidence: 'Reglas de enmascaramiento en base de datos PostgreSQL' }
+      ],
       'ISO 27001': [
         { control_id: 'A.12.4.1', name: 'Registro de eventos (Event logging)', notes: 'Implementar registro de auditoría completo para todas las consultas y modificaciones a bases de datos transaccionales.', evidence: 'Logs habilitados en Supabase PostgreSQL' },
         { control_id: 'A.9.4.1', name: 'Restricción de acceso a la información', notes: 'Configurar e implementar políticas Row Level Security (RLS) en tablas que contienen datos de clientes.', evidence: 'Políticas RLS en tabla tenant_users' },
@@ -171,7 +177,9 @@ export default function SecurityModule() {
       if (r4.data) setAccessReviews(r4.data);
       if (r5.data) setTenantUsers(r5.data);
       if (r6.data && r6.data.length > 0) {
-        setFrameworks(r6.data.map(f => f.name));
+        const dbFws = r6.data.map(f => f.name);
+        const allFws = Array.from(new Set(['DAMA DMBoK', ...dbFws]));
+        setFrameworks(allFws);
       }
       if (r7.data) setPolicies(r7.data);
     } catch (e) { console.error(e); }
@@ -194,6 +202,7 @@ export default function SecurityModule() {
     const partial = fw.filter(c => c.status === 'Parcial').length;
     const pct = Math.round(((ok + partial * 0.5) / fw.length) * 100);
     const colors: Record<string, string> = { 
+      'DAMA DMBoK': '#ec4899',
       'ISO 27001': '#6366f1', 
       'Ley 1581 de 2012 (Habeas Data)': '#10b981', 
       'Ley 1712 de 2014 (Transparencia)': '#06b6d4',
@@ -326,6 +335,8 @@ export default function SecurityModule() {
   const handleLoadStandardControls = async () => {
     if (!currentTenant?.id) return;
     const standardControls = [
+      { control_id: 'DAMA-DG-01', name: 'Gobierno de Datos - Definición de Roles y Responsabilidades', framework: 'DAMA DMBoK', status: 'OK', evidence: 'Acta de constitución del comité de gobierno de datos', notes: 'Establecer una estructura organizativa formal para el gobierno de datos.' },
+      { control_id: 'DAMA-DQ-02', name: 'Gestión de la Calidad de Datos - Perfilado e Indicadores', framework: 'DAMA DMBoK', status: 'Parcial', evidence: 'Tableros de calidad de datos en producción', notes: 'Implementar reglas automatizadas de calidad de datos.' },
       { control_id: 'A.8.2.1', name: 'Clasificación de información confidencial', framework: 'ISO 27001', status: 'OK', evidence: 'Política de Clasificación v2', notes: 'Gobernado en el Catálogo' },
       { control_id: 'A.8.2.3', name: 'Etiquetado de activos de información', framework: 'ISO 27001', status: 'Parcial', evidence: 'Clasificación automática DB', notes: 'En proceso de automatización' },
       { control_id: 'A.9.1.1', name: 'Política de Control de Acceso', framework: 'ISO 27001', status: 'OK', evidence: 'Matriz de Roles y Perfiles', notes: 'Revisión semestral' },
