@@ -15,6 +15,8 @@ interface Committee {
   description: string;
   owner: string;
   docCount?: number;
+  members?: string[];
+  secretary?: string;
 }
 
 interface CommitteeDoc {
@@ -34,7 +36,7 @@ export default function Committees() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCommittee, setEditingCommittee] = useState<Committee | null>(null);
-  const [newCommittee, setNewCommittee] = useState({ name: "", description: "", owner: "" });
+  const [newCommittee, setNewCommittee] = useState({ name: "", description: "", owner: "", secretary: "", members: [] as string[] });
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -92,15 +94,27 @@ export default function Committees() {
   useEffect(() => {
     if (!currentTenant?.id) return;
     const fetch = async () => {
-      const { data, error } = await supabase
-        .from("tenant_users")
-        .select("id, name, avatar")
-        .eq("tenant_id", currentTenant.id);
-      
-      if (error || !data) {
+      try {
+        const [rUsers, rMembers] = await Promise.all([
+          supabase.from("tenant_users").select("id, name, avatar").eq("tenant_id", currentTenant.id),
+          supabase.from("team_members").select("id, name, avatar").eq("tenant_id", currentTenant.id)
+        ]);
+
+        const mergedMap = new Map();
+        if (rUsers.data) {
+          rUsers.data.forEach(u => mergedMap.set(u.name, u));
+        }
+        if (rMembers.data) {
+          rMembers.data.forEach(m => {
+            if (!mergedMap.has(m.name)) {
+              mergedMap.set(m.name, m);
+            }
+          });
+        }
+        setTenantUsers(Array.from(mergedMap.values()));
+      } catch (err) {
+        console.error("Error fetching users from database:", err);
         setTenantUsers([]);
-      } else {
-        setTenantUsers(data);
       }
     };
     fetch();
@@ -121,6 +135,8 @@ export default function Committees() {
           name: newCommittee.name.trim(),
           description: newCommittee.description.trim(),
           owner: finalOwner,
+          secretary: newCommittee.secretary || null,
+          members: newCommittee.members || []
         },
       ]).select();
 
@@ -149,7 +165,7 @@ export default function Committees() {
       }
 
       setIsModalOpen(false);
-      setNewCommittee({ name: "", description: "", owner: "" });
+      setNewCommittee({ name: "", description: "", owner: "", secretary: "", members: [] });
       setUploadFile(null);
     } catch (e: any) {
       console.error("Error creating committee:", e);
@@ -216,6 +232,8 @@ export default function Committees() {
         name: editingCommittee.name,
         description: editingCommittee.description,
         owner: editingCommittee.owner,
+        secretary: editingCommittee.secretary || null,
+        members: editingCommittee.members || [],
       }).eq("id", editingCommittee.id);
       if (error) throw error;
       setCommittees(prev => prev.map(c => c.id === editingCommittee.id ? { ...c, ...editingCommittee } : c));
@@ -506,7 +524,27 @@ export default function Committees() {
                   </div>
                 </div>
                 <h3 className={styles.cardTitle} style={{ color: '#1e293b', fontSize: '1.25rem', fontWeight: 800, margin: '0 0 8px 0' }}>{c.name}</h3>
-                <p className={styles.cardDesc} style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 20px 0', flexGrow: 1 }}>{c.description || 'Sin descripción.'}</p>
+                <p className={styles.cardDesc} style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 16px 0', flexGrow: 1 }}>{c.description || 'Sin descripción.'}</p>
+                
+                {c.secretary && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: '#475569', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 700 }}>Secretario:</span>
+                    <span>{c.secretary}</span>
+                  </div>
+                )}
+                {c.members && c.members.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', fontSize: '0.8rem', color: '#64748b', marginBottom: '20px' }}>
+                    <span style={{ fontWeight: 700 }}>Miembros ({c.members.length}):</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {c.members.map((m, idx) => (
+                        <span key={idx} style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={styles.cardFooter} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className={styles.ownerInfo} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className={styles.ownerAvatar} style={{ overflow: 'hidden', background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}>
@@ -537,7 +575,7 @@ export default function Committees() {
       {/* Modal: Crear Comité */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}>
             <motion.div
               className={styles.modal}
               onClick={(e) => e.stopPropagation()}
@@ -601,6 +639,53 @@ export default function Committees() {
                   </div>
                 </div>
                 <div className={styles.formGroup}>
+                  <label>Secretario del Comité</label>
+                  <select
+                    className={styles.inputField}
+                    value={newCommittee.secretary}
+                    onChange={(e) => setNewCommittee({ ...newCommittee, secretary: e.target.value })}
+                  >
+                    <option value="">Seleccionar Secretario...</option>
+                    {tenantUsers.map((u) => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Miembros del Comité</label>
+                  <div style={{
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    background: '#f8fafc'
+                  }}>
+                    {tenantUsers.map((u) => {
+                      const isChecked = newCommittee.members.includes(u.name);
+                      return (
+                        <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#475569', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const updatedMembers = e.target.checked
+                                ? [...newCommittee.members, u.name]
+                                : newCommittee.members.filter(m => m !== u.name);
+                              setNewCommittee({ ...newCommittee, members: updatedMembers });
+                            }}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          {u.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className={styles.formGroup}>
                   <label>Documento Fundacional (Acta / Resolución)</label>
                   <input 
                     type="file" 
@@ -628,7 +713,7 @@ export default function Committees() {
       {/* Modal: Editar Comité */}
       <AnimatePresence>
         {isEditModalOpen && editingCommittee && (
-          <div className={styles.modalOverlay} onClick={() => setIsEditModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsEditModalOpen(false); }}>
             <motion.div
               className={styles.modal}
               onClick={(e) => e.stopPropagation()}
@@ -674,6 +759,53 @@ export default function Committees() {
                     ))}
                   </select>
                 </div>
+                <div className={styles.formGroup}>
+                  <label>Secretario del Comité</label>
+                  <select
+                    className={styles.inputField}
+                    value={editingCommittee.secretary || ""}
+                    onChange={(e) => setEditingCommittee({ ...editingCommittee, secretary: e.target.value })}
+                  >
+                    <option value="">Seleccionar Secretario...</option>
+                    {tenantUsers.map((u) => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Miembros del Comité</label>
+                  <div style={{
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    background: '#f8fafc'
+                  }}>
+                    {tenantUsers.map((u) => {
+                      const isChecked = (editingCommittee.members || []).includes(u.name);
+                      return (
+                        <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#475569', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const updatedMembers = e.target.checked
+                                ? [...(editingCommittee.members || []), u.name]
+                                : (editingCommittee.members || []).filter(m => m !== u.name);
+                              setEditingCommittee({ ...editingCommittee, members: updatedMembers });
+                            }}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          {u.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                   <button className={styles.secondaryBtn} onClick={() => setIsEditModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancelar</button>
                   <button className={styles.primaryBtn} onClick={handleUpdateCommittee} style={{ flex: 1, justifyContent: 'center' }}>Guardar Cambios</button>
@@ -687,7 +819,7 @@ export default function Committees() {
       {/* Modal: Actas del Comité */}
       <AnimatePresence>
         {isDocsModalOpen && selectedCommittee && (
-          <div className={styles.modalOverlay} onClick={() => setIsDocsModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsDocsModalOpen(false); }}>
             <motion.div
               className={styles.modal}
               style={{ maxWidth: '680px' }}

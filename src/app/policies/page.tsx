@@ -88,10 +88,11 @@ export default function PoliciesModule() {
   const [procedures, setProcedures] = useState<any[]>([]);
   const [controls, setControls] = useState<any[]>([]);
   const [evidences, setEvidences] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>(DEFAULT_TEAM_MEMBERS);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   const [companyUsers, setCompanyUsers] = useState<any[]>([]);
   const [draggedStepIdx, setDraggedStepIdx] = useState<number | null>(null);
+  const [frameworks, setFrameworks] = useState<string[]>(['DAMA DMBoK', 'ISO 27001', 'Ley 1581 de 2012 (Habeas Data)', 'Ley 1712 de 2014 (Transparencia)', 'GDPR', 'NIST Framework']);
 
   // Load All Data from DB
   useEffect(() => {
@@ -108,7 +109,8 @@ export default function PoliciesModule() {
           { data: ctrlData },
           { data: evData },
           { data: membersData },
-          { data: usersData }
+          { data: usersData },
+          { data: frameworksData }
         ] = await Promise.all([
           supabase.from('data_policies').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: false }),
           supabase.from('policy_workflows').select('*').eq('tenant_id', currentTenant.id),
@@ -117,7 +119,8 @@ export default function PoliciesModule() {
           supabase.from('policy_controls').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('policy_evidences').select('*').eq('tenant_id', currentTenant.id),
           supabase.from('team_members').select('name, role').eq('tenant_id', currentTenant.id),
-          supabase.from('tenant_users').select('name, role').eq('tenant_id', currentTenant.id)
+          supabase.from('tenant_users').select('name, role').eq('tenant_id', currentTenant.id),
+          supabase.from('security_frameworks').select('name').eq('tenant_id', currentTenant.id)
         ]);
 
         if (polData) {
@@ -131,27 +134,37 @@ export default function PoliciesModule() {
             currentStep: p.current_step || 0,
             documentUrl: p.document_url || null,
             data_custodian: p.data_custodian || 'Sofía Rodríguez (TI Ops)',
-            auditor_designado: p.auditor_designado || 'Elena Gómez (Auditor)'
+            auditor_designado: p.auditor_designado || 'Elena Gómez (Auditor)',
+            framework_origin: p.framework_origin || 'DAMA DMBoK'
           })));
+        }
+        if (frameworksData && frameworksData.length > 0) {
+          const dbFws = frameworksData.map((f: any) => f.name);
+          setFrameworks(Array.from(new Set(['DAMA DMBoK', ...dbFws])));
         }
         if (wfData) setWorkflows(wfData);
         if (stdData) setStandards(stdData);
         if (procData) setProcedures(procData);
         if (ctrlData) setControls(ctrlData);
         if (evData) setEvidences(evData);
-        if (membersData && membersData.length > 0) {
+        if (membersData) {
           setTeamMembers(membersData);
         } else {
-          setTeamMembers(DEFAULT_TEAM_MEMBERS);
+          setTeamMembers([]);
         }
 
-        if (usersData && usersData.length > 0) {
-          setCompanyUsers(usersData);
-        } else if (membersData && membersData.length > 0) {
-          setCompanyUsers(membersData);
-        } else {
-          setCompanyUsers(DEFAULT_TEAM_MEMBERS);
+        const mergedMap = new Map();
+        if (usersData) {
+          usersData.forEach(u => mergedMap.set(u.name, u));
         }
+        if (membersData) {
+          membersData.forEach(m => {
+            if (!mergedMap.has(m.name)) {
+              mergedMap.set(m.name, m);
+            }
+          });
+        }
+        setCompanyUsers(Array.from(mergedMap.values()));
         
       } catch (e: any) {
         console.error('Error fetching policies data:', e);
@@ -217,7 +230,7 @@ export default function PoliciesModule() {
     id: '',
     title: '',
     type: 'Gobierno de Datos',
-    framework_origin: 'Cumplimiento Normativo',
+    framework_origin: 'DAMA DMBoK',
     status: 'Borrador',
     workflowId: '',
     currentStep: 0,
@@ -307,7 +320,7 @@ export default function PoliciesModule() {
     setIsCreateModalOpen(false);
     // Reset form
     setNewPolicy({
-      id: '', title: '', type: 'Gobierno de Datos', framework_origin: 'Cumplimiento Normativo', status: 'Borrador', workflowId: '', currentStep: 0, expiry: '2026',
+      id: '', title: '', type: 'Gobierno de Datos', framework_origin: 'DAMA DMBoK', status: 'Borrador', workflowId: '', currentStep: 0, expiry: '2026',
       owner: 'Carlos Director (CDO)', version: '1.0', objective: '', scope: '', 
       guidelines: [''], controls: [''], sancions: '',
       data_custodian: 'Sofía Rodríguez (TI Ops)',
@@ -1012,6 +1025,11 @@ export default function PoliciesModule() {
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
                     {pol.framework_origin || 'Cumplimiento Normativo'}
                   </div>
+                  {controls.filter((c: any) => c.policy_id === pol.id && (c.status === 'FALLA' || c.status === 'FAIL')).length > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700, marginTop: '4px' }}>
+                      ⚠️ Control Fallido
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className={`${styles.statusBadge} ${pol.status === 'Vigente' ? styles.vigente : pol.status === 'En Revisión' ? styles.revision : pol.status === 'Vencida' ? styles.vencida : ''}`} style={{ background: pol.status === 'Borrador' ? '#f1f5f9' : undefined, color: pol.status === 'Borrador' ? '#64748b' : undefined }}>
@@ -1302,7 +1320,7 @@ export default function PoliciesModule() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
             <div>
                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Objetivo Principal</label>
                <input 
@@ -1324,6 +1342,18 @@ export default function PoliciesModule() {
                    <option key={i} value={wf.id}>{wf.name}</option>
                  ))}
               </select>
+            </div>
+            <div>
+               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>Marco de Cumplimiento / Framework</label>
+               <select 
+                 style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                 value={newPolicy.framework_origin}
+                 onChange={e => setNewPolicy({...newPolicy, framework_origin: e.target.value})}
+               >
+                  {frameworks.map((fw, i) => (
+                    <option key={i} value={fw}>{fw}</option>
+                  ))}
+               </select>
             </div>
         </div>
 
@@ -1598,6 +1628,11 @@ export default function PoliciesModule() {
                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.25)', color: 'white', fontWeight: 600 }}>
                        {selectedPolicy.status}
                      </span>
+                     {controls.filter((c: any) => c.policy_id === selectedPolicy.id && (c.status === 'FALLA' || c.status === 'FAIL')).length > 0 && (
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: '#ef4444', color: 'white', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          ⚠️ Control Fallido
+                        </span>
+                      )}
                    </div>
                  </div>
               </div>
@@ -1857,33 +1892,45 @@ export default function PoliciesModule() {
                                  onChange={e => setEditForm({...editForm, title: e.target.value})}
                                />
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                              <div>
-                                 <label className={styles.modalLabel}>Propietario (Owner)</label>
-                                 <select 
-                                   className={styles.modalInput} 
-                                   value={editForm.owner}
-                                   onChange={e => setEditForm({...editForm, owner: e.target.value})}
-                                 >
-                                    {companyUsers.map((m, i) => (
-                                      <option key={i} style={{ color: 'black' }}>{m.name} ({m.role})</option>
-                                    ))}
-                                 </select>
-                              </div>
-                              <div>
-                                 <label className={styles.modalLabel}>Tipo</label>
-                                 <select 
-                                   className={styles.modalInput} 
-                                   value={editForm.type}
-                                   onChange={e => setEditForm({...editForm, type: e.target.value})}
-                                 >
-                                    <option style={{ color: 'black' }}>Gobierno de Datos</option>
-                                    <option style={{ color: 'black' }}>Seguridad / Privacidad</option>
-                                    <option style={{ color: 'black' }}>Cumplimiento / Legal</option>
-                                    <option style={{ color: 'black' }}>Tecnología / IA</option>
-                                 </select>
-                              </div>
-                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+                               <div>
+                                  <label className={styles.modalLabel}>Propietario (Owner)</label>
+                                  <select 
+                                    className={styles.modalInput} 
+                                    value={editForm.owner}
+                                    onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                  >
+                                     {companyUsers.map((m, i) => (
+                                       <option key={i} style={{ color: 'black' }} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>
+                                     ))}
+                                  </select>
+                               </div>
+                               <div>
+                                  <label className={styles.modalLabel}>Tipo</label>
+                                  <select 
+                                    className={styles.modalInput} 
+                                    value={editForm.type}
+                                    onChange={e => setEditForm({...editForm, type: e.target.value})}
+                                  >
+                                     <option style={{ color: 'black' }}>Gobierno de Datos</option>
+                                     <option style={{ color: 'black' }}>Seguridad / Privacidad</option>
+                                     <option style={{ color: 'black' }}>Cumplimiento / Legal</option>
+                                     <option style={{ color: 'black' }}>Tecnología / IA</option>
+                                  </select>
+                               </div>
+                               <div>
+                                  <label className={styles.modalLabel}>Marco de Cumplimiento / Framework</label>
+                                  <select 
+                                    className={styles.modalInput} 
+                                    value={editForm.framework_origin || 'DAMA DMBoK'}
+                                    onChange={e => setEditForm({...editForm, framework_origin: e.target.value})}
+                                  >
+                                     {frameworks.map((fw, i) => (
+                                       <option key={i} value={fw} style={{ color: 'black' }}>{fw}</option>
+                                     ))}
+                                  </select>
+                               </div>
+                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                <div>
                                   <label className={styles.modalLabel}>Versión</label>
@@ -2004,7 +2051,7 @@ export default function PoliciesModule() {
                                     value={editForm.owner}
                                     onChange={e => setEditForm({...editForm, owner: e.target.value})}
                                   >
-                                     {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                     {companyUsers.map((m: any, i: number) => <option key={i} style={{ color: 'black' }} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>)}
                                   </select>
                                ) : (
                                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
@@ -2021,7 +2068,7 @@ export default function PoliciesModule() {
                                     value={editForm.data_custodian}
                                     onChange={e => setEditForm({...editForm, data_custodian: e.target.value})}
                                   >
-                                     {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                     {companyUsers.map((m: any, i: number) => <option key={i} style={{ color: 'black' }} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>)}
                                   </select>
                                ) : (
                                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.data_custodian}</div>
@@ -2038,7 +2085,7 @@ export default function PoliciesModule() {
                                     value={editForm.auditor_designado}
                                     onChange={e => setEditForm({...editForm, auditor_designado: e.target.value})}
                                   >
-                                     {companyUsers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                     {companyUsers.map((m: any, i: number) => <option key={i} style={{ color: 'black' }} value={`${m.name} (${m.role || 'Usuario'})`}>{m.name} ({m.role || 'Usuario'})</option>)}
                                   </select>
                                ) : (
                                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.auditor_designado}</div>

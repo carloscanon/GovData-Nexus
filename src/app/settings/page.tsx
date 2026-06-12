@@ -1236,6 +1236,165 @@ export default function Settings() {
                     </div>
                   </div>
 
+                  {/* Button Styles */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      7. Personalización de Botones
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Radio de Borde (Border Radius)</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: 12px o 9999px" 
+                          className={styles.input} 
+                          value={localModalConfig.btnBorderRadius || '12px'} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, btnBorderRadius: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Tamaño de Botón</label>
+                        <select 
+                          className={styles.select} 
+                          value={localModalConfig.btnSize || 'md'} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, btnSize: e.target.value as any })}
+                        >
+                          <option value="sm">Pequeño (Small)</option>
+                          <option value="md">Medio (Medium)</option>
+                          <option value="lg">Grande (Large)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Principal: Fondo</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnPrimaryBg.startsWith('#') ? localModalConfig.btnPrimaryBg : '#4f46e5'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnPrimaryBg: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnPrimaryBg} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnPrimaryBg: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Principal: Texto</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnPrimaryText.startsWith('#') ? localModalConfig.btnPrimaryText : '#ffffff'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnPrimaryText: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnPrimaryText} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnPrimaryText: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Secundario: Fondo</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnSecondaryBg.startsWith('#') ? localModalConfig.btnSecondaryBg : '#f1f5f9'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnSecondaryBg: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnSecondaryBg} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnSecondaryBg: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Secundario: Texto</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnSecondaryText.startsWith('#') ? localModalConfig.btnSecondaryText : '#475569'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnSecondaryText: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnSecondaryText} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnSecondaryText: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Peligro (Danger): Fondo</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnDangerBg.startsWith('#') ? localModalConfig.btnDangerBg : '#ef4444'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnDangerBg: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnDangerBg} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnDangerBg: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Botón Peligro (Danger): Texto</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            style={{ width: '40px', height: '38px', padding: '0', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer' }}
+                            value={localModalConfig.btnDangerText.startsWith('#') ? localModalConfig.btnDangerText : '#ffffff'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnDangerText: e.target.value })} 
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            style={{ flex: 1 }}
+                            value={localModalConfig.btnDangerText} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, btnDangerText: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={localModalConfig.btnIconography} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, btnIconography: e.target.checked })} 
+                        />
+                        Habilitar Iconografía en Botones (Ej. Icono de guardar/eliminar)
+                      </label>
+                    </div>
+                  </div>
+
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '12px', marginTop: '10px', marginBottom: '30px' }}>
                     <button 
