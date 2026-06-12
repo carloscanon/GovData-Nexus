@@ -1501,8 +1501,8 @@ export default function PoliciesModule() {
                               >
                                 <option value="" style={{ color: 'black' }}>-- Seleccionar Aprobador --</option>
                                 {companyUsers.map((m: any, i: number) => (
-                                  <option key={i} value={`${m.name} (${m.role || 'Usuario'})`} style={{ color: 'black' }}>
-                                    {m.name} ({m.role || 'Usuario'})
+                                  <option key={i} value={m.name} style={{ color: 'black' }}>
+                                    {m.name}
                                   </option>
                                 ))}
                               </select>
@@ -1793,7 +1793,7 @@ export default function PoliciesModule() {
                                    className={styles.primaryBtn} 
                                    onClick={() => {
                                       setPolicyToApprove(selectedPolicy.id);
-                                      setApproveAssignee(companyUsers[0] ? `${companyUsers[0].name} (${companyUsers[0].role || 'Usuario'})` : '');
+                                      setApproveAssignee(companyUsers[0] ? companyUsers[0].name : '');
                                       setIsApproveModalOpen(true);
                                    }}
                                    style={{ padding: '10px 20px', background: '#f59e0b' }}
@@ -2515,7 +2515,7 @@ export default function PoliciesModule() {
               style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#000000' }}
             >
               {companyUsers.map((u, i) => (
-                <option key={i} value={`${u.name} (${u.role || 'Usuario'})`}>{u.name} ({u.role || 'Usuario'})</option>
+                <option key={i} value={u.name}>{u.name}</option>
               ))}
             </select>
           </div>
