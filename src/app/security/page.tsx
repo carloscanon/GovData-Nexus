@@ -5,7 +5,7 @@ import {
   ShieldAlert, Lock, Eye, UserCheck, AlertOctagon, CheckCircle,
   FileWarning, Activity, ShieldCheck, Zap, Users, Search,
   Filter, X, Database, Clock, ExternalLink, Shield, Info,
-  Award, Plus, Trash2, RefreshCw, AlertTriangle, ChevronDown, Save
+  Award, Plus, Trash2, RefreshCw, AlertTriangle, ChevronDown, Save, Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlatform } from '@/contexts/PlatformContext';
@@ -96,6 +96,56 @@ export default function SecurityModule() {
   const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
   const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '' });
   const [isControlModalOpen, setIsControlModalOpen] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  const simulateAiControlGeneration = async () => {
+    setIsAiGenerating(true);
+    await new Promise(resolve => setTimeout(resolve, 900));
+
+    const selectedFw = newControl.framework;
+    const templates: Record<string, { control_id: string; name: string; notes: string; evidence: string }[]> = {
+      'ISO 27001': [
+        { control_id: 'A.12.4.1', name: 'Registro de eventos (Event logging)', notes: 'Implementar registro de auditoría completo para todas las consultas y modificaciones a bases de datos transaccionales.', evidence: 'Logs habilitados en Supabase PostgreSQL' },
+        { control_id: 'A.9.4.1', name: 'Restricción de acceso a la información', notes: 'Configurar e implementar políticas Row Level Security (RLS) en tablas que contienen datos de clientes.', evidence: 'Políticas RLS en tabla tenant_users' },
+        { control_id: 'A.10.1.1', name: 'Política sobre el uso de controles criptográficos', notes: 'Garantizar el cifrado de datos tanto en reposo (AES-256) como en tránsito (TLS 1.3).', evidence: 'SSL forzado y TDE activo en base de datos' },
+        { control_id: 'A.18.1.3', name: 'Protección de registros organizacionales', notes: 'Establecer copias de seguridad incrementales diarias con retención mínima de 1 año.', evidence: 'Cron de backups diario automatizado' }
+      ],
+      'Ley 1581 de 2012 (Habeas Data)': [
+        { control_id: 'L1581-04', name: 'Mecanismo de revocatoria del consentimiento', notes: 'Permitir al usuario revocar el consentimiento del tratamiento de sus datos mediante un botón directo en su perfil.', evidence: 'Feature toggle en portal del cliente' },
+        { control_id: 'L1581-05', name: 'Canal de atención para consultas y reclamos (Habeas Data)', notes: 'Establecer un flujo automatizado para atender y documentar solicitudes de acceso, rectificación y eliminación en menos de 15 días hábiles.', evidence: 'Workflow PQRSDF - Transparencia' },
+        { control_id: 'L1581-06', name: 'Política de Tratamiento de Información (PTI)', notes: 'Publicar de manera visible los de la PTI en la landing page y recolectar firma de aceptación.', evidence: 'Landing page y checkbox de registro' }
+      ],
+      'Ley 1712 de 2014 (Transparencia)': [
+        { control_id: 'L1712-03', name: 'Índice de Información Clasificada y Reservada', notes: 'Mantener un registro estructurado y actualizado de la información cuyo acceso público está exceptuado.', evidence: 'Inventario de activos clasificados' },
+        { control_id: 'L1712-04', name: 'Programa de Gestión Documental y Publicación', notes: 'Establecer un esquema de publicación proactiva en el sitio web institucional cumpliendo con la matriz de transparencia.', evidence: 'Botón de transparencia en portal público' }
+      ],
+      'GDPR': [
+        { control_id: 'GDPR-Art.30', name: 'Registro de las actividades de tratamiento', notes: 'Mantener el inventario estructurado de actividades de tratamiento de datos personales europeos, detallando finalidades y destinatarios.', evidence: 'Data Mapping en catálogo de datos' },
+        { control_id: 'GDPR-Art.33', name: 'Notificación de violación de seguridad a la autoridad', notes: 'Documentar e implementar procedimiento de comunicación a la Supertintendencia o autoridad en un plazo máximo de 72 horas en caso de brecha.', evidence: 'Plan de Respuesta ante Incidentes v2' },
+        { control_id: 'GDPR-Art.17', name: 'Derecho de supresión (derecho al olvido)', notes: 'Habilitar purga completa de datos históricos de un cliente si este lo solicita, sin dejar rastros en copias activas.', evidence: 'Script de anonimización / eliminación' }
+      ],
+      'NIST Framework': [
+        { control_id: 'PR.DS-1', name: 'Protección de datos en reposo', notes: 'Aplicar cifrado AES-256 a nivel de volumen para todas las instancias de base de datos en nube.', evidence: 'Cifrado EBS / RDS activo' },
+        { control_id: 'ID.AM-1', name: 'Inventario de recursos de software y hardware', notes: 'Automatizar el descubrimiento de servicios y software autorizados en los entornos de producción.', evidence: 'Reporte mensual de inventario automatizado' },
+        { control_id: 'RC.RP-1', name: 'Plan de Recuperación ante Desastres', notes: 'Simulacro y validación de restauración de bases de datos desde instantáneas de respaldo con un RTO < 4 horas.', evidence: 'Acta de simulacro de recuperación Junio 2026' }
+      ]
+    };
+
+    const fwList = templates[selectedFw] || templates['ISO 27001'];
+    const randomTemplate = fwList[Math.floor(Math.random() * fwList.length)];
+    
+    setNewControl(prev => ({
+      ...prev,
+      control_id: randomTemplate.control_id,
+      name: randomTemplate.name,
+      notes: randomTemplate.notes,
+      evidence: randomTemplate.evidence,
+      status: 'OK'
+    }));
+
+    setIsAiGenerating(false);
+  };
+
 
   // ── Fetch Data ──────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -935,6 +985,47 @@ export default function SecurityModule() {
                 <button onClick={() => setIsControlModalOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer', color: 'white' }}><X size={20} /></button>
               </div>
               <div className={styles.modalBody} style={{ padding: '28px' }}>
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '12px 16px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
+                  borderRadius: '12px',
+                  border: '1px dashed rgba(99, 102, 241, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Cpu size={18} style={{ color: '#6366f1' }} className={isAiGenerating ? styles.spinnerSmall : ''} />
+                    <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>
+                      {isAiGenerating ? 'Generando propuesta...' : '¿Necesitas ayuda para diligenciar los campos?'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={simulateAiControlGeneration}
+                    disabled={isAiGenerating}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #6366f1 100%)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)',
+                      transition: 'opacity 0.2s',
+                      opacity: isAiGenerating ? 0.7 : 1
+                    }}
+                  >
+                    {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                  </button>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Control ID *</label>
                     <input value={newControl.control_id} onChange={e => setNewControl({ ...newControl, control_id: e.target.value })} placeholder="Ej: A.8.2.1"
