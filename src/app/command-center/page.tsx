@@ -415,8 +415,8 @@ export default function CommandCenter() {
         }).length : 0;
         
         setSecStats({
-          critical: hasAssessment ? rCrit : 0,
-          high: hasAssessment ? rHigh : 0,
+          critical: rCrit,
+          high: rHigh,
           policiesExpired: pExp
         });
 
@@ -429,9 +429,9 @@ export default function CommandCenter() {
           return Math.round(((ok + partial * 0.5) / fw.length) * 100);
         });
         const hasControls = controls && controls.length > 0;
-        const sciScore = hasAssessment 
-          ? (hasControls ? Math.round(fwScores.reduce((a, b) => a + b, 0) / fwScores.length) : 89)
-          : 0; // Si no hay madurez, el cumplimiento es cero.
+        const sciScore = hasControls 
+          ? Math.round(fwScores.reduce((a, b) => a + b, 0) / fwScores.length)
+          : (hasAssessment ? 89 : 100); 
         setComplianceScore(sciScore);
 
         // 4.5. Gestión Documental (Políticas, Estándares, Procedimientos)
@@ -459,20 +459,16 @@ export default function CommandCenter() {
 
         setDocStats({
            total: totalDocs,
-           progress: hasAssessment ? docProgress : 0, // Avance real en cero si no hay evaluación
+           progress: docProgress, 
            policies: policiesList.length,
            standards: standardsList.length,
            procedures: proceduresList.length,
            critical: criticalDocs
         });
 
-
-        let currentRisk = 'Desconocido';
-        if (hasAssessment) {
-          if (segScore < 40 || rCrit > 0) currentRisk = 'Alto';
-          else if (segScore < 70 || rHigh > 0) currentRisk = 'Medio';
-          else currentRisk = 'Bajo';
-        }
+        let currentRisk = 'Bajo';
+        if (rCrit > 0 || (hasAssessment && segScore < 40)) currentRisk = 'Alto';
+        else if (rHigh > 0 || (hasAssessment && segScore < 70)) currentRisk = 'Medio';
         setRiskLevel(currentRisk);
 
         // 5. Índice Operativo & Adopción
@@ -491,9 +487,11 @@ export default function CommandCenter() {
         let decisiones = tenantDocsCount;
 
         let presupuesto = 'No Evaluado';
-        if (estScore > 80) presupuesto = 'Asignado (100%)';
-        else if (estScore > 40) presupuesto = 'Parcial/Compartido';
-        else if (estScore > 0) presupuesto = 'Inexistente';
+        if (hasAssessment) {
+          if (estScore > 80) presupuesto = 'Asignado (100%)';
+          else if (estScore > 40) presupuesto = 'Parcial/Compartido';
+          else if (estScore > 0) presupuesto = 'Inexistente';
+        }
 
         setExecStats({ comites, decisiones, activas: wTotal, presupuesto });
 

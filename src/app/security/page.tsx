@@ -190,7 +190,13 @@ export default function SecurityModule() {
     const ok = fw.filter(c => c.status === 'OK').length;
     const partial = fw.filter(c => c.status === 'Parcial').length;
     const pct = Math.round(((ok + partial * 0.5) / fw.length) * 100);
-    const colors: Record<string, string> = { 'ISO 27001': '#6366f1', 'Habeas Data (Ley 1581)': '#10b981', 'GDPR': '#f59e0b', 'NIST Framework': '#f97316' };
+    const colors: Record<string, string> = { 
+      'ISO 27001': '#6366f1', 
+      'Ley 1581 de 2012 (Habeas Data)': '#10b981', 
+      'Ley 1712 de 2014 (Transparencia)': '#06b6d4',
+      'GDPR': '#f59e0b', 
+      'NIST Framework': '#f97316' 
+    };
     return { name: f, pct, color: colors[f] || '#6366f1' };
   });
   const sciScore = frameworkScores.length > 0 && frameworkScores.some(f => f.pct > 0)
