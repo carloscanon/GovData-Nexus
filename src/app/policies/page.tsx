@@ -2041,39 +2041,72 @@ export default function PoliciesModule() {
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                     <h3 className={styles.sectionTitle}>Controles y Sanciones</h3>
                     <div className={styles.controlList}>
-                       {(isEditing ? editForm.controls : selectedPolicy.controls)?.map((c: string, i: number) => (
-                         <div key={i} className={styles.controlItem} style={{ marginBottom: '12px' }}>
-                            <ShieldCheck size={20} color="#6366f1" />
-                            <div style={{ flex: 1 }}>
-                              {isEditing ? (
-                                 <input 
-                                   type="text" 
-                                   value={c}
-                                   style={{ border: 'none', borderBottom: '1px solid #e2e8f0', width: '100%', fontSize: '0.95rem' }}
-                                   onChange={e => {
-                                     const newC = [...editForm.controls];
-                                     newC[i] = e.target.value;
-                                     setEditForm({...editForm, controls: newC});
-                                   }}
-                                 />
-                              ) : (
-                                 <>
-                                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{c}</div>
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Frecuencia: Mensual | Estado: <span style={{ color: '#10b981', fontWeight: 800 }}>ACTIVO</span></div>
-                                 </>
-                              )}
-                            </div>
-                         </div>
-                       ))}
-                       {isEditing && (
-                          <button 
-                            className={styles.secondaryBtn} 
-                            onClick={() => setEditForm({...editForm, controls: [...editForm.controls, '']})}
-                            style={{ marginTop: '10px', fontSize: '0.8rem' }}
-                          >
-                            + Añadir Control
-                          </button>
-                       )}
+                      {isEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                          <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '8px' }}>
+                            Selecciona los controles operativos que gobiernan esta política:
+                          </p>
+                          {controls.map((ctrl: any) => {
+                            const isLinked = ctrl.policy_id === selectedPolicy.id;
+                            return (
+                              <div key={ctrl.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isLinked} 
+                                    onChange={async (e) => {
+                                      const newPolicyId = e.target.checked ? selectedPolicy.id : null;
+                                      const { error } = await supabase
+                                        .from('policy_controls')
+                                        .update({ policy_id: newPolicyId })
+                                        .eq('id', ctrl.id);
+                                      if (!error) {
+                                        setControls(prev => prev.map(c => c.id === ctrl.id ? { ...c, policy_id: newPolicyId } : c));
+                                      } else {
+                                        alert('Error al asociar control: ' + error.message);
+                                      }
+                                    }}
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                  />
+                                  <div>
+                                    <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b' }}>{ctrl.code}</span>
+                                    <span style={{ fontSize: '0.85rem', color: '#475569', marginLeft: '8px' }}>{ctrl.description}</span>
+                                  </div>
+                                </div>
+                                <span style={{ 
+                                   padding: '3px 8px',
+                                   borderRadius: '6px',
+                                   background: ctrl.status === 'OK' ? '#f0fdf4' : '#fef2f2',
+                                   color: ctrl.status === 'OK' ? '#10b981' : '#ef4444',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 700
+                                }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
+                              </div>
+                            );
+                          })}
+                          {controls.length === 0 && (
+                            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>No hay controles en el catálogo. Ve al tab Controles para crearlos.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ width: '100%' }}>
+                          {controls.filter((c: any) => c.policy_id === selectedPolicy.id).length === 0 ? (
+                            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>No hay controles operativos asociados a esta política.</p>
+                          ) : (
+                            controls.filter((c: any) => c.policy_id === selectedPolicy.id).map((ctrl: any, i: number) => (
+                              <div key={i} className={styles.controlItem} style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                 <ShieldCheck size={20} color={ctrl.status === 'OK' ? "#10b981" : "#ef4444"} />
+                                 <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{ctrl.code} — {ctrl.description}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                      Frecuencia: {ctrl.frequency} | Estado: <span style={{ color: ctrl.status === 'OK' ? '#10b981' : '#ef4444', fontWeight: 800 }}>{ctrl.status === 'OK' ? 'CUMPLE' : 'FALLA'}</span>
+                                    </div>
+                                 </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div style={{ marginTop: '32px', padding: '20px', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fca5a5' }}>
                        <h5 style={{ margin: '0 0 8px 0', color: '#dc2626' }}>Sanciones por Incumplimiento</h5>

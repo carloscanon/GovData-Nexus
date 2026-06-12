@@ -766,7 +766,7 @@ export default function SecurityModule() {
       {/* KPI Explainer */}
       <AnimatePresence>
         {selectedKPI && (
-          <div className={styles.modalOverlay} onClick={() => setSelectedKPI(null)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setSelectedKPI(null); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '440px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -786,7 +786,7 @@ export default function SecurityModule() {
       {/* Risk Detail */}
       <AnimatePresence>
         {selectedRisk && (
-          <div className={styles.modalOverlay} onClick={() => setSelectedRisk(null)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setSelectedRisk(null); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '600px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -867,7 +867,7 @@ export default function SecurityModule() {
       {/* New Risk Modal */}
       <AnimatePresence>
         {isRiskModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsRiskModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsRiskModalOpen(false); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '600px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -924,7 +924,7 @@ export default function SecurityModule() {
       {/* New Incident Modal */}
       <AnimatePresence>
         {isIncidentModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsIncidentModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsIncidentModalOpen(false); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -971,7 +971,7 @@ export default function SecurityModule() {
       {/* New Access Modal */}
       <AnimatePresence>
         {isAccessModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsAccessModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsAccessModalOpen(false); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -1021,7 +1021,7 @@ export default function SecurityModule() {
       {/* New Control Modal */}
       <AnimatePresence>
         {isControlModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsControlModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsControlModalOpen(false); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '520px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
@@ -1127,7 +1127,7 @@ export default function SecurityModule() {
       {/* New Framework Modal */}
       <AnimatePresence>
         {isFrameworkModalOpen && (
-          <div className={styles.modalOverlay} onClick={() => setIsFrameworkModalOpen(false)}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsFrameworkModalOpen(false); }}>
             <motion.div className={styles.modalContent} style={{ maxWidth: '440px' }}
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}>
