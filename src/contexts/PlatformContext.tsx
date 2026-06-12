@@ -63,6 +63,57 @@ export interface SaaSPlan {
   modules: string[];
 }
 
+export interface ModalConfig {
+  width: string;
+  height: string;
+  minHeight: string;
+  maxHeight: string;
+  borderRadius: string;
+  bg: string;
+  opacity: number;
+  shadow: string;
+  borderColor: string;
+  borderWidth: string;
+  borderStyle: string;
+  showHeader: boolean;
+  headerBg: string;
+  headerTextColor: string;
+  headerFontSize: string;
+  headerFontWeight: string;
+  headerAlignment: string;
+  showIcon: boolean;
+  contentFontFamily: string;
+  contentFontSize: string;
+  contentPadding: string;
+  contentLineHeight: string;
+  contentMargin: string;
+  contentTextColor: string;
+  showFooter: boolean;
+  footerAlign: string;
+  footerPadding: string;
+  btnPrimaryBg: string;
+  btnPrimaryText: string;
+  btnSecondaryBg: string;
+  btnSecondaryText: string;
+  btnWarningBg: string;
+  btnWarningText: string;
+  btnDangerBg: string;
+  btnDangerText: string;
+  btnBorderRadius: string;
+  btnSize: 'sm' | 'md' | 'lg';
+  btnIconography: boolean;
+  overlayBg: string;
+  overlayOpacity: number;
+  overlayBlur: string;
+  overlayClickClose: boolean;
+  closeOnEsc: boolean;
+  isDraggable: boolean;
+  isResizable: boolean;
+  layoutType: 'centered' | 'lateral' | 'fullscreen';
+  responsive: boolean;
+  updatedAt?: string;
+}
+
 export interface SATheme {
   background: string;
   card: string;
@@ -116,6 +167,10 @@ interface PlatformContextType {
   setModalTextColor: (color: string) => void;
   modalBlur: string;
   setModalBlur: (blur: string) => void;
+  // Configurable Modals
+  modalConfig: ModalConfig;
+  setModalConfig: (config: ModalConfig) => void;
+  saveModalConfig: (config: ModalConfig) => Promise<void>;
   // Tenants
   tenants: Tenant[];
   currentTenant: Tenant;
@@ -131,6 +186,98 @@ interface PlatformContextType {
 }
 
 // =================== Default data ===================
+export const DEFAULT_MODAL_CONFIG: ModalConfig = {
+  width: '600px',
+  height: 'auto',
+  minHeight: '200px',
+  maxHeight: '90vh',
+  borderRadius: '24px',
+  bg: '#ffffff',
+  opacity: 1,
+  shadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+  borderColor: '#e2e8f0',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  showHeader: true,
+  headerBg: '#4f46e5',
+  headerTextColor: '#ffffff',
+  headerFontSize: '1.25rem',
+  headerFontWeight: '800',
+  headerAlignment: 'left',
+  showIcon: true,
+  contentFontFamily: 'Inter, sans-serif',
+  contentFontSize: '0.95rem',
+  contentPadding: '32px',
+  contentLineHeight: '1.5',
+  contentMargin: '0px',
+  contentTextColor: '#1e293b',
+  showFooter: true,
+  footerAlign: 'right',
+  footerPadding: '16px 32px',
+  btnPrimaryBg: '#4f46e5',
+  btnPrimaryText: '#ffffff',
+  btnSecondaryBg: '#f1f5f9',
+  btnSecondaryText: '#475569',
+  btnWarningBg: '#f59e0b',
+  btnWarningText: '#ffffff',
+  btnDangerBg: '#ef4444',
+  btnDangerText: '#ffffff',
+  btnBorderRadius: '12px',
+  btnSize: 'md',
+  btnIconography: true,
+  overlayBg: '#0f172a',
+  overlayOpacity: 0.5,
+  overlayBlur: '4px',
+  overlayClickClose: true,
+  closeOnEsc: true,
+  isDraggable: false,
+  isResizable: false,
+  layoutType: 'centered',
+  responsive: true,
+};
+
+export const MODAL_TEMPLATES: Record<string, ModalConfig> = {
+  corporate: { ...DEFAULT_MODAL_CONFIG },
+  minimalist: {
+    ...DEFAULT_MODAL_CONFIG,
+    borderRadius: '8px',
+    bg: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    headerBg: '#ffffff',
+    headerTextColor: '#0f172a',
+    headerFontSize: '1.2rem',
+    headerFontWeight: '600',
+    contentPadding: '24px',
+    contentTextColor: '#334155',
+    btnPrimaryBg: '#0f172a',
+    btnBorderRadius: '6px',
+    shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    overlayBlur: '0px',
+  },
+  critical: {
+    ...DEFAULT_MODAL_CONFIG,
+    headerBg: '#ef4444',
+    btnPrimaryBg: '#ef4444',
+    shadow: '0 25px 50px -12px rgba(239, 68, 68, 0.15)',
+  },
+  form: {
+    ...DEFAULT_MODAL_CONFIG,
+    width: '700px',
+    headerBg: '#3b82f6',
+    btnPrimaryBg: '#3b82f6',
+  },
+  notification: {
+    ...DEFAULT_MODAL_CONFIG,
+    width: '450px',
+    headerBg: '#10b981',
+    btnPrimaryBg: '#10b981',
+    showFooter: false,
+    overlayClickClose: true,
+  }
+};
+
 const defaultPlans: SaaSPlan[] = [
   {
     id: 'starter',
@@ -264,6 +411,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [modalFont, setModalFontState] = useState<string>('inherit');
   const [modalTextColor, setModalTextColorState] = useState<string>('white');
   const [modalBlur, setModalBlurState] = useState<string>('24px');
+  const [modalConfig, setModalConfigState] = useState<ModalConfig>(DEFAULT_MODAL_CONFIG);
 
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
@@ -331,74 +479,71 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         console.warn('Could not load tenant config from DB:', e);
       }
 
-      const getVar = (key: string) => {
+      const getVar = (key: string, defaultValue: any) => {
         if (dbConfigs[key] !== undefined) return dbConfigs[key];
-        return localStorage.getItem(`${key}_${tid}`) || localStorage.getItem(key);
+        const val = localStorage.getItem(`${key}_${tid}`);
+        return val !== null ? val : defaultValue;
       };
 
-    const savedCardBg = getVar('govdata_card_bg');
-    if (savedCardBg) setCardBgState(savedCardBg);
+    const savedCardBg = getVar('govdata_card_bg', '#ffffff');
+    setCardBgState(savedCardBg);
 
-    const savedCardBorderColor = getVar('govdata_card_border_color');
-    if (savedCardBorderColor) setCardBorderColorState(savedCardBorderColor);
+    const savedCardBorderColor = getVar('govdata_card_border_color', 'rgba(229, 231, 235, 0.5)');
+    setCardBorderColorState(savedCardBorderColor);
 
-    const savedCardBorderRadius = getVar('govdata_card_border_radius');
-    if (savedCardBorderRadius) setCardBorderRadiusState(savedCardBorderRadius);
+    const savedCardBorderRadius = getVar('govdata_card_border_radius', '24px');
+    setCardBorderRadiusState(savedCardBorderRadius);
 
-    const savedCardBorderWidth = getVar('govdata_card_border_width');
-    if (savedCardBorderWidth) setCardBorderWidthState(savedCardBorderWidth);
+    const savedCardBorderWidth = getVar('govdata_card_border_width', '1px');
+    setCardBorderWidthState(savedCardBorderWidth);
 
-    const savedChartType = getVar('govdata_dashboard_chart_type');
+    const savedChartType = getVar('govdata_dashboard_chart_type', 'area');
     if (savedChartType === 'area' || savedChartType === 'bar' || savedChartType === 'line') {
       setDashboardChartTypeState(savedChartType);
     }
 
-    const savedChartColors = getVar('govdata_dashboard_chart_colors');
-    if (savedChartColors) {
-      try {
-        setDashboardChartColorsState(JSON.parse(savedChartColors));
-      } catch (e) {}
-    }
+    const savedChartColors = getVar('govdata_dashboard_chart_colors', JSON.stringify(['#60a5fa', '#3b82f6', '#2563eb']));
+    try {
+      setDashboardChartColorsState(JSON.parse(savedChartColors));
+    } catch (e) {}
 
-    const savedPieChartType = getVar('govdata_pie_chart_type');
+    const savedPieChartType = getVar('govdata_pie_chart_type', 'donut');
     if (savedPieChartType === 'pie' || savedPieChartType === 'donut') {
       setPieChartTypeState(savedPieChartType);
     }
 
-    const savedFont = getVar('govdata_dashboard_font');
-    if (savedFont) setDashboardFontState(savedFont);
+    const savedFont = getVar('govdata_dashboard_font', 'Inter, sans-serif');
+    setDashboardFontState(savedFont);
 
-    const savedTextColor = getVar('govdata_dashboard_text_color');
-    if (savedTextColor) setDashboardTextColorState(savedTextColor);
+    const savedTextColor = getVar('govdata_dashboard_text_color', '#0f172a');
+    setDashboardTextColorState(savedTextColor);
 
-    const savedTitleColor = getVar('govdata_dashboard_title_color');
-    if (savedTitleColor) setDashboardTitleColorState(savedTitleColor);
+    const savedTitleColor = getVar('govdata_dashboard_title_color', '#475569');
+    setDashboardTitleColorState(savedTitleColor);
 
-    const savedTextScale = getVar('govdata_dashboard_text_scale');
-    if (savedTextScale) setDashboardTextScaleState(savedTextScale);
+    const savedTextScale = getVar('govdata_dashboard_text_scale', '1');
+    setDashboardTextScaleState(savedTextScale);
 
-    const savedContent = getVar('govdata_dashboard_content');
-    if (savedContent) {
-      try {
-        setDashboardContentState({ ...DEFAULT_DASHBOARD_CONTENT, ...JSON.parse(savedContent) });
-      } catch (e) {}
-    } else {
+    const savedContent = getVar('govdata_dashboard_content', JSON.stringify(DEFAULT_DASHBOARD_CONTENT));
+    try {
+      setDashboardContentState({ ...DEFAULT_DASHBOARD_CONTENT, ...JSON.parse(savedContent) });
+    } catch (e) {
       setDashboardContentState(DEFAULT_DASHBOARD_CONTENT);
     }
 
-    const savedModalBg = getVar('govdata_modal_bg');
-    if (savedModalBg) setModalBgState(savedModalBg);
+    const savedModalBg = getVar('govdata_modal_bg', 'rgba(15, 23, 42, 0.85)');
+    setModalBgState(savedModalBg);
 
-    const savedModalFont = getVar('govdata_modal_font');
-    if (savedModalFont) setModalFontState(savedModalFont);
+    const savedModalFont = getVar('govdata_modal_font', 'inherit');
+    setModalFontState(savedModalFont);
 
-    const savedModalTextColor = getVar('govdata_modal_text_color');
-    if (savedModalTextColor) setModalTextColorState(savedModalTextColor);
+    const savedModalTextColor = getVar('govdata_modal_text_color', 'white');
+    setModalTextColorState(savedModalTextColor);
 
-    const savedModalBlur = getVar('govdata_modal_blur');
-    if (savedModalBlur) setModalBlurState(savedModalBlur);
+    const savedModalBlur = getVar('govdata_modal_blur', '24px');
+    setModalBlurState(savedModalBlur);
 
-    const savedBrandColors = getVar('brandColors');
+    const savedBrandColors = getVar('brandColors', null);
     if (savedBrandColors) {
       try {
         const parsed = JSON.parse(savedBrandColors);
@@ -415,6 +560,63 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         theme: 'light'
       });
     }
+
+    const loadModalConfig = async () => {
+      console.log('[PlatformContext] loadModalConfig called for tenant:', tid);
+      let dbConfig: ModalConfig | null = null;
+      let localConfig: ModalConfig | null = null;
+
+      // 1. Try DB
+      try {
+        const { data: mData, error } = await supabase
+          .from('tenant_modal_config')
+          .select('config_value')
+          .eq('tenant_id', tid)
+          .eq('config_key', 'global')
+          .single();
+        if (!error && mData && mData.config_value) {
+          dbConfig = { ...DEFAULT_MODAL_CONFIG, ...mData.config_value };
+        } else if (error) {
+          console.warn('[PlatformContext] Database load warning:', error.message);
+        }
+      } catch (e) {
+        console.warn('[PlatformContext] Database exception loading modal config:', e);
+      }
+
+      // 2. Try LocalStorage
+      try {
+        const savedLConfig = localStorage.getItem(`govdata_modal_config_${tid}`);
+        if (savedLConfig) {
+          localConfig = { ...DEFAULT_MODAL_CONFIG, ...JSON.parse(savedLConfig) };
+        }
+      } catch (e) {
+        console.warn('[PlatformContext] LocalStorage exception loading modal config:', e);
+      }
+
+      // 3. Resolve Conflict
+      if (dbConfig && localConfig) {
+        const dbTime = dbConfig.updatedAt ? new Date(dbConfig.updatedAt).getTime() : 0;
+        const localTime = localConfig.updatedAt ? new Date(localConfig.updatedAt).getTime() : 0;
+        if (localTime > dbTime) {
+          console.log('[PlatformContext] Using newer LocalStorage configuration (local:', localConfig.updatedAt, 'db:', dbConfig.updatedAt, ')');
+          setModalConfigState(localConfig);
+        } else {
+          console.log('[PlatformContext] Using authorative/newer DB configuration (db:', dbConfig.updatedAt, 'local:', localConfig.updatedAt, ')');
+          setModalConfigState(dbConfig);
+        }
+      } else if (dbConfig) {
+        console.log('[PlatformContext] Using DB configuration (only one available)');
+        setModalConfigState(dbConfig);
+      } else if (localConfig) {
+        console.log('[PlatformContext] Using LocalStorage configuration (only one available)');
+        setModalConfigState(localConfig);
+      } else {
+        console.log('[PlatformContext] No config found anywhere, using default config.');
+        setModalConfigState(DEFAULT_MODAL_CONFIG);
+      }
+    };
+    loadModalConfig();
+
     };
     
     loadSettings();
@@ -821,7 +1023,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveTenantSetting = (key: string, value: string) => {
-    localStorage.setItem(key, value); // Fallback guardado a nivel global
     if (currentTenant?.id) {
       localStorage.setItem(`${key}_${currentTenant.id}`, value);
       
@@ -960,6 +1161,33 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setModalTextColor: handleSetModalTextColor,
       modalBlur,
       setModalBlur: handleSetModalBlur,
+      modalConfig,
+      setModalConfig: setModalConfigState,
+      saveModalConfig: async (config: ModalConfig) => {
+        if (!currentTenant) {
+          console.warn('[PlatformContext] saveModalConfig failed: no currentTenant');
+          return;
+        }
+        const configWithTime: ModalConfig = { ...config, updatedAt: new Date().toISOString() };
+        console.log('[PlatformContext] saveModalConfig saving for tenant:', currentTenant.id, configWithTime);
+        setModalConfigState(configWithTime);
+        localStorage.setItem(`govdata_modal_config_${currentTenant.id}`, JSON.stringify(configWithTime));
+        try {
+          const { error } = await supabase.from('tenant_modal_config').upsert({
+            tenant_id: currentTenant.id,
+            config_key: 'global',
+            config_value: configWithTime,
+            updated_at: configWithTime.updatedAt
+          }, { onConflict: 'tenant_id, config_key' });
+          if (error) {
+            console.error('[PlatformContext] Error upserting modal config to DB:', error.message);
+          } else {
+            console.log('[PlatformContext] Modal config successfully saved to Supabase DB');
+          }
+        } catch (e) {
+          console.error('[PlatformContext] Exception saving modal config to DB:', e);
+        }
+      },
       tenants,
       currentTenant,
       setCurrentTenant,

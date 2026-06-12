@@ -234,17 +234,51 @@ export default function Simulator() {
           continue;
         }
 
+        // Excluir políticas y elementos creados automáticamente desde el diagnóstico/lanzador (Launchpad)
+        let filteredRecords = records;
+        if (step.check_table === 'data_policies') {
+          const bootstrapFrameworks = ['DAMA', 'DCAM', 'HEALTH', 'PUBLIC', 'GDPR', 'STANDARD'];
+          filteredRecords = records.filter(r => {
+            const origin = (r.framework_origin || '').trim().toUpperCase();
+            return !bootstrapFrameworks.includes(origin);
+          });
+        } else if (step.check_table === 'policy_workflows') {
+          const bootstrapWorkflows = ['FLUJO DOCUMENTAL NORMATIVO', 'ESTÁNDAR', 'CRÍTICO / LEGAL', 'ESTANDAR', 'CRITICO / LEGAL'];
+          filteredRecords = records.filter(r => {
+            const name = (r.name || '').trim().toUpperCase();
+            return !bootstrapWorkflows.includes(name);
+          });
+        } else if (step.check_table === 'policy_standards') {
+          const bootstrapCodes = ['STD-DAMA', 'STD-DCAM', 'STD-HIPAA', 'STD-GOV', 'STD-GDPR', 'STD-001', 'STD-002'];
+          filteredRecords = records.filter(r => {
+            const code = (r.code || '').trim().toUpperCase();
+            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
+          });
+        } else if (step.check_table === 'policy_procedures') {
+          const bootstrapCodes = ['PR-DAMA', 'PR-DCAM', 'PR-HIPAA', 'PR-GOV', 'PR-GDPR', 'PR-01', 'PR-02', 'PRC-01'];
+          filteredRecords = records.filter(r => {
+            const code = (r.code || '').trim().toUpperCase();
+            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
+          });
+        } else if (step.check_table === 'policy_controls') {
+          const bootstrapCodes = ['CTRL-DAMA', 'CTRL-DCAM', 'CTRL-HIPAA', 'CTRL-GOV', 'CTRL-GDPR', 'CTRL-01', 'CTRL-02'];
+          filteredRecords = records.filter(r => {
+            const code = (r.code || '').trim().toUpperCase();
+            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
+          });
+        }
+
         // Special logic for "roles" aggregation
         if (step.check_condition?.requires_roles) {
-          const roleTypes = records.map(m => m.role?.toLowerCase() || '');
+          const roleTypes = filteredRecords.map(m => m.role?.toLowerCase() || '');
           let hasAll = true;
           step.check_condition.requires_roles.forEach((reqR: string) => {
             if (!roleTypes.some(rt => rt.includes(reqR.toLowerCase()))) hasAll = false;
           });
-          v[step.key_name] = hasAll && records.length >= step.min_count;
+          v[step.key_name] = hasAll && filteredRecords.length >= step.min_count;
         } else {
           // Standard validation
-          const validRecords = validateCondition(records, step.check_condition);
+          const validRecords = validateCondition(filteredRecords, step.check_condition);
           v[step.key_name] = validRecords >= step.min_count;
         }
 

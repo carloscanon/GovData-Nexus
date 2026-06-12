@@ -347,14 +347,36 @@
 }
 
 .modalHeader {
-  padding: 24px 32px;
+  padding: 32px;
   background: transparent;
-  color: #1e293b;
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  position: relative;
-  border-bottom: 1px solid #f1f5f9;
+}
+
+.modalHeader h2,
+.modalHeader .headerInfo h2 {
+  color: white !important;
+}
+
+.modalHeader p,
+.modalHeader .headerInfo p {
+  color: #94a3b8 !important;
+}
+
+.modalCloseBtn {
+  color: #94a3b8 !important;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalCloseBtn:hover {
+  color: white !important;
 }
 
 .headerInfo h2 {
@@ -378,41 +400,33 @@
 
 .sidebar {
   width: 260px;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background: rgba(128, 128, 128, 0.06);
+  border-right: 1px solid var(--modal-border-color, #e2e8f0);
   padding: 24px 0;
   flex-shrink: 0;
 }
 
 .sideTab {
   padding: 12px 24px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #64748b;
+  color: var(--modal-text-color, #64748b);
   cursor: pointer;
   transition: all 0.2s;
-  border-left: 4px solid transparent;
-  display: flex;
-  align-items: center;
-}
-
-.sideTab:hover {
-  background: #eef2ff;
-  color: #4f46e5;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .activeSideTab {
-  background: #eef2ff;
+  background: rgba(79, 70, 229, 0.1);
   color: #4f46e5;
-  border-left-color: #6366f1;
   font-weight: 700;
+  border-left: 4px solid #4f46e5;
 }
 
 .mainDetail {
   flex: 1;
   padding: 36px 40px;
-  background: #ffffff;
-  color: #1e293b;
+  background: transparent;
+  color: var(--modal-text-color, #1e293b);
   overflow-y: auto;
 }
 

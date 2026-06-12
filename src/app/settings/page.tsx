@@ -32,14 +32,19 @@ import {
   Palette,
   Camera,
   BarChart3,
-  Users
+  Users,
+  AlertTriangle,
+  Info,
+  Award,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePlatform } from '@/contexts/PlatformContext';
+import { usePlatform, DEFAULT_MODAL_CONFIG, MODAL_TEMPLATES, ModalConfig } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import styles from './settings.module.css';
+import UnifiedModal from '@/components/UnifiedModal';
 
-type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'roles' | 'notifications' | 'integrations' | 'branding';
+type SettingsTab = 'platform' | 'governance' | 'security' | 'users' | 'roles' | 'notifications' | 'integrations' | 'branding' | 'modals';
 
 export default function Settings() {
   const { 
@@ -78,7 +83,9 @@ export default function Settings() {
     modalTextColor,
     setModalTextColor,
     modalBlur,
-    setModalBlur
+    setModalBlur,
+    modalConfig,
+    saveModalConfig
   } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
@@ -86,6 +93,17 @@ export default function Settings() {
   const [selectedDashboardLayout, setSelectedDashboardLayout] = useState<'classic' | 'moneed'>('classic');
   const [selectedDashboardType, setSelectedDashboardType] = useState<'executive' | 'technical' | 'collaborative'>('executive');
   const [isSavingDashboard, setIsSavingDashboard] = useState(false);
+
+  const [localModalConfig, setLocalModalConfig] = useState<ModalConfig>(DEFAULT_MODAL_CONFIG);
+  const [previewType, setPreviewType] = useState<'informativa' | 'confirmacion' | 'formulario'>('formulario');
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [isTestingInteractive, setIsTestingInteractive] = useState(false);
+
+  useEffect(() => {
+    if (modalConfig) {
+      setLocalModalConfig(modalConfig);
+    }
+  }, [modalConfig]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -455,6 +473,12 @@ export default function Settings() {
             <Palette size={20} /> Personalización
           </button>
           <button 
+            className={`${styles.navItem} ${activeTab === 'modals' ? styles.activeNavItem : ''}`}
+            onClick={() => setActiveTab('modals')}
+          >
+            <Palette size={20} /> Ajustes de Modales
+          </button>
+          <button 
             className={`${styles.navItem} ${activeTab === 'platform' ? styles.activeNavItem : ''}`}
             onClick={() => setActiveTab('platform')}
           >
@@ -785,6 +809,687 @@ export default function Settings() {
                   alert('✅ Identidad visual actualizada. Los cambios se aplicarán en toda la plataforma.');
                 }}>Aplicar Branding</button>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'modals' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className={styles.panelHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Estandarización y Ajustes de Modales</h2>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Diseña el comportamiento, animaciones, bordes y cabecera de las ventanas modales de tu organización.</p>
+                </div>
+                <button 
+                  onClick={() => setIsTestingInteractive(true)} 
+                  style={{
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  ✨ Probar Interactiva
+                </button>
+              </div>
+
+              {/* UX Templates Bar */}
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '12px' }}>
+                  Plantillas de Diseño UX Recomendadas
+                </span>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'corporate', label: 'Corporativa Oficial', desc: 'Fondo índigo, bordes amplios' },
+                    { key: 'minimalist', label: 'Minimalista Clásica', desc: 'Bordes finos, contraste sobrio' },
+                    { key: 'critical', label: 'Acción Crítica', desc: 'Alerta roja, foco en peligro' },
+                    { key: 'form', label: 'Formulario Amplio', desc: 'Cabecera azul, ancho de 700px' },
+                    { key: 'notification', label: 'Notificación Rápida', desc: 'Verde éxito, sin pie de página' }
+                  ].map(t => (
+                    <button
+                      key={t.key}
+                      onClick={() => {
+                        setLocalModalConfig(MODAL_TEMPLATES[t.key]);
+                        alert(`Plantilla "${t.label}" cargada temporalmente. No olvides guardarla.`);
+                      }}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        padding: '10px 16px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        flex: '1 1 180px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#4f46e5';
+                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                      }}
+                    >
+                      <strong style={{ display: 'block', fontSize: '0.85rem', color: '#1e293b' }}>{t.label}</strong>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Grid: Control Form vs Device Live Preview */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px', alignItems: 'start' }}>
+                {/* Left Column - Controls Form */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '10px' }}>
+                  
+                  {/* General Container Style */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      1. Estructura y Contenedor
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Ancho de Modal</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.width} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, width: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Radio de Bordes</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.borderRadius} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, borderRadius: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color de Fondo</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            value={localModalConfig.bg.startsWith('#') ? localModalConfig.bg : '#ffffff'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, bg: e.target.value })} 
+                            style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            value={localModalConfig.bg} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, bg: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Opacidad del Contenedor</label>
+                        <input 
+                          type="range" 
+                          min="0.5" 
+                          max="1" 
+                          step="0.05"
+                          style={{ width: '100%', marginTop: '12px' }}
+                          value={localModalConfig.opacity} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, opacity: Number(e.target.value) })} 
+                        />
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{(localModalConfig.opacity * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Borders Customization */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      2. Estilo de Bordes
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Grosor de Borde</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.borderWidth} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, borderWidth: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Tipo de Borde</label>
+                        <select 
+                          className={styles.select} 
+                          value={localModalConfig.borderStyle} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, borderStyle: e.target.value })}
+                        >
+                          <option value="solid">Sólido</option>
+                          <option value="dashed">Segmentado (Dashed)</option>
+                          <option value="dotted">Punteado (Dotted)</option>
+                          <option value="double">Doble</option>
+                          <option value="none">Sin Borde</option>
+                        </select>
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color de Borde</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            value={localModalConfig.borderColor.startsWith('#') ? localModalConfig.borderColor : '#cbd5e1'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, borderColor: e.target.value })} 
+                            style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            value={localModalConfig.borderColor} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, borderColor: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Header Customization */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      3. Encabezado de Modal
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localModalConfig.showHeader} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, showHeader: e.target.checked })} 
+                          />
+                          Mostrar Cabecera
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localModalConfig.showIcon} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, showIcon: e.target.checked })} 
+                          />
+                          Mostrar Icono
+                        </label>
+                      </div>
+                      {localModalConfig.showHeader && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '8px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color Fondo Cabecera</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <input 
+                                type="color" 
+                                value={localModalConfig.headerBg.startsWith('#') ? localModalConfig.headerBg : '#4f46e5'} 
+                                onChange={e => setLocalModalConfig({ ...localModalConfig, headerBg: e.target.value })} 
+                                style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                              />
+                              <input 
+                                type="text" 
+                                className={styles.input} 
+                                value={localModalConfig.headerBg} 
+                                onChange={e => setLocalModalConfig({ ...localModalConfig, headerBg: e.target.value })} 
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color Texto Cabecera</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <input 
+                                type="color" 
+                                value={localModalConfig.headerTextColor.startsWith('#') ? localModalConfig.headerTextColor : '#ffffff'} 
+                                onChange={e => setLocalModalConfig({ ...localModalConfig, headerTextColor: e.target.value })} 
+                                style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                              />
+                              <input 
+                                type="text" 
+                                className={styles.input} 
+                                value={localModalConfig.headerTextColor} 
+                                onChange={e => setLocalModalConfig({ ...localModalConfig, headerTextColor: e.target.value })} 
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Alineación Título</label>
+                            <select 
+                              className={styles.select} 
+                              value={localModalConfig.headerAlignment} 
+                              onChange={e => setLocalModalConfig({ ...localModalConfig, headerAlignment: e.target.value })}
+                            >
+                              <option value="left">Izquierda</option>
+                              <option value="center">Centro</option>
+                              <option value="right">Derecha</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Tamaño Fuente Título</label>
+                            <input 
+                              type="text" 
+                              className={styles.input} 
+                              value={localModalConfig.headerFontSize} 
+                              onChange={e => setLocalModalConfig({ ...localModalConfig, headerFontSize: e.target.value })} 
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Content Customization */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      4. Cuerpo y Contenido
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Tipografía</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.contentFontFamily} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, contentFontFamily: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Tamaño Fuente</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.contentFontSize} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, contentFontSize: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Espaciado Interno (Padding)</label>
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          value={localModalConfig.contentPadding} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, contentPadding: e.target.value })} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color Texto</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            value={localModalConfig.contentTextColor.startsWith('#') ? localModalConfig.contentTextColor : '#1e293b'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, contentTextColor: e.target.value })} 
+                            style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            value={localModalConfig.contentTextColor} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, contentTextColor: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Overlay & Dismiss */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      5. Fondo (Overlay) y Cerrado
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Color del Fondo Overlay</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            value={localModalConfig.overlayBg.startsWith('#') ? localModalConfig.overlayBg : '#0f172a'} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, overlayBg: e.target.value })} 
+                            style={{ width: '38px', height: '38px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '6px' }}
+                          />
+                          <input 
+                            type="text" 
+                            className={styles.input} 
+                            value={localModalConfig.overlayBg} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, overlayBg: e.target.value })} 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Nivel de Transparencia (Opacidad)</label>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="1" 
+                          step="0.05"
+                          style={{ width: '100%', marginTop: '12px' }}
+                          value={localModalConfig.overlayOpacity} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, overlayOpacity: Number(e.target.value) })} 
+                        />
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{(localModalConfig.overlayOpacity * 100).toFixed(0)}%</span>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Efecto Desenfoque (Blur)</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: 4px" 
+                          className={styles.input} 
+                          value={localModalConfig.overlayBlur} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, overlayBlur: e.target.value })} 
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localModalConfig.overlayClickClose} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, overlayClickClose: e.target.checked })} 
+                          />
+                          Cerrar al hacer click fuera
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localModalConfig.closeOnEsc} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, closeOnEsc: e.target.checked })} 
+                          />
+                          Cerrar con tecla ESC
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Layout & Behavior */}
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                      6. Comportamiento y Disposición
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Disposición Física</label>
+                        <select 
+                          className={styles.select} 
+                          value={localModalConfig.layoutType} 
+                          onChange={e => setLocalModalConfig({ ...localModalConfig, layoutType: e.target.value as any })}
+                        >
+                          <option value="centered">Centrado Clásico (Centered)</option>
+                          <option value="lateral">Panel Lateral Desplizable (Right Drawer)</option>
+                          <option value="fullscreen">Pantalla Completa (Fullscreen)</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localModalConfig.isDraggable} 
+                            onChange={e => setLocalModalConfig({ ...localModalConfig, isDraggable: e.target.checked })} 
+                          />
+                          Habilitar Arrastre (Drag & Drop)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '10px', marginBottom: '30px' }}>
+                    <button 
+                      onClick={async () => {
+                        setIsSaving(true);
+                        try {
+                          await saveModalConfig(localModalConfig);
+                          alert('✅ Configuración de modales guardada en base de datos para tu empresa exitosamente.');
+                        } catch (e) {
+                          alert('❌ Error al guardar en base de datos.');
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                      disabled={isSaving}
+                      style={{
+                        flex: 1,
+                        background: '#4f46e5',
+                        color: 'white',
+                        border: 'none',
+                        padding: '14px 28px',
+                        borderRadius: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
+                        transition: 'opacity 0.2s'
+                      }}
+                    >
+                      {isSaving ? 'Guardando...' : 'Guardar Configuración por Empresa'}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setLocalModalConfig(DEFAULT_MODAL_CONFIG);
+                        alert('Valores restablecidos temporalmente. Haz click en Guardar para persistir.');
+                      }}
+                      style={{
+                        background: '#ffffff',
+                        color: '#475569',
+                        border: '1px solid #cbd5e1',
+                        padding: '14px 20px',
+                        borderRadius: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Restablecer a Valores Base
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* Right Column - Simulated Device Preview */}
+                <div style={{ position: 'sticky', top: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                        Previsualización en Tiempo Real
+                      </h3>
+                      {/* Device Toggles */}
+                      <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
+                        {(['desktop', 'tablet', 'mobile'] as const).map(d => (
+                          <button
+                            key={d}
+                            onClick={() => setPreviewDevice(d)}
+                            style={{
+                              background: previewDevice === d ? '#ffffff' : 'transparent',
+                              border: 'none',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              textTransform: 'capitalize',
+                              color: previewDevice === d ? '#4f46e5' : '#64748b',
+                              boxShadow: previewDevice === d ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                            }}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Modal Type Selector */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                      {(['informativa', 'confirmacion', 'formulario'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setPreviewType(t)}
+                          style={{
+                            flex: 1,
+                            background: previewType === t ? '#eef2ff' : 'transparent',
+                            border: `1px solid ${previewType === t ? '#4f46e5' : '#e2e8f0'}`,
+                            padding: '8px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            textTransform: 'capitalize',
+                            color: previewType === t ? '#4f46e5' : '#475569',
+                          }}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Simulated Screen Wrap */}
+                    <div 
+                      style={{
+                        background: '#0f172a',
+                        borderRadius: '16px',
+                        padding: '24px 16px',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minHeight: '380px',
+                        border: '4px solid #334155',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        transition: 'width 0.3s ease'
+                      }}
+                    >
+                      {/* Inline Modal Card (Simulation using local settings) */}
+                      <div
+                        style={{
+                          width: previewDevice === 'mobile' ? '280px' : previewDevice === 'tablet' ? '380px' : '90%',
+                          background: localModalConfig.bg,
+                          opacity: localModalConfig.opacity,
+                          borderRadius: localModalConfig.borderRadius,
+                          borderWidth: localModalConfig.borderWidth,
+                          borderColor: localModalConfig.borderColor,
+                          borderStyle: localModalConfig.borderStyle,
+                          boxShadow: localModalConfig.shadow,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          fontFamily: localModalConfig.contentFontFamily,
+                          color: localModalConfig.contentTextColor,
+                          fontSize: '0.85rem',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {/* Header */}
+                        {localModalConfig.showHeader && (
+                          <div 
+                            style={{ 
+                              padding: '12px 16px', 
+                              background: localModalConfig.headerBg, 
+                              color: localModalConfig.headerTextColor,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {localModalConfig.showIcon && (
+                                <div style={{ padding: '6px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '6px', display: 'flex', color: localModalConfig.headerTextColor }}>
+                                  {previewType === 'confirmacion' ? <AlertTriangle size={16} /> : previewType === 'formulario' ? <Info size={16} /> : <Award size={16} />}
+                                </div>
+                              )}
+                              <strong style={{ color: localModalConfig.headerTextColor, fontSize: '0.9rem' }}>
+                                {previewType === 'confirmacion' ? '¿Confirmar Operación?' : previewType === 'formulario' ? 'Ficha de Activo' : 'Detalle de Módulo'}
+                              </strong>
+                            </div>
+                            <X size={14} style={{ opacity: 0.8 }} />
+                          </div>
+                        )}
+
+                        {/* Body */}
+                        <div style={{ padding: '16px', fontSize: '0.8rem', color: localModalConfig.contentTextColor }}>
+                          {previewType === 'confirmacion' && (
+                            <p style={{ margin: 0, lineHeight: 1.4 }}>¿Estás seguro de que deseas eliminar permanentemente este registro del catálogo de metadatos corporativos? Esta acción no se puede deshacer.</p>
+                          )}
+                          {previewType === 'formulario' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div>
+                                <label style={{ display: 'block', fontWeight: 700, marginBottom: '2px', fontSize: '0.75rem' }}>Nombre del Activo</label>
+                                <input type="text" readOnly value="db_transactions_2026" style={{ width: '100%', padding: '6px', fontSize: '0.75rem', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontWeight: 700, marginBottom: '2px', fontSize: '0.75rem' }}>Clasificación</label>
+                                <select disabled style={{ width: '100%', padding: '6px', fontSize: '0.75rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}><option>Confidencial - PII</option></select>
+                              </div>
+                            </div>
+                          )}
+                          {previewType === 'informativa' && (
+                            <p style={{ margin: 0, lineHeight: 1.4 }}>El marco de gobierno DAMA-DMBOK establece que toda política de seguridad de datos debe ser auditada al menos una vez al año por un Steward calificado.</p>
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        {localModalConfig.showFooter && (
+                          <div 
+                            style={{ 
+                              padding: '10px 16px', 
+                              background: '#f8fafc', 
+                              borderTop: '1px solid #cbd5e1', 
+                              display: 'flex', 
+                              justifyContent: localModalConfig.footerAlign === 'center' ? 'center' : localModalConfig.footerAlign === 'left' ? 'flex-start' : 'flex-end', 
+                              gap: '8px' 
+                            }}
+                          >
+                            {previewType === 'confirmacion' && (
+                              <button style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: 600, background: localModalConfig.btnSecondaryBg, color: localModalConfig.btnSecondaryText, border: '1px solid #cbd5e1', borderRadius: localModalConfig.btnBorderRadius }}>
+                                Cancelar
+                              </button>
+                            )}
+                            <button 
+                              style={{ 
+                                padding: '4px 10px', 
+                                fontSize: '0.75rem', 
+                                fontWeight: 600, 
+                                background: previewType === 'confirmacion' ? localModalConfig.btnDangerBg : localModalConfig.btnPrimaryBg, 
+                                color: previewType === 'confirmacion' ? localModalConfig.btnDangerText : localModalConfig.btnPrimaryText,
+                                border: 'none',
+                                borderRadius: localModalConfig.btnBorderRadius 
+                              }}
+                            >
+                               {previewType === 'confirmacion' ? 'Eliminar' : 'Guardar'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Render the actual Interactive Pop-up Modal when testing */}
+              <UnifiedModal
+                isOpen={isTestingInteractive}
+                onClose={() => setIsTestingInteractive(false)}
+                title={previewType === 'confirmacion' ? 'Prueba Interactiva: Confirmar' : previewType === 'formulario' ? 'Prueba Interactiva: Formulario' : 'Prueba Interactiva: Informativa'}
+                subtitle="Esta ventana modal está usando la configuración en vivo que estás editando en este momento."
+                type={previewType}
+                confirmLabel="Entendido y Cerrar"
+                confirmBtnType={previewType === 'confirmacion' ? 'danger' : 'primary'}
+                configOverride={localModalConfig}
+              >
+                <div style={{ padding: '8px 0' }}>
+                  <p style={{ margin: 0, marginBottom: '12px' }}>
+                    ¡Felicidades! Estás probando el funcionamiento real de la ventana modal estandarizada de GovData Nexus.
+                  </p>
+                  <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
+                    <strong>Interactividad Habilitada:</strong>
+                    <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <li>Cierre con tecla <strong>ESC</strong>: {localModalConfig.closeOnEsc ? 'Habilitado' : 'Deshabilitado'}</li>
+                      <li>Cierre con clic <strong>fuera del modal</strong>: {localModalConfig.overlayClickClose ? 'Habilitado' : 'Deshabilitado'}</li>
+                      <li><strong>Arrastre (Drag & Drop)</strong>: {localModalConfig.isDraggable ? 'Habilitado (Haz click en la cabecera y arrastra)' : 'Deshabilitado'}</li>
+                      <li>Tipo de disposición física: <strong>{localModalConfig.layoutType}</strong></li>
+                    </ul>
+                  </div>
+                </div>
+              </UnifiedModal>
             </motion.div>
           )}
 
