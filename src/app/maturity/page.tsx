@@ -96,12 +96,13 @@ export default function Maturity() {
 
   const [wizardStep, setWizardStep] = React.useState(0);
 
-  // Questionnaire answers (for backward compatibility if needed)
-  const [answers, setAnswers] = React.useState<Record<string, any>>({
-    q1: 3,
-    q2: 4,
-    q3: 3,
-    q4: 3,
+  // Questionnaire answers for manual capabilities (hybrid assessment)
+  const [answers, setAnswers] = React.useState<Record<string, number>>({
+    comite_gobierno: 3,
+    modelado_datos: 3,
+    alineacion_negocio: 3,
+    auditoria_seguridad: 3,
+    marcos_normativos: 3
   });
 
   // Brand colour
@@ -134,9 +135,15 @@ export default function Maturity() {
           // Latest answers
           const latest = data[data.length - 1];
           if (latest.answers) {
-            setAnswers(latest.answers);
+            setAnswers({
+              comite_gobierno: latest.answers.comite_gobierno ?? 3,
+              modelado_datos: latest.answers.modelado_datos ?? 3,
+              alineacion_negocio: latest.answers.alineacion_negocio ?? 3,
+              auditoria_seguridad: latest.answers.auditoria_seguridad ?? 3,
+              marcos_normativos: latest.answers.marcos_normativos ?? 3,
+            });
           } else {
-            setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+            setAnswers({ comite_gobierno: 3, modelado_datos: 3, alineacion_negocio: 3, auditoria_seguridad: 3, marcos_normativos: 3 });
           }
 
           // Map history (last 12)
@@ -253,7 +260,7 @@ export default function Maturity() {
           const totalQuality = assetsWithVal.reduce((sum, a) => sum + (a.quality_score || 0), 0);
           averageQuality = Math.round(totalQuality / assetsWithVal.length);
         } else {
-          averageQuality = 80; // Baseline default quality score when no scans have run
+          averageQuality = 80;
         }
       }
 
@@ -291,37 +298,6 @@ export default function Maturity() {
         totalResolutions,
       });
 
-      // --- 1. Calidad: average quality score minus open incidents ---
-      const calidad = Math.max(0, averageQuality - (openIncidents * 5));
-
-      // --- 2. Organización: Data Owners + Data Stewards coverage ---
-      const ownerRatio = totalAssets > 0 ? (assetsWithOwner / totalAssets) * 60 : 30;
-      const stewardRatio = totalAssets > 0 ? (assetsWithSteward / totalAssets) * 40 : 20;
-      const organizacion = Math.round(ownerRatio + stewardRatio);
-
-      // --- 3. Seguridad: PII classified assets + active policies ---
-      const classRatio = totalAssets > 0 ? (assetsClassified / totalAssets) * 60 : 30;
-      const polRatio = totalPolicies > 0 ? (activePolicies / totalPolicies) * 40 : 20;
-      const seguridad = Math.round(classRatio + polRatio);
-
-      // --- 4. Arquitectura: Lineage mapping + Criticality definition ---
-      const linRatio = totalAssets > 0 ? (assetsWithLineage / totalAssets) * 50 : 25;
-      const critRatio = totalAssets > 0 ? (criticalAssets / totalAssets) * 50 : 25;
-      const arquitectura = Math.round(linRatio + critRatio);
-
-      // --- 5. Estrategia: approved workflows + committees & resolutions ---
-      const wfRatio = totalWorkflows > 0 ? (approvedWorkflows / totalWorkflows) * 50 : 25;
-      const commPoints = totalCommittees > 0 ? 30 : 0;
-      const resPoints = totalResolutions > 0 ? 20 : 0;
-      const estrategia = Math.round(wfRatio + commPoints + resPoints);
-
-      // --- 6. Compliance: resolved incidents + active policies ---
-      const incRatio = totalIncidents > 0 ? (resolvedIncidents / totalIncidents) * 50 : 25;
-      const compPolRatio = totalPolicies > 0 ? (activePolicies / totalPolicies) * 50 : 25;
-      const compliance = Math.round(incRatio + compPolRatio);
-
-      setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
-      await setItem('maturity_scores', { estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
     } catch (e) {
       console.error('Error fetching maturity metrics:', e);
     } finally {
@@ -332,6 +308,35 @@ export default function Maturity() {
   React.useEffect(() => {
     fetchLiveMaturity();
   }, [fetchLiveMaturity]);
+
+  // ------- Dynamic hybrid scores recalculator -------
+  React.useEffect(() => {
+    const calidad = Math.max(0, dbStats.averageQuality - (dbStats.openIncidents * 5));
+
+    const ownerRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithOwner / dbStats.totalAssets) * 60 : 30;
+    const stewardRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithSteward / dbStats.totalAssets) * 40 : 20;
+    const organizacionAuto = ownerRatio + stewardRatio;
+    const organizacion = Math.round(organizacionAuto * 0.5 + (answers.comite_gobierno * 20) * 0.5);
+
+    const classRatio = dbStats.totalAssets > 0 ? (dbStats.assetsClassified / dbStats.totalAssets) * 60 : 30;
+    const polRatio = dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 40 : 20;
+    const seguridadAuto = classRatio + polRatio;
+    const seguridad = Math.round(seguridadAuto * 0.6 + (answers.auditoria_seguridad * 20) * 0.4);
+
+    const linRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithLineage / dbStats.totalAssets) * 50 : 25;
+    const critRatio = dbStats.totalAssets > 0 ? (dbStats.criticalAssets / dbStats.totalAssets) * 50 : 25;
+    const arquitecturaAuto = linRatio + critRatio;
+    const arquitectura = Math.round(arquitecturaAuto * 0.6 + (answers.modelado_datos * 20) * 0.4);
+
+    const wfRatio = dbStats.totalWorkflows > 0 ? (dbStats.approvedWorkflows / dbStats.totalWorkflows) * 100 : 50;
+    const estrategia = Math.round(wfRatio * 0.5 + (answers.alineacion_negocio * 20) * 0.5);
+
+    const incRatio = dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents) * 100 : 50;
+    const compliance = Math.round(incRatio * 0.5 + (answers.marcos_normativos * 20) * 0.5);
+
+    setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
+    setItem('maturity_scores', { estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
+  }, [dbStats, answers]);
 
   // ------- Computed values -------
   const globalScore = React.useMemo(() => {
@@ -360,54 +365,54 @@ export default function Maturity() {
       id: 'estrategia', name: 'Estrategia', score: maturityScores.estrategia, icon: Target,
       status: maturityScores.estrategia >= 80 ? 'Optimizado' : maturityScores.estrategia >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Visión de Gobierno', score: maturityScores.estrategia, type: 'auto' },
-        { name: 'Políticas Definidas', score: Math.min(100, maturityScores.estrategia + 5), type: 'manual' },
-        { name: 'Alineación Negocio',  score: Math.min(100, maturityScores.estrategia - 5), type: 'manual' },
+        { name: 'Visión de Gobierno', score: Math.round(dbStats.totalWorkflows > 0 ? (dbStats.approvedWorkflows / dbStats.totalWorkflows) * 100 : 50), type: 'auto' },
+        { name: 'Políticas Definidas', score: Math.min(100, Math.round(dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 100 : 50)), type: 'auto' },
+        { name: 'Alineación Negocio',  score: answers.alineacion_negocio * 20, type: 'manual' },
       ],
     },
     {
       id: 'organizacion', name: 'Organización', score: maturityScores.organizacion, icon: Users,
       status: maturityScores.organizacion >= 80 ? 'Optimizado' : maturityScores.organizacion >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Roles y Resp.',         score: maturityScores.organizacion, type: 'auto' },
-        { name: 'Data Owners',           score: Math.min(100, Math.round(maturityScores.organizacion * 0.9)), type: 'auto' },
-        { name: 'Comité de Gobierno',    score: Math.min(100, Math.round(maturityScores.organizacion * 1.1)), type: 'manual' },
+        { name: 'Roles y Resp.',         score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? ((dbStats.assetsWithOwner + dbStats.assetsWithSteward) / (dbStats.totalAssets * 2)) * 100 : 50)), type: 'auto' },
+        { name: 'Data Owners',           score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsWithOwner / dbStats.totalAssets) * 100 : 50)), type: 'auto' },
+        { name: 'Comité de Gobierno',    score: answers.comite_gobierno * 20, type: 'manual' },
       ],
     },
     {
       id: 'calidad', name: 'Calidad', score: maturityScores.calidad, icon: TrendingUp,
       status: maturityScores.calidad >= 80 ? 'Optimizado' : maturityScores.calidad >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Reglas de Calidad',   score: maturityScores.calidad, type: 'auto' },
-        { name: 'Monitoreo Auto.',     score: Math.min(100, Math.round(maturityScores.calidad * 0.8)), type: 'auto' },
-        { name: 'Gestión Incidentes',  score: Math.min(100, Math.round(maturityScores.calidad * 0.95)), type: 'auto' },
+        { name: 'Reglas de Calidad',   score: dbStats.averageQuality, type: 'auto' },
+        { name: 'Monitoreo Auto.',     score: Math.max(0, 100 - (dbStats.openIncidents * 10)), type: 'auto' },
+        { name: 'Gestión Incidentes',  score: Math.min(100, Math.round(dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents) * 100 : 80)), type: 'auto' },
       ],
     },
     {
       id: 'arquitectura', name: 'Arquitectura', score: maturityScores.arquitectura, icon: BarChart3,
       status: maturityScores.arquitectura >= 80 ? 'Optimizado' : maturityScores.arquitectura >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Modelado Datos', score: maturityScores.arquitectura, type: 'manual' },
-        { name: 'Integración',    score: Math.min(100, Math.round(maturityScores.arquitectura * 0.9)), type: 'auto' },
-        { name: 'Linaje Técnico', score: Math.min(100, Math.round(maturityScores.arquitectura * 1.05)), type: 'auto' },
+        { name: 'Modelado Datos', score: answers.modelado_datos * 20, type: 'manual' },
+        { name: 'Integración',    score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsWithLineage / dbStats.totalAssets) * 100 : 50)), type: 'auto' },
+        { name: 'Linaje Técnico', score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsWithLineage / dbStats.totalAssets) * 100 : 50)), type: 'auto' },
       ],
     },
     {
       id: 'seguridad', name: 'Seguridad', score: maturityScores.seguridad, icon: Shield,
       status: maturityScores.seguridad >= 80 ? 'Optimizado' : maturityScores.seguridad >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Clasificación PII', score: maturityScores.seguridad, type: 'auto' },
-        { name: 'Control Acceso',    score: Math.min(100, Math.round(maturityScores.seguridad * 0.92)), type: 'auto' },
-        { name: 'Auditoría',         score: Math.min(100, Math.round(maturityScores.seguridad * 0.97)), type: 'manual' },
+        { name: 'Clasificación PII', score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsClassified / dbStats.totalAssets) * 100 : 50)), type: 'auto' },
+        { name: 'Control Acceso',    score: Math.min(100, Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsClassified / dbStats.totalAssets) * 100 : 80)), type: 'auto' },
+        { name: 'Auditoría',         score: answers.auditoria_seguridad * 20, type: 'manual' },
       ],
     },
     {
       id: 'compliance', name: 'Compliance', score: maturityScores.compliance, icon: FileCheck,
       status: maturityScores.compliance >= 80 ? 'Optimizado' : maturityScores.compliance >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
-        { name: 'Marcos Normativos',  score: maturityScores.compliance, type: 'manual' },
-        { name: 'Incidentes Resueltos', score: Math.min(100, Math.round(maturityScores.compliance * 0.95)), type: 'auto' },
-        { name: 'Auditoría Continua', score: Math.min(100, Math.round(maturityScores.compliance * 0.85)), type: 'auto' },
+        { name: 'Marcos Normativos',  score: answers.marcos_normativos * 20, type: 'manual' },
+        { name: 'Incidentes Resueltos', score: Math.min(100, Math.round(dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents) * 100 : 50)), type: 'auto' },
+        { name: 'Auditoría Continua', score: Math.min(100, Math.round(dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 100 : 80)), type: 'auto' },
       ],
     },
   ];
@@ -462,6 +467,11 @@ export default function Maturity() {
         score: globalScore,
         answers: {
           timestamp: new Date().toISOString(),
+          comite_gobierno: answers.comite_gobierno,
+          modelado_datos: answers.modelado_datos,
+          alineacion_negocio: answers.alineacion_negocio,
+          auditoria_seguridad: answers.auditoria_seguridad,
+          marcos_normativos: answers.marcos_normativos,
           dbStats: dbStats,
           maturityScores: maturityScores
         },
@@ -486,6 +496,46 @@ export default function Maturity() {
 
     setIsAssessmentModalOpen(false);
     setWizardStep(0);
+  };
+
+  const renderQuestion = (
+    key: string,
+    title: string,
+    desc: string,
+    options: { val: number; text: string }[]
+  ) => {
+    const currentVal = answers[key] || 3;
+    return (
+      <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+        <label style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem', color: '#1e293b', marginBottom: '4px' }}>{title}</label>
+        <p style={{ margin: '0 0 12px', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>{desc}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {options.map((opt) => (
+            <button
+              key={opt.val}
+              type="button"
+              onClick={() => setAnswers(prev => ({ ...prev, [key]: opt.val }))}
+              style={{
+                padding: '10px 14px',
+                borderRadius: '10px',
+                border: currentVal === opt.val ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                background: currentVal === opt.val ? '#eff6ff' : '#ffffff',
+                color: currentVal === opt.val ? '#1d4ed8' : '#475569',
+                textAlign: 'left',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                gap: '8px'
+              }}
+            >
+              <strong>{opt.val}</strong> — {opt.text}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // Circle progress helper
@@ -868,7 +918,7 @@ export default function Maturity() {
       {/* ── MODAL: EVOLUCIÓN HISTÓRICA ── */}
       <AnimatePresence>
         {isHistoryModalOpen && (
-          <div className={styles.modalOverlay}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setIsHistoryModalOpen(false); }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -967,7 +1017,7 @@ export default function Maturity() {
       {/* ── MODAL: NUEVA EVALUACIÓN ── */}
       <AnimatePresence>
         {isAssessmentModalOpen && (
-          <div className={styles.modalOverlay}>
+          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) { setIsAssessmentModalOpen(false); setWizardStep(0); } }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1053,14 +1103,30 @@ export default function Maturity() {
 
                     <div style={{ display: 'flex', gap: '16px' }}>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Organización</span>
-                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.organizacion}%</strong>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Organización (Auto)</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsWithOwner / dbStats.totalAssets * 60 + dbStats.assetsWithSteward / dbStats.totalAssets * 40) : 50)}%</strong>
                       </div>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Arquitectura</span>
-                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.arquitectura}%</strong>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Arquitectura (Auto)</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsWithLineage / dbStats.totalAssets * 50 + dbStats.criticalAssets / dbStats.totalAssets * 50) : 50)}%</strong>
                       </div>
                     </div>
+
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '10px' }}>Evaluación de Capacidades Manuales</span>
+                    {renderQuestion('comite_gobierno', 'Comité de Gobierno (Organización)', 'Nivel de madurez y frecuencia de reuniones del Comité de Gobierno de Datos.', [
+                      { val: 1, text: 'No existe comité ni roles formalizados' },
+                      { val: 2, text: 'Reuniones de comité ocasionales sin actas de resolución' },
+                      { val: 3, text: 'Comité formalizado con reuniones mensuales y actas' },
+                      { val: 4, text: 'Decisiones del comité son vinculantes y tienen seguimiento formal' },
+                      { val: 5, text: 'Comité maduro, optimización y alineación interdepartamental continua' }
+                    ])}
+                    {renderQuestion('modelado_datos', 'Modelado de Datos (Arquitectura)', 'Estandarización y documentación de modelos de datos (conceptual, lógico, físico).', [
+                      { val: 1, text: 'Sin modelado formal (ad-hoc por desarrollador)' },
+                      { val: 2, text: 'Modelado conceptual básico de bases de datos críticas' },
+                      { val: 3, text: 'Documentación lógica y física completa de bases de datos críticas' },
+                      { val: 4, text: 'Modelado y diccionario de datos sincronizado con el catálogo' },
+                      { val: 5, text: 'Metadatos y linaje técnico integrados en workflows automatizados' }
+                    ])}
                   </div>
                 )}
 
@@ -1088,14 +1154,23 @@ export default function Maturity() {
 
                     <div style={{ display: 'flex', gap: '16px' }}>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Calidad</span>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Calidad (Auto)</span>
                         <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.calidad}%</strong>
                       </div>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Estrategia</span>
-                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.estrategia}%</strong>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Estrategia (Auto)</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{Math.round(dbStats.totalWorkflows > 0 ? (dbStats.approvedWorkflows / dbStats.totalWorkflows * 100) : 50)}%</strong>
                       </div>
                     </div>
+
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '10px' }}>Evaluación de Capacidades Manuales</span>
+                    {renderQuestion('alineacion_negocio', 'Alineación de Negocio (Estrategia)', 'Alineación de la estrategia de datos con los objetivos del negocio.', [
+                      { val: 1, text: 'Sin iniciativas de datos vinculadas a metas de negocio' },
+                      { val: 2, text: 'Iniciativas aisladas para resolver necesidades inmediatas' },
+                      { val: 3, text: 'Casos de uso de negocio priorizados y aprobados por la dirección' },
+                      { val: 4, text: 'Impacto y retorno de inversión de datos (ROI) medidos formalmente' },
+                      { val: 5, text: 'Los datos impulsan activamente la estrategia comercial y operativa' }
+                    ])}
                   </div>
                 )}
 
@@ -1123,14 +1198,30 @@ export default function Maturity() {
 
                     <div style={{ display: 'flex', gap: '16px' }}>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Seguridad</span>
-                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.seguridad}%</strong>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Seguridad (Auto)</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{Math.round(dbStats.totalAssets > 0 ? (dbStats.assetsClassified / dbStats.totalAssets * 60 + dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 40 : 20) : 50)}%</strong>
                       </div>
                       <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Compliance</span>
-                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{maturityScores.compliance}%</strong>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Compliance (Auto)</span>
+                        <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{Math.round(dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents * 50 + dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 50 : 25) : 50)}%</strong>
                       </div>
                     </div>
+
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '10px' }}>Evaluación de Capacidades Manuales</span>
+                    {renderQuestion('auditoria_seguridad', 'Auditoría de Seguridad', 'Madurez y frecuencia de las auditorías de seguridad y brechas.', [
+                      { val: 1, text: 'Reactiva (auditorías solo tras incidentes)' },
+                      { val: 2, text: 'Evaluación anual básica de brechas y vulnerabilidades' },
+                      { val: 3, text: 'Auditorías de acceso y clasificación semestrales documentadas' },
+                      { val: 4, text: 'SOC activo y monitoreo de accesos privilegiados en tiempo real' },
+                      { val: 5, text: 'Auditorías y simulacros de brechas automatizados continuos' }
+                    ])}
+                    {renderQuestion('marcos_normativos', 'Marcos Normativos (Compliance)', 'Adopción de marcos normativos (GDPR, ISO, Ley 1581, etc.).', [
+                      { val: 1, text: 'Sin marcos normativos definidos ni adoptados' },
+                      { val: 2, text: 'Adopción informal y reactiva ante requerimientos legales' },
+                      { val: 3, text: 'Controles y políticas de frameworks formalizados (GDPR, ISO)' },
+                      { val: 4, text: 'Evaluación continua de cumplimiento de políticas de datos' },
+                      { val: 5, text: 'Cumplimiento normativo automatizado e integrado en todo flujo de datos' }
+                    ])}
                   </div>
                 )}
 
