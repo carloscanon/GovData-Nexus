@@ -27,6 +27,7 @@ interface Incident {
 interface Control {
   id: string; tenant_id: string; control_id: string; framework: string;
   name: string; status: string; last_evaluated: string; evidence: string; notes: string;
+  policy_id?: string | null;
 }
 interface AccessReview {
   id: string; tenant_id: string; user_id: string; user_name: string;
@@ -94,7 +95,7 @@ export default function SecurityModule() {
   const [newRisk, setNewRisk] = useState({ name: '', description: '', asset: '', severity: 'Medio', impact: 'Medio', probability: 'Media', owner: '', action_plan: '' });
   const [newIncident, setNewIncident] = useState({ type: '', description: '', severity: 'Medio', assigned_to: '' });
   const [newAccess, setNewAccess] = useState({ user_id: '', asset: '', access_level: 'Viewer', last_activity: 'Hoy', risk_level: 'Bajo', notes: '' });
-  const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '' });
+  const [newControl, setNewControl] = useState({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '', policy_id: '' });
   const [isControlModalOpen, setIsControlModalOpen] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
@@ -160,7 +161,7 @@ export default function SecurityModule() {
         supabase.from('security_access_reviews').select('*').eq('tenant_id', tid).order('created_at', { ascending: false }),
         supabase.from('tenant_users').select('id, name, email, avatar').eq('tenant_id', tid).order('name'),
         supabase.from('security_frameworks').select('name').eq('tenant_id', tid),
-        supabase.from('data_policies').select('id, expiry, status').eq('tenant_id', tid)
+        supabase.from('data_policies').select('id, title, expiry, status').eq('tenant_id', tid)
       ]);
       if (r1.data) setRisks(r1.data.map(r => ({ ...r, controls: r.controls || [] })));
       if (r2.data) setIncidents(r2.data);
@@ -293,12 +294,13 @@ export default function SecurityModule() {
     const { error } = await supabase.from('security_controls').insert([{
       ...newControl,
       tenant_id: currentTenant.id,
-      last_evaluated: new Date().toISOString().split('T')[0]
+      last_evaluated: new Date().toISOString().split('T')[0],
+      policy_id: newControl.policy_id || null
     }]);
     if (!error) {
       fetchData();
       setIsControlModalOpen(false);
-      setNewControl({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '' });
+      setNewControl({ control_id: '', name: '', framework: 'ISO 27001', status: 'OK', evidence: '', notes: '', policy_id: '' });
     } else {
       alert('Error: ' + error.message);
     }
@@ -597,7 +599,23 @@ export default function SecurityModule() {
                         {fwControls.map(ctrl => (
                           <div key={ctrl.id} className={styles.riskRow} style={{ gridTemplateColumns: '120px 1fr 100px 100px 120px' }}>
                             <span className={styles.riskId}>{ctrl.control_id || '—'}</span>
-                            <span className={styles.riskName}>{ctrl.name}</span>
+                            <span className={styles.riskName}>
+                              {ctrl.name}
+                              {ctrl.policy_id && (
+                                <span style={{
+                                  display: 'inline-block',
+                                  fontSize: '0.7rem',
+                                  background: '#eef2ff',
+                                  color: '#6366f1',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  marginLeft: '8px',
+                                  fontWeight: 600
+                                }}>
+                                  {policies.find(p => p.id === ctrl.policy_id)?.title || 'Política Asociada'}
+                                </span>
+                              )}
+                            </span>
                             <select value={ctrl.status} onChange={e => handleUpdateControlStatus(ctrl.id, e.target.value)}
                               style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer',
                                 color: ctrl.status === 'OK' ? '#10b981' : ctrl.status === 'Parcial' ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
@@ -1057,9 +1075,22 @@ export default function SecurityModule() {
                     <input value={newControl.evidence} onChange={e => setNewControl({ ...newControl, evidence: e.target.value })} placeholder="Ej: Matriz de Roles v2"
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} /></div>
                 </div>
-                <div style={{ marginBottom: '24px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Notas / Hallazgos</label>
+                <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Notas / Hallazgos</label>
                   <textarea value={newControl.notes} onChange={e => setNewControl({ ...newControl, notes: e.target.value })} rows={2} placeholder="Comentarios adicionales..."
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', resize: 'vertical' }} /></div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: '#64748b' }}>Política / Cumplimiento Asociado</label>
+                  <select 
+                    value={newControl.policy_id || ''} 
+                    onChange={e => setNewControl({ ...newControl, policy_id: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', background: '#ffffff', color: '#1e293b' }}
+                  >
+                    <option value="">Ninguna política asociada</option>
+                    {policies.map((p, i) => (
+                      <option key={i} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                   <button onClick={() => setIsControlModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
                   <button onClick={handleAddControl} style={{ padding: '10px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #6366f1)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
