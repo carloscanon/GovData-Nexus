@@ -28,7 +28,8 @@ import {
   Brain,
   Rocket,
   GraduationCap,
-  Award
+  Award,
+  ShoppingBag
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -38,6 +39,7 @@ import styles from './Sidebar.module.css';
 const menuItems = [
   { icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
   { icon: GraduationCap, label: 'Journey CDO', href: '/journey', module: 'journey' },
+  { icon: ShoppingBag, label: 'App Store', href: '/appstore' },
   { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
   { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
