@@ -1631,53 +1631,159 @@ export default function JourneyCDO() {
   const renderMentorActivityGuide = (activityId: string) => {
     const guide = MENTOR_GUIDES[activityId] || MENTOR_GUIDES['p1_dama'];
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px 0' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '24px', 
+        padding: '24px',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+        color: '#ffffff',
+        borderRadius: '24px',
+        border: '1px solid rgba(99, 102, 241, 0.2)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+      }}>
         {/* Purpose */}
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px', display: 'flex', gap: '12px' }}>
-          <div style={{ background: '#10b981', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', flexShrink: 0, fontWeight: 'bold', fontSize: '1.2rem', justifyContent: 'center' }}>💡</div>
+        <div style={{ 
+          background: 'rgba(16, 185, 129, 0.05)', 
+          border: '1px solid rgba(16, 185, 129, 0.3)', 
+          borderRadius: '16px', 
+          padding: '18px', 
+          display: 'flex', 
+          gap: '14px',
+          boxShadow: '0 0 15px rgba(16, 185, 129, 0.1)'
+        }}>
+          <div style={{ 
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+            color: 'white', 
+            width: '36px', 
+            height: '36px', 
+            borderRadius: '12px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            flexShrink: 0, 
+            fontWeight: 'bold', 
+            fontSize: '1.2rem', 
+            justifyContent: 'center',
+            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)'
+          }}>💡</div>
           <div>
-            <h5 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 800, color: '#065f46' }}>¿Qué aporta y para qué sirve?</h5>
-            <p style={{ margin: 0, fontSize: '0.88rem', color: '#047857', lineHeight: 1.4 }}>{guide.purpose}</p>
+            <h5 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 800, color: '#34d399', letterSpacing: '0.05em' }}>¿QUÉ APORTA Y PARA QUÉ SIRVE?</h5>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: '#a7f3d0', lineHeight: 1.5 }}>{guide.purpose}</p>
           </div>
         </div>
 
         {/* Step by Step */}
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ background: '#4f46e5', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem' }}>INSTRUCCIONES</span>
-            Paso a Paso Explícito (Qué Hacer)
+        <div style={{ 
+          background: 'rgba(15, 23, 42, 0.4)', 
+          border: '1px solid rgba(255, 255, 255, 0.05)', 
+          borderRadius: '20px', 
+          padding: '24px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+        }}>
+          <h5 style={{ 
+            margin: '0 0 16px 0', 
+            fontSize: '0.95rem', 
+            fontWeight: 800, 
+            color: '#ffffff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px',
+            letterSpacing: '0.05em'
+          }}>
+            <span style={{ 
+              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', 
+              color: 'white', 
+              padding: '4px 10px', 
+              borderRadius: '6px', 
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              boxShadow: '0 0 10px rgba(99, 102, 241, 0.4)'
+            }}>INSTRUCCIONES</span>
+            PASO A PASO EXPLÍCITO (QUÉ HACER)
           </h5>
-          <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {guide.stepByStep.map((step, index) => (
-              <li key={index} style={{ fontSize: '0.88rem', color: '#334155', lineHeight: 1.4 }}>{step}</li>
+              <div key={index} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '8px',
+                  background: 'rgba(99, 102, 241, 0.2)',
+                  color: '#a5b4fc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '800',
+                  fontSize: '0.8rem',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  flexShrink: 0,
+                  boxShadow: '0 0 8px rgba(99, 102, 241, 0.2)'
+                }}>{index + 1}</div>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5 }}>{step}</p>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
 
         {/* Suggested Cases */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>📝 Caso Sugerido / Ejemplos Concretos</h5>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ 
+          background: 'rgba(15, 23, 42, 0.4)', 
+          border: '1px solid rgba(255, 255, 255, 0.05)', 
+          borderRadius: '20px', 
+          padding: '24px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+        }}>
+          <h5 style={{ margin: '0 0 16px 0', fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>📝 CASO SUGERIDO / EJEMPLOS CONCRETOS</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {guide.suggestedCases.map((item, index) => (
-              <div key={index} style={{ background: '#f1f5f9', borderRadius: '10px', padding: '12px 16px', borderLeft: '4px solid #10b981' }}>
-                <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a', marginBottom: '4px' }}>{item.name}</strong>
-                <span style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.4, display: 'block' }}>{item.desc}</span>
+              <div key={index} style={{ 
+                background: 'rgba(99, 102, 241, 0.05)', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                borderLeft: '4px solid #6366f1',
+                border: '1px solid rgba(99, 102, 241, 0.15)',
+                borderLeftWidth: '4px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}>
+                <strong style={{ display: 'block', fontSize: '0.92rem', color: '#818cf8', marginBottom: '6px' }}>{item.name}</strong>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5, display: 'block' }}>{item.desc}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Process Flow / Creation Flow Diagram */}
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>📊 Dibujo del Flujo de Creación y Trazabilidad</h5>
-          <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '16px', textAlign: 'center', overflowX: 'auto' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', fontWeight: 700, color: '#4f46e5', whiteSpace: 'nowrap' }}>
+        <div style={{ 
+          background: 'rgba(15, 23, 42, 0.4)', 
+          border: '1px solid rgba(255, 255, 255, 0.05)', 
+          borderRadius: '20px', 
+          padding: '24px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+        }}>
+          <h5 style={{ margin: '0 0 16px 0', fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>📊 FLUJO DE CREACIÓN Y TRAZABILIDAD</h5>
+          <div style={{ 
+            background: 'rgba(15, 23, 42, 0.7)', 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            borderRadius: '14px', 
+            padding: '20px', 
+            textAlign: 'center', 
+            overflowX: 'auto',
+            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', fontWeight: 700, color: '#818cf8', whiteSpace: 'nowrap' }}>
               {guide.flowchart.split('➔').map((node, i, arr) => (
                 <React.Fragment key={i}>
-                  <span style={{ background: i === arr.length - 1 ? '#e0e7ff' : '#f1f5f9', border: i === arr.length - 1 ? '1px solid #4f46e5' : '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '8px', color: i === arr.length - 1 ? '#4f46e5' : '#475569' }}>
+                  <span style={{ 
+                    background: i === arr.length - 1 ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.02)', 
+                    border: i === arr.length - 1 ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.1)', 
+                    padding: '8px 14px', 
+                    borderRadius: '8px', 
+                    color: i === arr.length - 1 ? '#a5b4fc' : '#94a3b8',
+                    boxShadow: i === arr.length - 1 ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none'
+                  }}>
                     {node.trim()}
                   </span>
-                  {i < arr.length - 1 && <span style={{ color: '#94a3b8' }}>➔</span>}
+                  {i < arr.length - 1 && <span style={{ color: '#6366f1', textShadow: '0 0 4px #6366f1' }}>➔</span>}
                 </React.Fragment>
               ))}
             </div>
@@ -1685,9 +1791,16 @@ export default function JourneyCDO() {
         </div>
 
         {/* Governance Progress Info */}
-        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-          <span style={{ color: '#64748b' }}>Aporte al Proceso de Gobierno:</span>
-          <span style={{ fontWeight: 800, color: '#4f46e5' }}>{guide.governanceProgress}</span>
+        <div style={{ 
+          borderTop: '1px solid rgba(255,255,255,0.1)', 
+          paddingTop: '20px', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          fontSize: '0.88rem' 
+        }}>
+          <span style={{ color: '#94a3b8' }}>Aporte al Proceso de Gobierno:</span>
+          <span style={{ fontWeight: 800, color: '#38bdf8', textShadow: '0 0 8px rgba(56, 189, 248, 0.3)' }}>{guide.governanceProgress}</span>
         </div>
       </div>
     );
@@ -2120,13 +2233,29 @@ export default function JourneyCDO() {
                           </button>
                           <button 
                             className={styles.learnMoreToggle}
-                            style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            style={{ 
+                              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%)', 
+                              color: '#ffffff', 
+                              border: 'none', 
+                              boxShadow: '0 0 12px rgba(124, 58, 237, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px',
+                              fontWeight: 700,
+                              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                            }}
                             onClick={() => {
                               setSelectedMentorActivity(act);
                               setShowMentorModal(true);
                             }}
                           >
-                            <Brain size={14} /> Mentor IA
+                            <Brain size={14} style={{ filter: 'drop-shadow(0 0 2px #fff)' }} /> Mentor IA
                           </button>
                           <a 
                             href={act.moduleHref}
