@@ -28,7 +28,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   Building2,
-  BookOpen
+  BookOpen,
+  X
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
@@ -1635,13 +1636,71 @@ export default function JourneyCDO() {
         display: 'flex', 
         flexDirection: 'column', 
         gap: '24px', 
-        padding: '24px',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+        padding: '32px',
+        background: 'linear-gradient(135deg, #090d1f 0%, #030712 100%)',
         color: '#ffffff',
         borderRadius: '24px',
-        border: '1px solid rgba(99, 102, 241, 0.2)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+        border: '1px solid rgba(99, 102, 241, 0.3)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
       }}>
+        {/* Launchpad-Styled Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
+          paddingBottom: '20px',
+          marginBottom: '4px'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ 
+                background: 'linear-gradient(135deg, #6366f1 0%, #d946ef 100%)', 
+                padding: '4px 8px', 
+                borderRadius: '6px', 
+                fontSize: '0.7rem', 
+                fontWeight: 900, 
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em' 
+              }}>Mentor IA</span>
+              <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.025em' }}>
+                Asesoría de Implementación DAMA
+              </h3>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: '#94a3b8' }}>
+              Guía explícita paso a paso para la actividad: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>"{selectedMentorActivity?.title}"</span>
+            </p>
+          </div>
+          <button 
+            onClick={() => setShowMentorModal(false)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '10px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+              e.currentTarget.style.color = '#ef4444';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#94a3b8';
+            }}
+          >
+            <X size={16} /> Cerrar
+          </button>
+        </div>
         {/* Purpose */}
         <div style={{ 
           background: 'rgba(16, 185, 129, 0.05)', 
@@ -2356,10 +2415,17 @@ export default function JourneyCDO() {
         <UnifiedModal
           isOpen={showMentorModal}
           onClose={() => setShowMentorModal(false)}
-          title={`Mentor IA: Asesoría de Implementación DAMA`}
-          subtitle={`Guía explícita paso a paso para la actividad: "${selectedMentorActivity.title}"`}
           type="informativa"
-          configOverride={{ width: '800px' }}
+          configOverride={{ 
+            width: '950px',
+            maxHeight: '95vh',
+            showHeader: false, 
+            showFooter: false, 
+            bg: '#020617', 
+            borderColor: 'rgba(99, 102, 241, 0.4)',
+            contentPadding: '0px',
+            overlayBlur: '8px'
+          }}
         >
           {renderMentorActivityGuide(selectedMentorActivity.id)}
         </UnifiedModal>
