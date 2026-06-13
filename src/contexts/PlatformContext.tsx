@@ -451,14 +451,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const savedMode = localStorage.getItem('govdata_mode') as PlatformMode;
-    if (savedMode) {
+    const userRole = localStorage.getItem('govdata_role');
+    const userEmail = localStorage.getItem('govdata_user_email');
+    if (userEmail && userEmail.toLowerCase().trim() !== 'admin@govdata.io') {
+      setMode('ENTERPRISE');
+      localStorage.setItem('govdata_mode', 'ENTERPRISE');
+    } else if (userRole && userRole !== 'superadmin') {
+      setMode('ENTERPRISE');
+      localStorage.setItem('govdata_mode', 'ENTERPRISE');
+    } else if (savedMode) {
       setMode(savedMode);
-    } else {
-      const userRole = localStorage.getItem('govdata_role');
-      if (userRole && userRole !== 'superadmin') {
-        setMode('ENTERPRISE');
-        localStorage.setItem('govdata_mode', 'ENTERPRISE');
-      }
     }
 
     const savedSaTheme = localStorage.getItem('govdata_satheme');
@@ -672,8 +674,29 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           }));
           
           setTenants(parsed);
-          const savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
-          const userRole = localStorage.getItem('govdata_role');
+          let savedCurrentTenantId = localStorage.getItem('govdata_current_tenant_id');
+          let userRole = localStorage.getItem('govdata_role');
+          const userEmail = localStorage.getItem('govdata_user_email');
+
+          if (userEmail && userEmail.toLowerCase().trim() !== 'admin@govdata.io') {
+            try {
+              const { data: dbUser } = await supabase
+                .from('tenant_users')
+                .select('tenant_id, role')
+                .ilike('email', userEmail.trim())
+                .single();
+              if (dbUser) {
+                const tid = dbUser.tenant_id || '';
+                const roleVal = dbUser.role || 'user';
+                savedCurrentTenantId = tid;
+                userRole = roleVal;
+                localStorage.setItem('govdata_current_tenant_id', tid);
+                localStorage.setItem('govdata_role', roleVal);
+              }
+            } catch (dbErr) {
+              console.error('Error verifying user session with database:', dbErr);
+            }
+          }
 
           // Superadmin siempre empieza en el primer tenant disponible
           if (userRole === 'superadmin') {
@@ -844,6 +867,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   // =================== Handlers ===================
 
   const handleSetMode = (newMode: PlatformMode) => {
+    const userRole = typeof window !== 'undefined' ? localStorage.getItem('govdata_role') : null;
+    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+    if (userRole !== 'superadmin' || (userEmail && userEmail.toLowerCase().trim() !== 'admin@govdata.io')) return;
     setMode(newMode);
     localStorage.setItem('govdata_mode', newMode);
   };
@@ -879,6 +905,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setCurrentTenant = (tenant: Tenant) => {
+    const userRole = typeof window !== 'undefined' ? localStorage.getItem('govdata_role') : null;
+    const userEmail = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+    if (userRole !== 'superadmin' || (userEmail && userEmail.toLowerCase().trim() !== 'admin@govdata.io')) return;
     setCurrentTenantState(tenant);
     localStorage.setItem('govdata_current_tenant_id', tenant.id);
   };
