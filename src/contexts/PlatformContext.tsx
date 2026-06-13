@@ -171,6 +171,15 @@ interface PlatformContextType {
   modalConfig: ModalConfig;
   setModalConfig: (config: ModalConfig) => void;
   saveModalConfig: (config: ModalConfig) => Promise<void>;
+  // Configurable Branding & Video settings
+  logoUrl: string;
+  setLogoUrl: (url: string) => void;
+  logoWidth: string;
+  setLogoWidth: (width: string) => void;
+  transformationVideoUrl: string;
+  setTransformationVideoUrl: (url: string) => void;
+  transformationVideoAspect: string;
+  setTransformationVideoAspect: (aspect: string) => void;
   // Tenants
   tenants: Tenant[];
   currentTenant: Tenant;
@@ -413,6 +422,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [modalBlur, setModalBlurState] = useState<string>('24px');
   const [modalConfig, setModalConfigState] = useState<ModalConfig>(DEFAULT_MODAL_CONFIG);
 
+  const [logoUrl, setLogoUrlState] = useState<string>('/logo.png');
+  const [logoWidth, setLogoWidthState] = useState<string>('180px');
+  const [transformationVideoUrl, setTransformationVideoUrlState] = useState<string>('');
+  const [transformationVideoAspect, setTransformationVideoAspectState] = useState<string>('16:9');
+
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [currentTenant, setCurrentTenantState] = useState<Tenant>(defaultTenants[0]);
   const [plans, setPlans] = useState<SaaSPlan[]>(defaultPlans);
@@ -542,6 +556,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
     const savedModalBlur = getVar('govdata_modal_blur', '24px');
     setModalBlurState(savedModalBlur);
+
+    const savedLogoUrl = getVar('govdata_logo_url', '/logo.png');
+    setLogoUrlState(savedLogoUrl);
+
+    const savedLogoWidth = getVar('govdata_logo_width', '180px');
+    setLogoWidthState(savedLogoWidth);
+
+    const savedVideoUrl = getVar('govdata_transformation_video_url', '');
+    setTransformationVideoUrlState(savedVideoUrl);
+
+    const savedVideoAspect = getVar('govdata_transformation_video_aspect', '16:9');
+    setTransformationVideoAspectState(savedVideoAspect);
 
     const savedBrandColors = getVar('brandColors', null);
     if (savedBrandColors) {
@@ -1121,6 +1147,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     saveTenantSetting('govdata_modal_blur', blur);
   };
 
+  const handleSetLogoUrl = (url: string) => {
+    setLogoUrlState(url);
+    saveTenantSetting('govdata_logo_url', url);
+  };
+
+  const handleSetLogoWidth = (width: string) => {
+    setLogoWidthState(width);
+    saveTenantSetting('govdata_logo_width', width);
+  };
+
+  const handleSetTransformationVideoUrl = (url: string) => {
+    setTransformationVideoUrlState(url);
+    saveTenantSetting('govdata_transformation_video_url', url);
+  };
+
+  const handleSetTransformationVideoAspect = (aspect: string) => {
+    setTransformationVideoAspectState(aspect);
+    saveTenantSetting('govdata_transformation_video_aspect', aspect);
+  };
+
   return (
     <PlatformContext.Provider value={{
       saTheme,
@@ -1188,6 +1234,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           console.error('[PlatformContext] Exception saving modal config to DB:', e);
         }
       },
+      logoUrl,
+      setLogoUrl: handleSetLogoUrl,
+      logoWidth,
+      setLogoWidth: handleSetLogoWidth,
+      transformationVideoUrl,
+      setTransformationVideoUrl: handleSetTransformationVideoUrl,
+      transformationVideoAspect,
+      setTransformationVideoAspect: handleSetTransformationVideoAspect,
       tenants,
       currentTenant,
       setCurrentTenant,

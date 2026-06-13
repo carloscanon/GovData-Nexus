@@ -27,7 +27,8 @@ import {
   LayoutGrid,
   Brain,
   Rocket,
-  GraduationCap
+  GraduationCap,
+  Award
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -36,6 +37,7 @@ import styles from './Sidebar.module.css';
 
 const menuItems = [
   { icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
+  { icon: GraduationCap, label: 'Journey CDO', href: '/journey', module: 'journey' },
   { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
   { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
   { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
@@ -62,7 +64,7 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const handleLinkClick = () => {
     if (onCloseMobile) onCloseMobile();
   };
-  const { mode, setMode, currentTenant, tenants, setCurrentTenant } = usePlatform();
+  const { mode, setMode, currentTenant, tenants, setCurrentTenant, logoUrl, logoWidth } = usePlatform();
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
   const [userAvatar, setUserAvatar] = React.useState<string | null>(null);
@@ -152,7 +154,13 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   // Filtrar ítems de menú según módulos activos de la empresa o si es superadmin/admin (ve todo)
   const filteredMenuItems = menuItems.filter(item => {
     if (userRole === 'superadmin') return true; // Superadmin ve absolutamente todo
-    if (userRole === 'admin') return true;       // Admin del tenant ve todos los módulos
+    
+    // Si es el módulo de Journey CDO, desactivado por defecto en todos los casos excepto si se asigna por roles
+    if (item.module === 'journey') {
+      return userAllowedModules.includes('journey');
+    }
+    
+    if (userRole === 'admin') return true;       // Admin del tenant ve todos los otros módulos
     if (!item.module) return true;               // Launchpad/Command center siempre visible
     
     // Si es un rol personalizado de base de datos
@@ -176,11 +184,15 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
       <div className={styles.logoContainer}>
         <div className={styles.logo}>
           <img 
-            src="/logo.png" 
+            src={logoUrl || "/logo.png"} 
             alt="GovData Nexus Logo" 
             className={styles.logoImg} 
+            style={{ 
+              width: isCollapsed ? '48px' : logoWidth || '180px', 
+              height: isCollapsed ? '48px' : 'auto' 
+            }}
           />
-          {!isCollapsed && <span className={styles.logoText}>GovData Nexus</span>}
+          {!isCollapsed && (logoUrl === '/logo.png' || logoWidth === '40px' || logoWidth === '80px' || logoWidth === '120px') && <span className={styles.logoText}>GovData Nexus</span>}
         </div>
         <button 
           className={styles.closeMobileBtn} 
@@ -327,51 +339,85 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
           const rc = roleConfig[userRole || 'user'] || roleConfig['user'];
           const initials = userName ? userName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : 'U';
           const seed = encodeURIComponent((userName || '').replace(/\s+/g, '').substring(0, 30));
-          const isReal = (url: string | null | undefined) => !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
+          const isReal = (url: string | null | undefined) => 
+            !!url && !url.includes('dicebear') && !url.includes('/initials/') && 
+            (url.startsWith('http') || url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:'));
           const finalAvatar = isReal(userAvatar) ? userAvatar : `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
           return (
-            <div className={styles.userProfile}>
-              <div className={styles.userMain}>
-                {/* Avatar */}
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <img
-                    src={finalAvatar as string}
-                    alt={userName || 'avatar'}
-                    style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', border: `2px solid ${rc.color}`, display: 'block' }}
-                    onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`; }}
-                  />
-                  {/* Online dot */}
-                  <div style={{
-                    position: 'absolute', bottom: '-2px', right: '-2px',
-                    width: '12px', height: '12px', borderRadius: '50%',
-                    background: '#10b981', border: '2px solid #1e293b'
-                  }} />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <div className={styles.userProfile}>
+                <div className={styles.userMain}>
+                  {/* Avatar */}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={finalAvatar as string}
+                      alt={userName || 'avatar'}
+                      style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', border: `2px solid ${rc.color}`, display: 'block' }}
+                      onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`; }}
+                    />
+                    {/* Online dot */}
+                    <div style={{
+                      position: 'absolute', bottom: '-2px', right: '-2px',
+                      width: '12px', height: '12px', borderRadius: '50%',
+                      background: '#10b981', border: '2px solid #1e293b'
+                    }} />
+                  </div>
 
-                <div className={styles.userInfo}>
-                  <span className={styles.userName}>{userName || 'Usuario'}</span>
-                  {/* Role badge */}
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    marginTop: '3px',
-                    fontSize: '0.68rem', fontWeight: 700,
-                    padding: '2px 8px', borderRadius: '6px',
-                    background: rc.bg, color: rc.color,
-                    border: `1px solid ${rc.color}44`,
-                    letterSpacing: '0.02em',
-                    textTransform: 'uppercase' as const
-                  }}>
-                    {rc.label}
-                  </span>
+                  <div className={styles.userInfo}>
+                    <span className={styles.userName}>{userName || 'Usuario'}</span>
+                    {/* Role badge */}
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      marginTop: '3px',
+                      fontSize: '0.68rem', fontWeight: 700,
+                      padding: '2px 8px', borderRadius: '6px',
+                      background: rc.bg, color: rc.color,
+                      border: `1px solid ${rc.color}44`,
+                      letterSpacing: '0.02em',
+                      textTransform: 'uppercase' as const
+                    }}>
+                      {rc.label}
+                    </span>
+                  </div>
                 </div>
+                <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar Sesión">
+                  <LogOut size={16} />
+                </button>
               </div>
-              <button className={styles.logoutBtn} onClick={handleLogout} title="Cerrar Sesión">
-                <LogOut size={16} />
-              </button>
+
+              {/* Small logo of GovData Nexus at the end of the user card */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '10px', 
+                padding: '10px 0 2px 0', 
+                opacity: 0.75,
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                <img 
+                  src={logoUrl || "/logo.png"} 
+                  alt="GovData Nexus Logo" 
+                  style={{ width: '24px', height: '24px', objectFit: 'contain', borderRadius: '4px' }} 
+                />
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.08em', color: 'rgba(255, 255, 255, 0.95)', textTransform: 'uppercase' }}>
+                  GovData Nexus
+                </span>
+              </div>
             </div>
           );
         })()}
+        
+        {isCollapsed && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0 0', opacity: 0.65 }}>
+            <img 
+              src={logoUrl || "/logo.png"} 
+              alt="GovData Nexus Logo" 
+              style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} 
+            />
+          </div>
+        )}
       </div>
     </aside>
     </>

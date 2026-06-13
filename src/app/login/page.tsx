@@ -273,7 +273,7 @@ export default function Login() {
           // Fallback clásico directo a Supabase
           const { data, error } = await supabase
             .from('tenant_users')
-            .select('name, role, tenant_id, avatar_url')
+            .select('name, role, tenant_id, avatar')
             .ilike('email', normalizedEmail)
             .single();
 
@@ -281,7 +281,7 @@ export default function Login() {
             role = data.role || 'user';
             name = data.name || 'Usuario';
             tenantId = data.tenant_id || '';
-            if (data.avatar_url) localStorage.setItem('govdata_avatar_url', data.avatar_url);
+            if (data.avatar) localStorage.setItem('govdata_avatar_url', data.avatar);
           }
         }
       } catch (err) {

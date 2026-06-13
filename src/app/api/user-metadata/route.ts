@@ -21,7 +21,7 @@ export async function GET() {
     try {
       const { data } = await supabase
         .from("tenant_users")
-        .select("name, role, tenant_id, avatar_url")
+        .select("name, role, tenant_id, avatar")
         .ilike("email", email as string)
         .single();
 
@@ -29,7 +29,7 @@ export async function GET() {
         role = data.role || role;
         name = data.name || name;
         tenantId = data.tenant_id || tenantId;
-        avatarUrl = data.avatar_url || "";
+        avatarUrl = data.avatar || "";
       }
     } catch (e) {
       console.error("[UserMetadata API] DB check error:", e);

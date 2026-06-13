@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { usePlatform, Tenant } from '@/contexts/PlatformContext';
 import { Search, Plus, Edit, Trash2, Ban, CheckCircle, UserCheck, DollarSign, Globe, HardDrive, Users, FileText, X, AlertTriangle, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import UnifiedModal from '@/components/UnifiedModal';
 
 const ALL_MODULES = ['catalog', 'quality', 'workflows', 'security', 'team', 'maturity'];
 const EMPTY_FORM = { name: '', domain: '', nit: '', email: '', phone: '', address: '', city: '', plan: 'Starter' as Tenant['plan'] };
@@ -110,46 +111,44 @@ export default function CompaniesManagementPage() {
     plan === 'Enterprise' ? 'sa-badge-blue' : plan === 'Professional' ? 'sa-badge-green' : 'sa-badge-amber';
 
   const FormFields = () => (
-    <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <div className="sa-form-group">
-          <label className="sa-label">Nombre de la Empresa *</label>
-          <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej. Bancolombia" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Dominio Personalizado *</label>
-          <input required value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })} placeholder="empresa.govdata.com" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">NIT</label>
-          <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} placeholder="900.123.456-1" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Email de Contacto</label>
-          <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="admin@empresa.com" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Teléfono</label>
-          <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+57 300 000 0000" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Plan SaaS</label>
-          <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value as Tenant['plan'] })} className="sa-select">
-            <option value="Starter">Starter ($29/mes)</option>
-            <option value="Professional">Professional ($99/mes)</option>
-            <option value="Enterprise">Enterprise ($499/mes)</option>
-          </select>
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Ciudad</label>
-          <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder="Bogotá" className="sa-input" />
-        </div>
-        <div className="sa-form-group">
-          <label className="sa-label">Dirección</label>
-          <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Av. El Dorado #68-20" className="sa-input" />
-        </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Nombre de la Empresa *</label>
+        <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej. Bancolombia" className="sa-input" style={{ background: '#fff', color: '#000' }} />
       </div>
-    </>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Dominio Personalizado *</label>
+        <input required value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })} placeholder="empresa.govdata.com" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>NIT</label>
+        <input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} placeholder="900.123.456-1" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Email de Contacto</label>
+        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="admin@empresa.com" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Teléfono</label>
+        <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+57 300 000 0000" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Plan SaaS</label>
+        <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value as Tenant['plan'] })} className="sa-select" style={{ background: '#fff', color: '#000' }}>
+          <option value="Starter">Starter ($29/mes)</option>
+          <option value="Professional">Professional ($99/mes)</option>
+          <option value="Enterprise">Enterprise ($499/mes)</option>
+        </select>
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Ciudad</label>
+        <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder="Bogotá" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+      <div className="sa-form-group">
+        <label className="sa-label" style={{ color: 'var(--modal-text-color, #1e293b)' }}>Dirección</label>
+        <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Av. El Dorado #68-20" className="sa-input" style={{ background: '#fff', color: '#000' }} />
+      </div>
+    </div>
   );
 
   return (
@@ -163,7 +162,7 @@ export default function CompaniesManagementPage() {
       )}
 
       {/* Header */}
-      <div className="sa-title-area">
+      <div className="sa-title-area" style={{ borderBottom: '1px solid var(--sa-border)', paddingBottom: '16px', marginBottom: '8px' }}>
         <div>
           <h1 className="sa-title">Gestión de Empresas</h1>
           <p className="sa-subtitle">{tenants.length} tenants registrados · {tenants.filter(t => t.status === 'active').length} activos</p>
@@ -270,99 +269,111 @@ export default function CompaniesManagementPage() {
       </div>
 
       {/* CREATE MODAL */}
-      {isCreateOpen && (
-        <div className="sa-modal-overlay" onClick={() => setIsCreateOpen(false)}>
-          <div className="sa-modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 className="sa-modal-title" style={{ marginBottom: 0 }}>Registrar Nueva Empresa</h3>
-              <button onClick={() => setIsCreateOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X style={{ width: 22, height: 22 }} /></button>
-            </div>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {FormFields()}
-              <div className="sa-modal-footer">
-                <button type="button" onClick={() => setIsCreateOpen(false)} className="sa-btn sa-btn-secondary" disabled={isSaving}>Cancelar</button>
-                <button type="submit" className="sa-btn sa-btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Registrando...' : 'Registrar Empresa'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <UnifiedModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Registrar Nueva Empresa"
+        subtitle="Agrega una nueva empresa para iniciar la provisión del servicio SaaS."
+        type="formulario"
+        confirmLabel={isSaving ? 'Registrando...' : 'Registrar Empresa'}
+        onConfirm={() => {
+          const btn = document.getElementById('create-submit-btn');
+          if (btn) btn.click();
+        }}
+      >
+        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {FormFields()}
+          <button id="create-submit-btn" type="submit" style={{ display: 'none' }} />
+        </form>
+      </UnifiedModal>
 
       {/* EDIT MODAL */}
-      {editingTenant && (
-        <div className="sa-modal-overlay" onClick={() => setEditingTenant(null)}>
-          <div className="sa-modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 className="sa-modal-title" style={{ marginBottom: 0 }}>Editar: {editingTenant.name}</h3>
-              <button onClick={() => setEditingTenant(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X style={{ width: 22, height: 22 }} /></button>
-            </div>
-            <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {FormFields()}
-              <div className="sa-modal-footer">
-                <button type="button" onClick={() => setEditingTenant(null)} className="sa-btn sa-btn-secondary" disabled={isSaving}>Cancelar</button>
-                <button type="submit" className="sa-btn sa-btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <UnifiedModal
+        isOpen={!!editingTenant}
+        onClose={() => setEditingTenant(null)}
+        title={`Editar: ${editingTenant?.name || ''}`}
+        subtitle="Modifica la información básica y plan de suscripción del tenant."
+        type="formulario"
+        confirmLabel={isSaving ? 'Guardando...' : 'Guardar Cambios'}
+        onConfirm={() => {
+          const btn = document.getElementById('edit-submit-btn');
+          if (btn) btn.click();
+        }}
+      >
+        <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {FormFields()}
+          <button id="edit-submit-btn" type="submit" style={{ display: 'none' }} />
+        </form>
+      </UnifiedModal>
 
       {/* DELETE CONFIRM */}
-      {deleteConfirmId && (
-        <div className="sa-modal-overlay">
-          <div className="sa-modal" style={{ maxWidth: 460, textAlign: 'center' }}>
-            <AlertTriangle style={{ width: 48, height: 48, color: '#ef4444', margin: '0 auto 1rem' }} />
-            <h3 className="sa-modal-title">¿Eliminar empresa?</h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '2rem' }}>
-              Esta acción es irreversible. Se eliminarán todos los datos asociados al tenant.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-              <button onClick={() => setDeleteConfirmId(null)} className="sa-btn sa-btn-secondary">Cancelar</button>
-              <button onClick={() => handleDelete(deleteConfirmId)} className="sa-btn sa-btn-danger">Sí, eliminar</button>
-            </div>
-          </div>
+      <UnifiedModal
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        title="¿Eliminar Empresa?"
+        subtitle="Esta acción es irreversible y purgará su base de datos."
+        type="confirmacion"
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        confirmBtnType="danger"
+        onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+      >
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', color: '#1e293b' }}>
+          <AlertTriangle size={36} color="#ef4444" style={{ flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: '0.9rem' }}>
+            Se eliminarán de forma permanente todos los usuarios, activos de información, configuraciones y registros asociados a esta empresa.
+          </p>
         </div>
-      )}
+      </UnifiedModal>
 
       {/* MODULES MODAL */}
-      {modulesEditTenant && (
-        <div className="sa-modal-overlay" onClick={() => setModulesEditTenant(null)}>
-          <div className="sa-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 className="sa-modal-title" style={{ marginBottom: 0 }}>Módulos — {modulesEditTenant.name}</h3>
-              <button onClick={() => setModulesEditTenant(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X style={{ width: 22, height: 22 }} /></button>
-            </div>
-            <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Activa o desactiva los módulos disponibles para este tenant.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {ALL_MODULES.map(mod => {
-                const tenant = tenants.find(t => t.id === modulesEditTenant.id)!;
-                const active = tenant.modules.includes(mod);
-                return (
-                  <button
-                    key={mod}
-                    onClick={() => {
-                      toggleModule(modulesEditTenant.id, mod, tenant.modules);
-                      setModulesEditTenant({ ...modulesEditTenant, modules: active ? modulesEditTenant.modules.filter(m => m !== mod) : [...modulesEditTenant.modules, mod] });
-                    }}
-                    style={{ padding: '0.875rem 1rem', borderRadius: '12px', border: `1px solid ${active ? '#2563eb' : '#16223f'}`, background: active ? 'rgba(37,99,235,0.1)' : '#050b14', color: active ? '#3b82f6' : '#64748b', fontWeight: 600, fontSize: '0.875rem', textTransform: 'capitalize', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                  >
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? '#3b82f6' : '#334155' }} />
-                    {mod}
-                    {active && <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: '#10b981' }}>✓ Activo</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="sa-modal-footer">
-              <button onClick={() => setModulesEditTenant(null)} className="sa-btn sa-btn-primary">Listo</button>
-            </div>
-          </div>
+      <UnifiedModal
+        isOpen={!!modulesEditTenant}
+        onClose={() => setModulesEditTenant(null)}
+        title={`Módulos — ${modulesEditTenant?.name || ''}`}
+        subtitle="Activa o desactiva los módulos disponibles para este tenant de manera selectiva."
+        type="formulario"
+        confirmLabel="Listo"
+        onConfirm={() => setModulesEditTenant(null)}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '8px 0' }}>
+          {ALL_MODULES.map(mod => {
+            if (!modulesEditTenant) return null;
+            const tenant = tenants.find(t => t.id === modulesEditTenant.id)!;
+            const active = tenant.modules.includes(mod);
+            return (
+              <button
+                key={mod}
+                onClick={() => {
+                  toggleModule(modulesEditTenant.id, mod, tenant.modules);
+                  setModulesEditTenant({ ...modulesEditTenant, modules: active ? modulesEditTenant.modules.filter(m => m !== mod) : [...modulesEditTenant.modules, mod] });
+                }}
+                style={{ 
+                  padding: '12px 16px', 
+                  borderRadius: '12px', 
+                  border: `1px solid ${active ? 'var(--sa-primary)' : 'rgba(0,0,0,0.1)'}`, 
+                  background: active ? 'rgba(37,99,235,0.05)' : '#ffffff', 
+                  color: active ? 'var(--sa-primary)' : '#475569', 
+                  fontWeight: 600, 
+                  fontSize: '0.85rem', 
+                  textTransform: 'capitalize', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  transition: 'all 0.2s',
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? 'var(--sa-primary)' : '#cbd5e1' }} />
+                {mod}
+                {active && <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: '#10b981' }}>✓ Activo</span>}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </UnifiedModal>
+
     </div>
   );
 }

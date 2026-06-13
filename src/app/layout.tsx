@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import AIAssistant from '@/components/AIAssistant';
-import { PlatformProvider } from '@/contexts/PlatformContext';
+import { PlatformProvider, usePlatform } from '@/contexts/PlatformContext';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 
@@ -15,6 +15,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { logoUrl } = usePlatform();
   const isLoginPage = pathname === '/login';
   const isSuperadminLayout = pathname?.startsWith('/superadmin');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -29,7 +30,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <header className="mobile-header">
           <div className="mobile-brand">
             <img 
-              src="/logo.png" 
+              src={logoUrl || "/logo.png"} 
               alt="GovData Nexus Logo" 
               className="mobile-logo-img" 
             />

@@ -266,6 +266,37 @@ export default function Simulator() {
             const code = (r.code || '').trim().toUpperCase();
             return !bootstrapCodes.some(prefix => code.startsWith(prefix));
           });
+        } else if (step.check_table === 'maturity_assessments') {
+          // Excluir la evaluación inicial/bootstrap del launchpad que no tiene timestamp en answers
+          filteredRecords = records.filter(r => {
+            const hasTimestamp = r.answers && (r.answers.timestamp || r.answers.comite_gobierno);
+            return !!hasTimestamp;
+          });
+        } else if (step.check_table === 'team_raci_matrix') {
+          // Excluir procesos RACI que coincidan exactamente con la configuración inicial y no hayan sido editados/personalizados
+          const defaultRaci = [
+            { process: 'Definición de Glosario', owner_role: 'A', steward_role: 'R', custodian_role: 'C', analyst_role: 'C' },
+            { process: 'Validación de Calidad', owner_role: 'A', steward_role: 'R', custodian_role: 'I', analyst_role: 'C' },
+            { process: 'Aprobación de Acceso', owner_role: 'A', steward_role: 'C', custodian_role: 'R', analyst_role: 'I' },
+            { process: 'Modelado de Datos', owner_role: 'C', steward_role: 'C', custodian_role: 'R', analyst_role: 'A' },
+            { process: 'Gestión de Incidentes', owner_role: 'I', steward_role: 'R', custodian_role: 'A', analyst_role: 'C' },
+          ];
+          filteredRecords = records.filter(r => {
+            return !defaultRaci.some(d => 
+              d.process.toLowerCase() === (r.process || '').trim().toLowerCase() &&
+              d.owner_role === r.owner_role &&
+              d.steward_role === r.steward_role &&
+              d.custodian_role === r.custodian_role &&
+              d.analyst_role === r.analyst_role
+            );
+          });
+        } else if (step.check_table === 'team_domains') {
+          // Excluir los dominios sembrados en el bootstrap/launchpad
+          const bootstrapDomains = ['CLIENTES & CRM', 'FINANZAS', 'TALENTO HUMANO', 'PROVEEDORES'];
+          filteredRecords = records.filter(r => {
+            const name = (r.name || '').trim().toUpperCase();
+            return !bootstrapDomains.includes(name);
+          });
         }
 
         // Special logic for "roles" aggregation
@@ -275,7 +306,18 @@ export default function Simulator() {
           step.check_condition.requires_roles.forEach((reqR: string) => {
             if (!roleTypes.some(rt => rt.includes(reqR.toLowerCase()))) hasAll = false;
           });
-          v[step.key_name] = hasAll && filteredRecords.length >= step.min_count;
+
+          // También validar que los campos requeridos estén completos
+          let fieldsOk = true;
+          if (step.check_condition?.requires_fields) {
+            filteredRecords.forEach(r => {
+              step.check_condition.requires_fields.forEach((f: string) => {
+                if (!r[f] || String(r[f]).trim() === '') fieldsOk = false;
+              });
+            });
+          }
+
+          v[step.key_name] = hasAll && fieldsOk && filteredRecords.length >= step.min_count;
         } else {
           // Standard validation
           const validRecords = validateCondition(filteredRecords, step.check_condition);
@@ -465,12 +507,75 @@ export default function Simulator() {
               const Icon = ICON_MAP[s.icon] || Briefcase;
               const isActive = activeSession === s.id;
               return (
-                <div key={s.id} className={`${styles.caseCard} ${isActive ? styles.active : ''}`} onClick={() => setActiveSession(s.id)}>
-                  <div className={styles.caseBadge}>{isActive ? 'Sesión Activa' : 'Disponible'}</div>
-                  <h3 className={styles.caseTitle}><Icon size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} /> {s.title}</h3>
-                  <p className={styles.caseDesc} style={{ marginBottom: '10px' }}>{s.description}</p>
-                  <div style={{ display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
-                    Insignia: {s.badge_name}
+                <div 
+                  key={s.id} 
+                  className={`${styles.caseCard} ${isActive ? styles.active : ''}`} 
+                  onClick={() => setActiveSession(s.id)}
+                  style={{
+                    background: isActive ? 'linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%)' : '#ffffff',
+                    transform: isActive ? 'translateY(-2px)' : 'none',
+                    borderColor: isActive ? '#6366f1' : '#e2e8f0',
+                    boxShadow: isActive ? '0 10px 25px -5px rgba(99, 102, 241, 0.15), 0 8px 10px -6px rgba(99, 102, 241, 0.15)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <span className={styles.caseBadge} style={{
+                      background: isActive ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : '#f1f5f9',
+                      color: isActive ? 'white' : '#64748b',
+                      boxShadow: isActive ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      {isActive && <span className="animate-pulse" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', display: 'inline-block' }} />}
+                      {isActive ? 'Sesión Activa' : 'Disponible'}
+                    </span>
+                    <div style={{
+                      background: isActive ? '#e0e7ff' : '#f1f5f9',
+                      color: isActive ? '#4f46e5' : '#94a3b8',
+                      padding: '10px',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Icon size={22} />
+                    </div>
+                  </div>
+                  <h3 className={styles.caseTitle} style={{
+                    fontSize: '1.35rem',
+                    fontWeight: 800,
+                    color: isActive ? '#1e1b4b' : '#1e293b',
+                    marginBottom: '10px',
+                    lineHeight: 1.3
+                  }}>{s.title}</h3>
+                  <p className={styles.caseDesc} style={{
+                    color: isActive ? '#475569' : '#64748b',
+                    fontSize: '0.95rem',
+                    lineHeight: '1.6',
+                    marginBottom: '16px'
+                  }}>{s.description}</p>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    background: isActive ? '#e0e7ff' : '#f8fafc', 
+                    color: isActive ? '#4f46e5' : '#64748b', 
+                    padding: '8px 14px', 
+                    borderRadius: '12px', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 700,
+                    width: 'fit-content',
+                    border: isActive ? '1px solid rgba(79, 70, 229, 0.2)' : '1px solid #e2e8f0',
+                  }}>
+                    <Award size={16} />
+                    <span>Insignia: <strong style={{ color: isActive ? '#4f46e5' : '#1e293b' }}>{s.badge_name}</strong></span>
                   </div>
                 </div>
               );

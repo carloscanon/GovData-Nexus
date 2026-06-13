@@ -452,7 +452,8 @@ export default function Team() {
 
           // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
           const isReal = (url: string | null | undefined) =>
-            !!url && url.startsWith('http') && !url.includes('dicebear') && !url.includes('/initials/');
+            !!url && !url.includes('dicebear') && !url.includes('/initials/') && 
+            (url.startsWith('http') || url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:'));
           const fixedAvatar =
             isReal(tenantUser?.avatar) ? tenantUser!.avatar :
             isReal(m.avatar)           ? m.avatar :

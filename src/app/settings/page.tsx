@@ -85,7 +85,15 @@ export default function Settings() {
     modalBlur,
     setModalBlur,
     modalConfig,
-    saveModalConfig
+    saveModalConfig,
+    logoUrl,
+    setLogoUrl,
+    logoWidth,
+    setLogoWidth,
+    transformationVideoUrl,
+    setTransformationVideoUrl,
+    transformationVideoAspect,
+    setTransformationVideoAspect
   } = usePlatform();
   const [activeTab, setActiveTab] = useState<SettingsTab>('branding');
   const [isSaving, setIsSaving] = useState(false);
@@ -245,6 +253,7 @@ export default function Settings() {
     { key: 'workflows', label: 'Workflows', icon: '⚡' },
     { key: 'maturity', label: 'Madurez', icon: '📊' },
     { key: 'policies', label: 'Políticas', icon: '📋' },
+    { key: 'journey', label: 'Journey CDO', icon: '🎓' },
   ];
 
   const PERMISSION_LABELS: { key: keyof ModulePerms; label: string; color: string }[] = [
@@ -432,6 +441,23 @@ export default function Settings() {
       const { error } = await supabase.from('tenant_users').update(updates).eq('id', selectedUser.id);
       if (error) throw error;
 
+      // Sync with localStorage and dispatch event if editing current logged-in user
+      const currentUserEmail = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+      const isCurrentUser = !!(currentUserEmail && updates.email && currentUserEmail.toLowerCase().trim() === updates.email.toLowerCase().trim());
+      if (isCurrentUser) {
+        if (updates.avatar) {
+          localStorage.setItem('govdata_avatar_url', updates.avatar);
+        } else {
+          localStorage.removeItem('govdata_avatar_url');
+        }
+        if (updates.name) {
+          localStorage.setItem('govdata_user_name', updates.name);
+        }
+        window.dispatchEvent(new CustomEvent('govdata_user_updated', {
+          detail: { avatar: updates.avatar, name: updates.name }
+        }));
+      }
+
       setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...updates } : u));
       setIsEditUserModalOpen(false);
       alert('✅ Usuario actualizado correctamente.');
@@ -573,6 +599,102 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className={styles.section}>
+                <h3>Logo de la Plataforma</h3>
+                <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                  Configura la imagen del logotipo superior (enlace o subiendo un archivo) y su tamaño de visualización en la barra lateral.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div className={styles.colorField}>
+                    <label>URL del Logo</label>
+                    <input 
+                      type="text" 
+                      value={logoUrl} 
+                      onChange={e => setLogoUrl(e.target.value)}
+                      className={styles.input}
+                      placeholder="Ej. /logo.png o https://ejemplo.com/mi-logo.png"
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '10px', width: '100%' }}
+                    />
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Subir Archivo de Imagen</label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setLogoUrl(reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '8px', width: '100%' }}
+                    />
+                  </div>
+                  <div className={styles.colorField}>
+                    <label>Tamaño / Ancho de Visualización</label>
+                    <select 
+                      value={logoWidth} 
+                      onChange={e => setLogoWidth(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '10px', width: '100%' }}
+                    >
+                      <option value="40px">40px (Icono compacto)</option>
+                      <option value="80px">80px (Pequeño)</option>
+                      <option value="120px">120px (Mediano)</option>
+                      <option value="180px">180px (Largo Corporativo - Por defecto)</option>
+                      <option value="240px">240px (Extra Grande)</option>
+                    </select>
+                  </div>
+                </div>
+                {logoUrl !== '/logo.png' && (
+                  <button 
+                    onClick={() => { setLogoUrl('/logo.png'); setLogoWidth('180px'); }}
+                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    Restaurar Logo Predeterminado
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.section}>
+                <h3>Configuración del Simulador (Video / Avatar CDO)</h3>
+                <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                  Sube o vincula un video explicativo tipo YouTube Short o video MP4 para el tutor interactivo que aparecerá en el simulador.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '16px' }}>
+                  <div className={styles.colorField}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', display: 'block' }}>Enlace de Video (YouTube Short, MP4, etc.):</label>
+                    <input 
+                      type="text" 
+                      value={transformationVideoUrl} 
+                      onChange={e => setTransformationVideoUrl(e.target.value)}
+                      className={styles.input}
+                      placeholder="Ej. https://www.youtube.com/shorts/abcd123 o https://www.w3schools.com/html/mov_bbb.mp4"
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '10px', width: '100%' }}
+                    />
+                  </div>
+                  <div className={styles.colorField}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', display: 'block' }}>Relación de Aspecto (Aspect Ratio):</label>
+                    <select 
+                      value={transformationVideoAspect} 
+                      onChange={e => setTransformationVideoAspect(e.target.value)}
+                      className={styles.select}
+                      style={{ background: '#1e293b', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px', padding: '10px', width: '100%' }}
+                    >
+                      <option value="16:9">16:9 (Horizontal / Clásico)</option>
+                      <option value="9:16">9:16 (Vertical / YouTube Short)</option>
+                    </select>
+                  </div>
+                </div>
+                <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.78rem', margin: 0 }}>
+                  💡 Si se deja vacío, el simulador se mantendrá en su visualización clásica de mentor sin video lateral.
+                </p>
               </div>
 
               <div className={styles.section}>
