@@ -1008,6 +1008,275 @@ const PHASES: Phase[] = [
   }
 ];
 
+const MENTOR_GUIDES: Record<string, {
+  purpose: string;
+  stepByStep: string[];
+  suggestedCases: { name: string; desc: string }[];
+  governanceProgress: string;
+  flowchart: string;
+}> = {
+  p1_dama: {
+    purpose: "Establecer la línea base (GAP Analysis) de madurez de datos para saber dónde comenzar y justificar la asignación de presupuestos.",
+    stepByStep: [
+      "Ingresa a 'Command Center 360°' mediante el menú lateral.",
+      "Selecciona el pilar DAMA y completa las preguntas del cuestionario.",
+      "Sé honesto y califica de manera conservadora (muchas veces Nivel 1) para representar los vacíos iniciales.",
+      "Haz clic en Guardar Diagnóstico para registrar la evidencia."
+    ],
+    suggestedCases: [
+      { name: "Diagnóstico Inicial de Madurez DAMA", desc: "Evaluación inicial de las 11 disciplinas DAMA indicando madurez Nivel 1 (Inicial/Reactivo) debido a falta de roles formales." }
+    ],
+    governanceProgress: "Representa el 5% inicial del proceso. Sin una línea base, no se puede estructurar un plan estratégico o medir el ROI.",
+    flowchart: "Iniciar Cuestionario ➔ Responder 11 Disciplinas ➔ Calcular Score Global ➔ Guardar en Base de Datos"
+  },
+  p1_findings: {
+    purpose: "Traducir los resultados numéricos del diagnóstico en problemas reales con impacto en el negocio.",
+    stepByStep: [
+      "Ve a la sección de Hallazgos en el Command Center.",
+      "Registra un mínimo de 5 hallazgos críticos basados en tu diagnóstico inicial.",
+      "Asegúrate de describir el dolor del negocio y la severidad (ej. Alta, Crítica)."
+    ],
+    suggestedCases: [
+      { name: "Descuadre contable transaccional", desc: "Falta de conciliación diaria de SKUs de inventario entre e-commerce y ERP físico." },
+      { name: "Ausencia de dueños de datos", desc: "No se cuenta con Data Stewards asignados para el dominio de clientes, generando registros duplicados." },
+      { name: "Uso indebido de PII", desc: "Uso de datos reales de clientes en entornos de desarrollo sin políticas de enmascaramiento." }
+    ],
+    governanceProgress: "Aumenta la madurez al 10%. Convierte métricas abstractas en un inventario de riesgos y brechas priorizadas.",
+    flowchart: "Identificar Brecha ➔ Clasificar por Severidad ➔ Documentar Causa y Efecto ➔ Registrar Hallazgo"
+  },
+  p1_roadmaps: {
+    purpose: "Establecer hitos cronológicos claros y metas a corto y largo plazo para cerrar las brechas identificadas.",
+    stepByStep: [
+      "Navega a la pestaña de Roadmap dentro del Command Center.",
+      "Crea al menos 4 hitos secuenciales especificando la fase y fecha estimada.",
+      "Mapea los hitos empezando por Quick Wins (ej. Roles y RACI) en los primeros 3 meses."
+    ],
+    suggestedCases: [
+      { name: "Fase 1: Asignación de Roles y RACI (Q1)", desc: "Establecer la estructura organizativa inicial y los Data Owners de los dominios críticos." },
+      { name: "Fase 2: Catálogo y Diccionario Técnico (Q2)", desc: "Mapear las fuentes transaccionales principales en Snowflake o Postgres." },
+      { name: "Fase 3: Reglas de Calidad y Workflows (Q3)", desc: "Implementar monitoreo de calidad automático y mesa de ayuda de gobierno." }
+    ],
+    governanceProgress: "Avanza al 15% del proceso. Alinea las expectativas de los patrocinadores financieros con entregables trimestrales.",
+    flowchart: "Definir Objetivos ➔ Dividir en Fases (Trimestres) ➔ Asignar Hitos ➔ Guardar Cronograma"
+  },
+  p1_roles: {
+    purpose: "Asignar las responsabilidades del gobierno para que los datos tengan dueños y custodios formales en la organización.",
+    stepByStep: [
+      "Ve al menú 'Roles y Equipo'.",
+      "Haz clic en 'Agregar Miembro' y llena los campos: Nombre, Correo, Área y Rol.",
+      "Asegúrate de tener al menos 5 miembros, asignando obligatoriamente los roles de CDO, Data Owner, Data Steward y Data Custodian."
+    ],
+    suggestedCases: [
+      { name: "Juan Pérez (CDO)", desc: "Líder del programa global de gobierno de datos corporativo." },
+      { name: "María Rodríguez (Data Owner de Clientes)", desc: "Directora de Marketing, responsable final por el dominio de Clientes." },
+      { name: "Carlos Gómez (Data Steward de Clientes)", desc: "Líder de Operaciones, valida la calidad en la captura de registros del CRM." }
+    ],
+    governanceProgress: "Avanza al 25%. Es el pilar fundamental; sin personas asignadas a roles específicos, no hay quién apruebe políticas o corrija incidentes.",
+    flowchart: "Identificar Perfil ➔ Asignar Rol DAMA ➔ Definir Dominio de Cobertura ➔ Guardar Ficha de Miembro"
+  },
+  p1_domains: {
+    purpose: "Definir los límites lógicos de los datos del negocio para evitar duplicidades y asignar responsabilidades claras.",
+    stepByStep: [
+      "Ve a 'Roles y Equipo' ➔ pestaña 'Dominios de Datos'.",
+      "Crea al menos 3 dominios de datos propios que no correspondan a los valores semilla preestablecidos.",
+      "Asigna un Data Owner y describe detalladamente su alcance."
+    ],
+    suggestedCases: [
+      { name: "Información de Historias Clínicas (Sensible)", desc: "Datos de diagnósticos, antecedentes y tratamientos del área médica." },
+      { name: "SKUs de Catálogo de Productos", desc: "Códigos de barra, descripciones y precios oficiales en los canales digitales." },
+      { name: "Datos Financieros IFRS", desc: "Saldos de cuentas y partidas de contabilidad consolidada para reportes." }
+    ],
+    governanceProgress: "Llega al 30% del progreso. Delimita la propiedad del dato evitando conflictos sobre quién debe dar permisos o arreglar la calidad.",
+    flowchart: "Delimitar Información de Negocio ➔ Nombrar Dominio ➔ Vincular Data Owner ➔ Registrar Dominio"
+  },
+  p1_raci: {
+    purpose: "Establecer la matriz de responsabilidades operativa (RACI) para saber quién ejecuta, quién aprueba, quién es consultado e informado.",
+    stepByStep: [
+      "Ve a 'Roles y Equipo' ➔ pestaña 'Matriz RACI'.",
+      "Personaliza al menos 7 procesos lógicos operativos, configurando los roles responsables (R, A, C, I)."
+    ],
+    suggestedCases: [
+      { name: "Aprobación de Glosario Técnico", desc: "Owner: Accountable, Steward: Responsible, Custodian: Consulted, Analyst: Informed." }
+    ],
+    governanceProgress: "Llega al 35%. Evita la parálisis por falta de toma de decisiones o duplicidad de funciones operativas.",
+    flowchart: "Identificar Proceso de Datos ➔ Asignar Responsables (R, A, C, I) ➔ Guardar Configuración de Matriz"
+  },
+  p1_capacity: {
+    purpose: "Medir las competencias de la organización en infraestructura y herramientas de datos para planificar la capacitación necesaria.",
+    stepByStep: [
+      "Ve a 'Roles y Equipo' ➔ pestaña 'Evaluación de Capacidad'.",
+      "Registra un mínimo de 2 evaluaciones de capacidad del equipo en herramientas de BI, bases de datos o gobernanza."
+    ],
+    suggestedCases: [
+      { name: "Capacitación en Gobierno de Datos DAMA", desc: "Evaluar el nivel de conocimiento del estándar DAMA-DMBOK en el equipo de analistas." }
+    ],
+    governanceProgress: "Llega al 40%. Asegura que el equipo tiene el entrenamiento y software requeridos para sostener la estrategia.",
+    flowchart: "Definir Habilidad a Evaluar ➔ Calificar Nivel del Equipo ➔ Guardar Evaluación de Capacidad"
+  },
+  p1_committees: {
+    purpose: "Instaurar el consejo directivo formal que sesionará periódicamente para aprobar políticas y arbitrar desacuerdos de datos.",
+    stepByStep: [
+      "Ve a 'Roles y Equipo' ➔ pestaña 'Comités de Gobierno'.",
+      "Registra al menos 2 comités formales de gobierno de datos."
+    ],
+    suggestedCases: [
+      { name: "Comité Directivo de Gobierno de Datos (Mensual)", desc: "Sesión conformada por CDO, CIO y Directores de Negocio para aprobación de políticas." }
+    ],
+    governanceProgress: "Completa la fase de Fundamentos (45%). Otorga el respaldo y la autoridad legal y directiva a todo el programa de gobierno.",
+    flowchart: "Definir Miembros del Comité ➔ Establecer Periodicidad de Sesiones ➔ Guardar y Formalizar Comité"
+  },
+  p2_policies: {
+    purpose: "Definir las normas de comportamiento corporativo que garantizan la integridad, privacidad, seguridad y calidad de los datos.",
+    stepByStep: [
+      "Accede al módulo 'Políticas y Workflows' ➔ pestaña 'Crear Política'.",
+      "Crea al menos 5 políticas con campos completos: Nombre, Alcance, Justificación, Estado (Borrador/Vigente) y Origen.",
+      "Asegúrate de que sean de negocio e innovadoras (excluye plantillas estándar)."
+    ],
+    suggestedCases: [
+      { name: "Política de Privacidad y Enmascaramiento PII", desc: "Dicta que toda base de datos en entornos de staging o QA debe cifrarse o enmascararse, cumpliendo con Habeas Data." },
+      { name: "Política de Clasificación de Criticidad", desc: "Clasifica los activos de datos en Públicos, Confidenciales y Altamente Restringidos para aplicar controles de acceso." },
+      { name: "Política de Retención y Purga de Logs Contables", desc: "Establece que los logs de auditoría transaccionales se almacenan por 365 días en caliente y luego se purgan automáticamente." }
+    ],
+    governanceProgress: "Eleva la madurez al 55%. Define las reglas de juego corporativas que toda la organización y sistemas de TI deben cumplir obligatoriamente.",
+    flowchart: "Redactar Borrador de Política ➔ Definir Alcance y Justificación ➔ Asignar Estado de Revisión ➔ Publicar y Registrar"
+  },
+  p2_workflows: {
+    purpose: "Garantizar que ninguna política o cambio crítico se publique en producción sin el proceso formal de revisión y aprobación del Data Steward y Data Owner.",
+    stepByStep: [
+      "Ve a 'Políticas y Workflows' ➔ pestaña 'Flujos de Aprobación'.",
+      "Registra al menos 2 flujos lógicos con sus pasos y responsables."
+    ],
+    suggestedCases: [
+      { name: "Flujo de Publicación de Políticas de Privacidad", desc: "Paso 1: Revisión por Oficial de Privacidad (Steward) ➔ Paso 2: Aprobación Legal ➔ Paso 3: Firma del CDO (Owner)." }
+    ],
+    governanceProgress: "Llega al 60%. Evita la anarquía regulando y auditando el proceso de publicación de cambios en la empresa.",
+    flowchart: "Crear Solicitud de Aprobación ➔ Revisión de Stewards ➔ Visto Bueno de Owners ➔ Aprobación y Trazabilidad"
+  },
+  p2_risks: {
+    purpose: "Identificar y clasificar amenazas de seguridad física o lógica sobre los activos de datos sensibles para planificar controles preventivos.",
+    stepByStep: [
+      "Ve al módulo 'Seguridad y Riesgos' ➔ pestaña 'Matriz de Riesgos'.",
+      "Registra mínimo 3 riesgos de seguridad con criticidad, probabilidad e impacto de negocio claros."
+    ],
+    suggestedCases: [
+      { name: "Acceso no supervisado a logs de tarjetas de crédito", desc: "Fuga potencial de credenciales de tarjetas de crédito PCI-DSS en servidores de staging." },
+      { name: "Modificación no autorizada de calificaciones", desc: "Docentes o atacantes alterando notas de egresados directamente en la base de datos sin traza." }
+    ],
+    governanceProgress: "Alcanza el 65% de madurez. Minimiza la exposición legal y reputacional de la empresa ante fugas de información.",
+    flowchart: "Identificar Amenaza en Activos ➔ Calificar Impacto y Probabilidad ➔ Registrar en la Matriz de Riesgo"
+  },
+  p2_controls: {
+    purpose: "Implementar medidas técnicas de ciberseguridad obligatorias asociadas a los riesgos identificados para garantizar el cumplimiento normativo.",
+    stepByStep: [
+      "Ve a 'Seguridad y Riesgos' ➔ pestaña 'Controles de Seguridad'.",
+      "Vincula al menos 3 controles de seguridad a tus activos y asócialos a un estándar internacional (ej: ISO 27001, PCI-DSS)."
+    ],
+    suggestedCases: [
+      { name: "Cifrado AES-256 de Historias Clínicas", desc: "Control de seguridad en bases de datos para encriptar en reposo la información sensible médica." },
+      { name: "Enmascaramiento Dinámico de Cuentas de Ahorro", desc: "Control SQL para enmascarar los primeros 12 dígitos de la tarjeta para analistas de soporte." }
+    ],
+    governanceProgress: "Llega al 70%. Transforma las directrices abstractas de seguridad en herramientas técnicas de protección verificables.",
+    flowchart: "Definir Control Técnico ➔ Asociar a Norma (ISO/PCI) ➔ Asignar a Riesgos Activos ➔ Guardar Evidencia de Control"
+  },
+  p3_connections: {
+    purpose: "Configurar las conexiones automáticas a los servidores de datos (Postgres, Snowflake) para posibilitar el escaneo técnico.",
+    stepByStep: [
+      "Ve a 'Catálogo de Activos' ➔ pestaña 'Conexiones de Datos'.",
+      "Configura al menos 3 conexiones con detalles técnicos correctos."
+    ],
+    suggestedCases: [
+      { name: "Snowflake Contabilidad Core", desc: "Conexión en la nube para el Data Lake financiero." }
+    ],
+    governanceProgress: "Avanza al 75%. Habilita el descubrimiento automático de metadatos eliminando la documentación manual obsoleta.",
+    flowchart: "Ingresar URL/Server de BD ➔ Configurar Credenciales Cifradas ➔ Testear Conexión ➔ Registrar Conexión"
+  },
+  p3_assets: {
+    purpose: "Establecer el inventario único de verdad que expone todas las tablas, reportes y orígenes de datos gobernados en la empresa.",
+    stepByStep: [
+      "Ve a 'Catálogo de Activos' ➔ pestaña 'Tablas y Reportes'.",
+      "Registra un mínimo de 6 activos de información (tablas) detallando propietarios (Data Owners) y custodios formales."
+    ],
+    suggestedCases: [
+      { name: "tbl_clientes_crm", desc: "Tabla maestra de clientes que almacena nombres, teléfonos e identificadores de privacidad." }
+    ],
+    governanceProgress: "Llega al 80%. Otorga visibilidad completa de los activos de información para que el negocio sepa dónde buscar y consumir datos de calidad.",
+    flowchart: "Conectar Base de Datos ➔ Escanear Tablas ➔ Catalogar Atributos ➔ Vincular Responsables ➔ Publicar"
+  },
+  p3_rules: {
+    purpose: "Configurar umbrales y validaciones lógicas automáticas para certificar si el dato es confiable (completitud, unicidad, formato).",
+    stepByStep: [
+      "Ve al módulo 'Calidad de Datos' ➔ pestaña 'Reglas de Calidad'.",
+      "Crea al menos 5 reglas de calidad específicas y enlázalas a columnas de tus tablas catalogadas."
+    ],
+    suggestedCases: [
+      { name: "val_email_formato", desc: "Regla regex para forzar que la columna 'email' contenga un formato válido '@dominio.com'." },
+      { name: "val_cedula_unicidad", desc: "Regla SQL para verificar la ausencia de duplicados en el identificador único del cliente." }
+    ],
+    governanceProgress: "Avanza al 85%. Asegura la confiabilidad del dato reduciendo pérdidas de negocio por reportes erróneos.",
+    flowchart: "Seleccionar Activo/Columna ➔ Definir Tipo de Regla (Completitud/Unicidad) ➔ Guardar y Activar Monitoreo"
+  },
+  p3_fields: {
+    purpose: "Identificar y etiquetar individualmente las columnas que contienen datos personales o sensibles para aplicar enmascaramiento.",
+    stepByStep: [
+      "Ve a 'Catálogo de Activos' ➔ pestaña 'Clasificación de Campos'.",
+      "Configura la clasificación de al menos 6 campos como Confidenciales, PII o Restringidos."
+    ],
+    suggestedCases: [
+      { name: "numero_tarjeta", desc: "Campo clasificado como Altamente Confidencial (PII) bajo el estándar PCI-DSS." }
+    ],
+    governanceProgress: "Llega al 90% de madurez. Permite la gobernanza granular de la privacidad de la información a nivel de celda.",
+    flowchart: "Escanear Columnas de la Tabla ➔ Detectar Datos Sensibles ➔ Etiquetar (Confidencial/PII) ➔ Registrar Clasificación"
+  },
+  p4_workflow_op: {
+    purpose: "Operar solicitudes diarias de gobierno (accesos, modificaciones) mediante workflows formales con traza auditable.",
+    stepByStep: [
+      "Ve al módulo 'Workflows Operativos'.",
+      "Crea al menos 3 solicitudes y documéntalas como Aprobadas o Cerradas."
+    ],
+    suggestedCases: [
+      { name: "Solicitud de Acceso a Tabla Transaccional", desc: "Ticket formal para permitir al analista el consumo de saldos de tarjetas." }
+    ],
+    governanceProgress: "Alcanza el 93% de avance. Demuestra que el gobierno es una práctica cotidiana y viva, no solo documentación.",
+    flowchart: "Crear Ticket de Solicitud ➔ Evaluar por Responsables ➔ Autorizar Cambios ➔ Cerrar y Archivar Ticket"
+  },
+  p4_incidents_qual: {
+    purpose: "Registrar fallos de calidad detectados (descuadres, nulos) para investigar la causa raíz y mitigarlos de forma auditable.",
+    stepByStep: [
+      "Ve al módulo 'Calidad de Datos' ➔ pestaña 'Mesa de Incidentes'.",
+      "Registra un mínimo de 3 incidentes de calidad y detalla su plan de remediación."
+    ],
+    suggestedCases: [
+      { name: "Descuadre de inventario web vs tiendas físicas", desc: "Incidente crítico que reporta un 15% de diferencias en SKUs." }
+    ],
+    governanceProgress: "Avanza al 96%. Mitiga fallos sistémicos de datos garantizando la remediación oportuna.",
+    flowchart: "Detectar Error de Calidad ➔ Abrir Incidente de Calidad ➔ Asignar a Steward ➔ Registrar Remediación"
+  },
+  p4_incidents_sec: {
+    purpose: "Gestionar y remediar brechas de seguridad o accesos anómalos de forma inmediata para documentar ante auditores.",
+    stepByStep: [
+      "Ve a 'Seguridad y Riesgos' ➔ pestaña 'Incidentes de Seguridad'.",
+      "Registra un mínimo de 3 incidentes de seguridad y asócialos a un control mitigante."
+    ],
+    suggestedCases: [
+      { name: "Acceso sospechoso desde IP fuera del país", desc: "Alerta de seguridad por posible suplantación de credenciales." }
+    ],
+    governanceProgress: "Alcanza el 98% de madurez. Previene hackeos recurrentes y multas legales documentando la respuesta ante brechas.",
+    flowchart: "Detectar Alerta de Seguridad ➔ Crear Incidente ➔ Aplicar Control de Contención ➔ Cerrar Incidente"
+  },
+  p4_monitoring_history: {
+    purpose: "Registrar las corridas del monitoreo de calidad para visualizar la evolución del índice de calidad global en el tiempo.",
+    stepByStep: [
+      "Ve al módulo de Calidad ➔ pestaña 'Historial de Monitoreo'.",
+      "Crea al menos 3 registros históricos de calidad con puntuaciones de validación real."
+    ],
+    suggestedCases: [
+      { name: "Corrida de Validación Mayo 2026", desc: "Escaneo mensual automático reportando 92% de calidad en el dominio clientes." }
+    ],
+    governanceProgress: "Completa el 100% de madurez en la ruta (CDO Master Champion). Demuestra el control continuo y la evolución medible del programa de datos.",
+    flowchart: "Correr Reglas de Calidad ➔ Obtener Score Global ➔ Registrar Log Histórico ➔ Visualizar Gráfico de Evolución"
+  }
+};
+
 const getEmbedVideoUrl = (url: string) => {
   if (!url) return '';
   if (url.includes('youtube.com/shorts/')) {
@@ -1047,6 +1316,10 @@ export default function JourneyCDO() {
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [showCaseOverlay, setShowCaseOverlay] = useState(false);
   const [modalActiveTab, setModalActiveTab] = useState<'context' | 'problems' | 'compliance' | 'roadmap'>('context');
+
+  // Mentor IA details modal
+  const [selectedMentorActivity, setSelectedMentorActivity] = useState<ActivityItem | null>(null);
+  const [showMentorModal, setShowMentorModal] = useState(false);
 
   // Decision Challenges Answers
   const [resolvedDecisions, setResolvedDecisions] = useState<Record<string, string>>({}); // phaseId -> optionKey
@@ -1353,6 +1626,71 @@ export default function JourneyCDO() {
   const handleAskMentor = (query: string, answer: string) => {
     setMentorQuestion(query);
     setMentorAnswer(answer);
+  };
+
+  const renderMentorActivityGuide = (activityId: string) => {
+    const guide = MENTOR_GUIDES[activityId] || MENTOR_GUIDES['p1_dama'];
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px 0' }}>
+        {/* Purpose */}
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px', display: 'flex', gap: '12px' }}>
+          <div style={{ background: '#10b981', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', flexShrink: 0, fontWeight: 'bold', fontSize: '1.2rem', justifyContent: 'center' }}>💡</div>
+          <div>
+            <h5 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 800, color: '#065f46' }}>¿Qué aporta y para qué sirve?</h5>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: '#047857', lineHeight: 1.4 }}>{guide.purpose}</p>
+          </div>
+        </div>
+
+        {/* Step by Step */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ background: '#4f46e5', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem' }}>INSTRUCCIONES</span>
+            Paso a Paso Explícito (Qué Hacer)
+          </h5>
+          <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {guide.stepByStep.map((step, index) => (
+              <li key={index} style={{ fontSize: '0.88rem', color: '#334155', lineHeight: 1.4 }}>{step}</li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Suggested Cases */}
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>📝 Caso Sugerido / Ejemplos Concretos</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {guide.suggestedCases.map((item, index) => (
+              <div key={index} style={{ background: '#f1f5f9', borderRadius: '10px', padding: '12px 16px', borderLeft: '4px solid #10b981' }}>
+                <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a', marginBottom: '4px' }}>{item.name}</strong>
+                <span style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.4, display: 'block' }}>{item.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Process Flow / Creation Flow Diagram */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>📊 Dibujo del Flujo de Creación y Trazabilidad</h5>
+          <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '16px', textAlign: 'center', overflowX: 'auto' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', fontWeight: 700, color: '#4f46e5', whiteSpace: 'nowrap' }}>
+              {guide.flowchart.split('➔').map((node, i, arr) => (
+                <React.Fragment key={i}>
+                  <span style={{ background: i === arr.length - 1 ? '#e0e7ff' : '#f1f5f9', border: i === arr.length - 1 ? '1px solid #4f46e5' : '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '8px', color: i === arr.length - 1 ? '#4f46e5' : '#475569' }}>
+                    {node.trim()}
+                  </span>
+                  {i < arr.length - 1 && <span style={{ color: '#94a3b8' }}>➔</span>}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Governance Progress Info */}
+        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+          <span style={{ color: '#64748b' }}>Aporte al Proceso de Gobierno:</span>
+          <span style={{ fontWeight: 800, color: '#4f46e5' }}>{guide.governanceProgress}</span>
+        </div>
+      </div>
+    );
   };
 
   const handleGenerateDeliverable = (phaseTitle: string, type: string) => {
@@ -1772,13 +2110,23 @@ export default function JourneyCDO() {
                         <span className={styles.moduleTag}>
                           <Database size={14} /> Módulo: {act.moduleHref.replace('/', '')}
                         </span>
-                        <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <button 
                             className={styles.learnMoreToggle}
                             onClick={() => setExpandedLearnMore(isOpen ? null : act.id)}
                           >
                             {isOpen ? 'Ocultar Guía' : 'Ver DAMA & Negocio'}
                             {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                          <button 
+                            className={styles.learnMoreToggle}
+                            style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => {
+                              setSelectedMentorActivity(act);
+                              setShowMentorModal(true);
+                            }}
+                          >
+                            <Brain size={14} /> Mentor IA
                           </button>
                           <a 
                             href={act.moduleHref}
@@ -1873,6 +2221,20 @@ export default function JourneyCDO() {
           </section>
         </main>
       </div>
+
+      {/* Mentor IA Modal */}
+      {selectedMentorActivity && (
+        <UnifiedModal
+          isOpen={showMentorModal}
+          onClose={() => setShowMentorModal(false)}
+          title={`Mentor IA: Asesoría de Implementación DAMA`}
+          subtitle={`Guía explícita paso a paso para la actividad: "${selectedMentorActivity.title}"`}
+          type="informativa"
+          configOverride={{ width: '800px' }}
+        >
+          {renderMentorActivityGuide(selectedMentorActivity.id)}
+        </UnifiedModal>
+      )}
 
       {/* Platform-styled Transformation Case Overlay Modal */}
       {activeSectorData && (
