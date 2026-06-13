@@ -252,8 +252,8 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
         )}
       </div>
 
-      {/* Mode Switcher - Solo visible para Superadmin */}
-      {userRole === 'superadmin' && (
+      {/* Mode Switcher - Solo visible para Superadmin en la empresa principal */}
+      {userRole === 'superadmin' && currentTenant && tenants.length > 0 && currentTenant.id === tenants[0].id && (
         <div className={styles.modeToggleContainer}>
           <div className={`${styles.toggleWrapper} ${isCollapsed ? styles.collapsedToggle : ''}`}>
             <button 

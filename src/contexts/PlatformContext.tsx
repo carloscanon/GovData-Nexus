@@ -818,6 +818,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, []);
+  
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const isMain = tenants.length > 0 && (currentTenant.id === '1' || currentTenant.id === tenants[0].id);
+    if (!isMain && mode === 'DEMO') {
+      setMode('ENTERPRISE');
+      localStorage.setItem('govdata_mode', 'ENTERPRISE');
+    }
+  }, [currentTenant, tenants, mode]);
 
 
 
@@ -910,6 +919,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (userRole !== 'superadmin' || (userEmail && userEmail.toLowerCase().trim() !== 'admin@govdata.io')) return;
     setCurrentTenantState(tenant);
     localStorage.setItem('govdata_current_tenant_id', tenant.id);
+
+    // Si no es la empresa principal, forzar ENTERPRISE
+    const isMain = tenants.length > 0 && (tenant.id === '1' || tenant.id === tenants[0].id);
+    if (!isMain) {
+      setMode('ENTERPRISE');
+      localStorage.setItem('govdata_mode', 'ENTERPRISE');
+    }
   };
 
   const persistTenants = (updated: Tenant[]) => {
