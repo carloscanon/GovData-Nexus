@@ -177,29 +177,12 @@ export default function DataPathChallengePage() {
     else targetNodes = 20;
 
     let attempts = 0;
-    while (attempts < 10) {
+    while (attempts < 150) {
       attempts++;
       const walls: Wall[] = [];
       
       // Let's generate a Hamiltonian path visiting all cells of the grid using simple DFS
-      let path = generateHamiltonianPath(gridSize, rng);
-      
-      // Fallback: if we are struggling to find a path randomly, use a guaranteed snake path
-      if (!path && attempts >= 8) {
-        path = [];
-        for (let r = 0; r < gridSize; r++) {
-          if (r % 2 === 0) {
-            for (let c = 0; c < gridSize; c++) {
-              path.push({ r, c });
-            }
-          } else {
-            for (let c = gridSize - 1; c >= 0; c--) {
-              path.push({ r, c });
-            }
-          }
-        }
-      }
-
+      const path = generateHamiltonianPath(gridSize, rng);
       if (path && path.length >= targetNodes + 4) {
         // Place custom walls on boundaries that the path does NOT cross
         // This makes the board match the visual walls in the screenshot!
@@ -275,13 +258,7 @@ export default function DataPathChallengePage() {
     const path: Cell[] = [{ r: 0, c: 0 }];
     visited.add('0,0');
 
-    let steps = 0;
-    const maxSteps = gridSize * gridSize * 15; // Extremely safe limit (e.g. 960 steps for 8x8) to guarantee sub-millisecond execution
-
     function dfs(r: number, c: number): boolean {
-      steps++;
-      if (steps > maxSteps) return false; // Abort if taking too long to prevent freezing the main thread
-
       if (path.length === gridSize * gridSize) {
         return true;
       }
