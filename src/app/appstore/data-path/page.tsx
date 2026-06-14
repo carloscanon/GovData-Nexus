@@ -1,35 +1,27 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  HelpCircle,
-  Award,
-  TrendingUp,
-  RotateCcw,
-  Sparkles,
   ArrowLeft,
   Calendar,
   Share2,
   Lock,
-  CheckCircle,
-  Database,
   Play,
-  Shield,
-  Layers,
-  ChevronRight,
-  Flame,
+  RotateCcw,
+  Sparkles,
+  Trophy,
   Volume2,
   VolumeX,
-  Trophy,
-  Activity,
-  AlertTriangle
+  ChevronDown,
+  ChevronUp,
+  RefreshCw
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
-import { supabase } from '@/lib/supabase';
 import styles from './data-path.module.css';
 
-// Node thematic labels
+// Thematic DAMA labels for numbers
 const THEMATIC_LABELS: Record<number, string> = {
   1: 'Fuente de datos',
   2: 'Calidad',
@@ -47,36 +39,19 @@ const THEMATIC_LABELS: Record<number, string> = {
   14: 'Mapeo RACI',
   15: 'Comité de Datos',
   16: 'KPI de Calidad',
-  17: 'Workflow de Aprobación',
+  17: 'Aprobación',
   18: 'Anonimización',
-  19: 'SLA de Atención',
-  20: 'Mesa de Incidentes',
-  21: 'Glosario Técnico',
-  22: 'Diagnóstico DAMA',
-  23: 'Datos Maestros',
-  24: 'Reglas Regex',
-  25: 'Cifrado AES-256',
-  26: 'Enmascaramiento',
-  27: 'Trazabilidad',
-  28: 'Monitoreo Semanal',
-  29: 'Reporte Regulatorio',
-  30: 'Métricas de Red',
-  31: 'Datos Abiertos',
-  32: 'Tokenización',
-  33: 'Certificación IA',
-  34: 'Data Steward Elite',
-  35: 'Metadata Master',
-  36: 'Nexus Legend'
+  19: 'SLA',
+  20: 'Mesa de Incidentes'
 };
 
-// Seed-based random generator (Lcg)
+// Seed-based random generator (LCG)
 class SeededRandom {
   private seed: number;
   constructor(seed: number) {
     this.seed = seed;
   }
   next(): number {
-    // LCG parameters
     this.seed = (this.seed * 1664525 + 1013904223) % 4294967296;
     return this.seed / 4294967296;
   }
@@ -90,104 +65,155 @@ interface Cell {
   c: number;
 }
 
+// Represent horizontal/vertical walls between adjacent cells
+// A wall exists between (r,c) and an adjacent cell in a direction (up, down, left, right)
+interface Wall {
+  r1: number;
+  c1: number;
+  r2: number;
+  c2: number;
+}
+
 interface BoardData {
   rows: number;
   cols: number;
   numbers: Record<string, number>; // "r,c" -> number
   maxNumber: number;
-  obstacles: Set<string>; // "r,c"
+  walls: Wall[]; // Custom maze borders
   solutionPath: Cell[];
   seed: number;
 }
 
 export default function DataPathChallengePage() {
+  const router = useRouter();
   const { currentTenant } = usePlatform();
   const [mode, setMode] = useState<'daily' | 'free'>('daily');
-  const [size, setSize] = useState<number>(6);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('easy');
+  const [size, setSize] = useState<number>(8);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('hard');
   const [board, setBoard] = useState<BoardData | null>(null);
   
-  // Gameplay states
+  // Dragging / Drawing state
   const [playerPath, setPlayerPath] = useState<Cell[]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [hintsLeft, setHintsLeft] = useState(3);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<any>(null);
   const [gameWon, setGameWon] = useState(false);
   const [score, setScore] = useState(0);
   
-  // Stats
+  // Game metrics
   const [streak, setStreak] = useState(0);
   const [hasPlayedToday, setHasPlayedToday] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showHowToPlay, setShowHowToPlay] = useState(true);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  // Refs for tracking drag coordinates relative to grid bounding box
+  const gridRef = useRef<HTMLDivElement>(null);
+  const pathRef = useRef<Cell[]>([]);
+  pathRef.current = playerPath;
+
+  const isDraggingRef = useRef(false);
+
+  // Sound Synthesizer using Web Audio API
+  const playSound = (freq: number, type: OscillatorType, duration: number) => {
+    if (!soundEnabled) return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + duration);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+  };
 
   // Timer effect
   useEffect(() => {
-    if (startTime && !gameWon) {
-      const interval = setInterval(() => {
+    let interval: any = null;
+    if (startTime && !gameWon && !hasPlayedToday) {
+      interval = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
       }, 1000);
-      setTimerInterval(interval);
-      return () => clearInterval(interval);
     }
-  }, [startTime, gameWon]);
+    return () => clearInterval(interval);
+  }, [startTime, gameWon, hasPlayedToday]);
 
-  // Generate date seed
+  // Seed generator
   const getDateSeed = useCallback(() => {
     const d = new Date();
     return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }, []);
 
-  // Generate board
+  // Check if there's a wall between two cells
+  const hasWallBetween = (c1: Cell, c2: Cell, walls: Wall[]) => {
+    return walls.some(w => 
+      (w.r1 === c1.r && w.c1 === c1.c && w.r2 === c2.r && w.c2 === c2.c) ||
+      (w.r1 === c2.r && w.c1 === c2.c && w.r2 === c1.r && w.c2 === c1.c)
+    );
+  };
+
+  // Generate board procedurally
   const generateBoard = useCallback((gridSize: number, diff: 'easy' | 'medium' | 'hard' | 'expert', useSeed: boolean) => {
     const seedValue = useSeed ? getDateSeed() : Math.floor(Math.random() * 1000000);
     const rng = new SeededRandom(seedValue);
     
-    // Set target numbers based on difficulty & size
-    let targetNodes = 8;
-    let obstacleRatio = 0.1;
+    let targetNodes = 12;
+    if (diff === 'easy') targetNodes = 8;
+    else if (diff === 'medium') targetNodes = 12;
+    else if (diff === 'hard') targetNodes = 16;
+    else targetNodes = 20;
 
-    if (diff === 'easy') {
-      targetNodes = gridSize === 6 ? 8 : 12;
-      obstacleRatio = 0.08;
-    } else if (diff === 'medium') {
-      targetNodes = gridSize === 6 ? 12 : 16;
-      obstacleRatio = 0.12;
-    } else if (diff === 'hard') {
-      targetNodes = gridSize === 8 ? 22 : 28;
-      obstacleRatio = 0.15;
-    } else {
-      targetNodes = gridSize === 8 ? 28 : 34;
-      obstacleRatio = 0.2;
-    }
-
-    // Try multiple times to build a valid grid with a Hamiltonian path
     let attempts = 0;
-    while (attempts < 100) {
+    while (attempts < 150) {
       attempts++;
-      const obstacles = new Set<string>();
+      const walls: Wall[] = [];
       
-      // Determine obstacle cells
-      const totalCells = gridSize * gridSize;
-      const targetObstacles = Math.floor(totalCells * obstacleRatio);
-      
-      // Generate some obstacle cells (avoiding center/corners initially)
-      for (let i = 0; i < targetObstacles; i++) {
-        const r = rng.nextInt(0, gridSize);
-        const c = rng.nextInt(0, gridSize);
-        obstacles.add(`${r},${c}`);
-      }
+      // Let's generate a Hamiltonian path visiting all cells of the grid using simple DFS
+      const path = generateHamiltonianPath(gridSize, rng);
+      if (path && path.length >= targetNodes + 4) {
+        // Place custom walls on boundaries that the path does NOT cross
+        // This makes the board match the visual walls in the screenshot!
+        const pathEdges = new Set<string>();
+        for (let i = 0; i < path.length - 1; i++) {
+          const u = path[i];
+          const v = path[i + 1];
+          pathEdges.add(`${u.r},${u.c}-${v.r},${v.c}`);
+          pathEdges.add(`${v.r},${v.c}-${u.r},${u.c}`);
+        }
 
-      // Generate a path on remaining cells
-      const path = findRandomPath(gridSize, obstacles, rng);
-      if (path && path.length > targetNodes + 3) {
-        // Build final node sequence
+        // Randomly place maze walls between non-consecutive path cells to enforce complexity
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            // Check right
+            if (c + 1 < gridSize) {
+              const edge = `${r},${c}-${r},${c + 1}`;
+              if (!pathEdges.has(edge) && rng.next() < 0.35) {
+                walls.push({ r1: r, c1: c, r2: r, c2: c + 1 });
+              }
+            }
+            // Check down
+            if (r + 1 < gridSize) {
+              const edge = `${r},${c}-${r + 1},${c}`;
+              if (!pathEdges.has(edge) && rng.next() < 0.35) {
+                walls.push({ r1: r, c1: c, r2: r + 1, c2: c });
+              }
+            }
+          }
+        }
+
+        // Format nodes/numbers along the path
         const numbers: Record<string, number> = {};
         const step = Math.floor(path.length / targetNodes);
-        
         let nodeIndex = 1;
+        
         for (let i = 0; i < path.length; i++) {
           if (i === 0) {
             numbers[`${path[i].r},${path[i].c}`] = 1;
@@ -200,19 +226,18 @@ export default function DataPathChallengePage() {
           }
         }
 
-        // Complete board definition
         setBoard({
           rows: gridSize,
           cols: gridSize,
           numbers,
           maxNumber: targetNodes,
-          obstacles,
+          walls,
           solutionPath: path,
           seed: seedValue
         });
-        
-        // Reset states
         setPlayerPath([]);
+        isDraggingRef.current = false;
+        setIsDragging(false);
         setGameWon(false);
         setElapsedTime(0);
         setStartTime(null);
@@ -220,65 +245,18 @@ export default function DataPathChallengePage() {
         return;
       }
     }
-    
-    // Fallback simple generation
-    const fallbackPath: Cell[] = [];
-    for (let r = 0; r < gridSize; r++) {
-      if (r % 2 === 0) {
-        for (let c = 0; c < gridSize; c++) fallbackPath.push({ r, c });
-      } else {
-        for (let c = gridSize - 1; c >= 0; c--) fallbackPath.push({ r, c });
-      }
-    }
-    const numbers: Record<string, number> = {};
-    numbers[`${fallbackPath[0].r},${fallbackPath[0].c}`] = 1;
-    numbers[`${fallbackPath[Math.floor(fallbackPath.length / 2)].r},${fallbackPath[Math.floor(fallbackPath.length / 2)].c}`] = 2;
-    numbers[`${fallbackPath[fallbackPath.length - 1].r},${fallbackPath[fallbackPath.length - 1].c}`] = 3;
-
-    setBoard({
-      rows: gridSize,
-      cols: gridSize,
-      numbers,
-      maxNumber: 3,
-      obstacles: new Set<string>(),
-      solutionPath: fallbackPath,
-      seed: seedValue
-    });
-    setPlayerPath([]);
-    setGameWon(false);
-    setElapsedTime(0);
-    setStartTime(null);
-    setScore(0);
   }, [getDateSeed]);
 
-  // Find a random path visiting as many cells as possible
-  function findRandomPath(gridSize: number, obstacles: Set<string>, rng: SeededRandom): Cell[] | null {
+  // Generate Hamiltonian path visiting all cells of the grid using simple DFS
+  function generateHamiltonianPath(gridSize: number, rng: SeededRandom): Cell[] | null {
     const visited = new Set<string>();
-    obstacles.forEach(o => visited.add(o));
-    
-    // Pick a starting corner or side cell
-    let startR = rng.nextInt(0, 2) === 0 ? 0 : gridSize - 1;
-    let startC = rng.nextInt(0, 2) === 0 ? 0 : gridSize - 1;
-    
-    if (obstacles.has(`${startR},${startC}`)) {
-      // Find any non-obstacle starting cell
-      let found = false;
-      for (let r = 0; r < gridSize && !found; r++) {
-        for (let c = 0; c < gridSize; c++) {
-          if (!obstacles.has(`${r},${c}`)) {
-            startR = r;
-            startC = c;
-            found = true;
-            break;
-          }
-        }
-      }
-    }
-
-    const path: Cell[] = [{ r: startR, c: startC }];
-    visited.add(`${startR},${startC}`);
+    const path: Cell[] = [{ r: 0, c: 0 }];
+    visited.add('0,0');
 
     function dfs(r: number, c: number): boolean {
+      if (path.length === gridSize * gridSize) {
+        return true;
+      }
       const neighbors = [
         { r: r - 1, c },
         { r: r + 1, c },
@@ -286,13 +264,7 @@ export default function DataPathChallengePage() {
         { r: r, c: c + 1 }
       ].filter(n => n.r >= 0 && n.r < gridSize && n.c >= 0 && n.c < gridSize && !visited.has(`${n.r},${n.c}`));
 
-      if (neighbors.length === 0) {
-        // If we visited at least 65% of playable cells, we accept the path
-        const totalPlayable = gridSize * gridSize - obstacles.size;
-        return path.length >= totalPlayable * 0.65;
-      }
-
-      // Shuffle neighbors
+      // Shuffle
       for (let i = neighbors.length - 1; i > 0; i--) {
         const j = Math.floor(rng.next() * (i + 1));
         const temp = neighbors[i];
@@ -310,182 +282,178 @@ export default function DataPathChallengePage() {
       return false;
     }
 
-    if (dfs(startR, startC)) {
-      return path;
-    }
+    if (dfs(0, 0)) return path;
     return null;
   }
 
   // Load Daily or Custom Challenge
   useEffect(() => {
     if (mode === 'daily') {
-      generateBoard(6, 'easy', true);
-      // Check daily status
+      setSize(8);
+      setDifficulty('hard');
+      generateBoard(8, 'hard', true);
       const today = new Date().toDateString();
       const status = localStorage.getItem(`data_path_daily_played_${today}_${currentTenant?.id || 'demo'}`);
-      if (status === 'true') {
-        setHasPlayedToday(true);
-      } else {
-        setHasPlayedToday(false);
-      }
+      setHasPlayedToday(status === 'true');
     } else {
       generateBoard(size, difficulty, false);
       setHasPlayedToday(false);
     }
   }, [mode, size, difficulty, generateBoard, currentTenant?.id]);
 
-  // Load Leaderboard / Stats
+  // Load Leaderboards
   useEffect(() => {
-    // Simulated global ranking
     setLeaderboard([
-      { name: 'Sofia Steward (Finanzas)', time: '01:12', score: 1250, streak: 8 },
-      { name: 'Mateo CDO (Gobierno)', time: '01:28', score: 1100, streak: 5 },
-      { name: 'Diana Analyst (Riesgos)', time: '01:45', score: 980, streak: 12 },
-      { name: 'Daniel Custodian (TI)', time: '01:59', score: 870, streak: 4 }
+      { name: 'Sofía Steward (Finanzas)', time: '01:12', score: 1250 },
+      { name: 'Mateo CDO (Gobierno)', time: '01:28', score: 1100 },
+      { name: 'Diana Analyst (Riesgos)', time: '01:45', score: 980 }
     ]);
-    const savedStreak = parseInt(localStorage.getItem('data_path_streak') || '0');
-    setStreak(savedStreak);
   }, []);
 
-  // Handle cell interactions (mouse/touch drawing)
-  const startDrawingPath = (cell: Cell) => {
-    if (gameWon || hasPlayedToday) return;
-    const num = board?.numbers[`${cell.r},${cell.c}`];
+  // Agile pointer move coordinate calculation for smooth dragging (prevent lag/drop)
+  const handlePointerMove = useCallback((clientX: number, clientY: number) => {
+    if (!isDraggingRef.current || gameWon || !board || !gridRef.current) return;
     
-    // Path MUST start at 1
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const relativeX = clientX - gridRect.left;
+    const relativeY = clientY - gridRect.top;
+
+    // Map pixel coordinate to cell index
+    const colWidth = gridRect.width / board.cols;
+    const rowHeight = gridRect.height / board.rows;
+
+    const c = Math.floor(relativeX / colWidth);
+    const r = Math.floor(relativeY / rowHeight);
+
+    if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return;
+
+    const currentPath = pathRef.current;
+    if (currentPath.length === 0) return;
+
+    const lastCell = currentPath[currentPath.length - 1];
+
+    // Check if cell is the same as the last cell
+    if (r === lastCell.r && c === lastCell.c) return;
+
+    // Check if dragging back over any cell already in the path for intuitive backtracking / retraction
+    const existingIndex = currentPath.findIndex(cell => cell.r === r && cell.c === c);
+    if (existingIndex !== -1) {
+      if (existingIndex < currentPath.length - 1) {
+        playSound(300, 'sine', 0.05);
+        setPlayerPath(currentPath.slice(0, existingIndex + 1));
+      }
+      return;
+    }
+
+    // Check adjacency
+    const isAdjacent = 
+      (Math.abs(r - lastCell.r) === 1 && c === lastCell.c) ||
+      (Math.abs(c - lastCell.c) === 1 && r === lastCell.r);
+    
+    if (!isAdjacent) return;
+
+    // Check walls constraint (cannot cross walls)
+    if (hasWallBetween(lastCell, { r, c }, board.walls)) return;
+
+    // Validate sequential connect
+    const targetVal = board.numbers[`${r},${c}`];
+    if (targetVal !== undefined) {
+      // Find expected next number in sequence
+      let expected = 2;
+      for (const pCell of currentPath) {
+        const val = board.numbers[`${pCell.r},${pCell.c}`];
+        if (val !== undefined && val === expected) {
+          expected++;
+        }
+      }
+      if (targetVal !== expected) return;
+      playSound(520 + targetVal * 40, 'triangle', 0.15);
+    } else {
+      playSound(400, 'sine', 0.02);
+    }
+
+    // Extend path
+    const newPath = [...currentPath, { r, c }];
+    setPlayerPath(newPath);
+
+    // Check win condition
+    checkWin(newPath);
+  }, [gameWon, board, soundEnabled]);
+
+  const handlePointerUp = useCallback(() => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+  }, []);
+
+  // Listen to mouse/touch move globally for agile, continuous drawing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        // Prevent default screen bounce / page scrolling while drawing the path
+        if (isDraggingRef.current) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchend', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchend', handlePointerUp);
+    };
+  }, [handlePointerMove, handlePointerUp]);
+
+  // Start path connection on click/press on cell 1 or any cell in existing path
+  const handleCellStart = (cell: Cell) => {
+    if (gameWon || hasPlayedToday || !board) return;
+
+    // If clicking / pressing on a cell that is already part of the path, let the user resume drawing from there
+    const pathIndex = playerPath.findIndex(p => p.r === cell.r && p.c === cell.c);
+    if (pathIndex !== -1) {
+      playSound(440, 'sine', 0.1);
+      setPlayerPath(playerPath.slice(0, pathIndex + 1));
+      isDraggingRef.current = true;
+      setIsDragging(true);
+      if (!startTime) setStartTime(Date.now());
+      return;
+    }
+
+    const num = board.numbers[`${cell.r},${cell.c}`];
     if (num === 1) {
-      if (soundEnabled) playSound(440, 'sine', 0.1);
+      playSound(440, 'sine', 0.1);
       setPlayerPath([cell]);
-      setIsDrawing(true);
+      isDraggingRef.current = true;
+      setIsDragging(true);
       if (!startTime) setStartTime(Date.now());
     }
   };
 
-  const drawToCell = (cell: Cell) => {
-    if (!isDrawing || gameWon || playerPath.length === 0) return;
-    
-    // Check if cell is obstacle
-    if (board?.obstacles.has(`${cell.r},${cell.c}`)) return;
-
-    const lastCell = playerPath[playerPath.length - 1];
-    
-    // Check if cell is adjacent
-    const isAdjacent = 
-      (Math.abs(cell.r - lastCell.r) === 1 && cell.c === lastCell.c) ||
-      (Math.abs(cell.c - lastCell.c) === 1 && cell.r === lastCell.r);
-    
-    if (!isAdjacent) return;
-
-    // Check if drawing backward to delete path
-    if (playerPath.length > 1 && cell.r === playerPath[playerPath.length - 2].r && cell.c === playerPath[playerPath.length - 2].c) {
-      if (soundEnabled) playSound(330, 'sine', 0.05);
+  // Undo button action (Deshacer)
+  const undoPath = () => {
+    if (playerPath.length > 1) {
+      playSound(300, 'sine', 0.05);
       setPlayerPath(prev => prev.slice(0, -1));
-      return;
-    }
-
-    // Check if cell is already visited in current path
-    const alreadyVisited = playerPath.some(c => c.r === cell.r && c.c === cell.c);
-    if (alreadyVisited) return;
-
-    // Validate sequential connection constraint
-    // If cell contains a number, it MUST be the next expected number in sequence
-    const cellNum = board?.numbers[`${cell.r},${cell.c}`];
-    if (cellNum !== undefined) {
-      // Find what numbers we already reached in order
-      let expectedNum = 2;
-      for (const p of playerPath) {
-        const n = board?.numbers[`${p.r},${p.c}`];
-        if (n !== undefined && n === expectedNum) {
-          expectedNum++;
-        }
-      }
-      if (cellNum !== expectedNum) return; // Disallow out-of-order connections
-      
-      if (soundEnabled) playSound(520 + cellNum * 40, 'triangle', 0.15);
     } else {
-      if (soundEnabled) playSound(400, 'sine', 0.02);
-    }
-
-    // Extend path
-    const newPath = [...playerPath, cell];
-    setPlayerPath(newPath);
-
-    // Check Win Condition
-    checkWin(newPath);
-  };
-
-  const endDrawingPath = () => {
-    setIsDrawing(false);
-  };
-
-  // Sound Synthesizer using Web Audio API
-  const playSound = (freq: number, type: OscillatorType, duration: number) => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-      
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {
-      // Fallback
+      setPlayerPath([]);
     }
   };
 
-  // Check Win
-  const checkWin = (path: Cell[]) => {
-    if (!board) return;
-    
-    // Check if path length reaches last number
-    const numbersReached = path.filter(p => board.numbers[`${p.r},${p.c}`] !== undefined);
-    
-    if (numbersReached.length === board.maxNumber) {
-      // Verify all celdas (non-obstacles) are filled
-      const totalCells = board.rows * board.cols;
-      const playableCells = totalCells - board.obstacles.size;
-      
-      if (path.length === playableCells) {
-        // WINNER!
-        setGameWon(true);
-        setIsDrawing(false);
-        if (soundEnabled) {
-          playSound(523.25, 'sine', 0.15);
-          setTimeout(() => playSound(659.25, 'sine', 0.15), 150);
-          setTimeout(() => playSound(783.99, 'sine', 0.2), 300);
-          setTimeout(() => playSound(1046.5, 'sine', 0.4), 450);
-        }
-
-        // Calculate score
-        const timeBonus = Math.max(0, 600 - elapsedTime * 2);
-        const hintsPenalty = (3 - hintsLeft) * 100;
-        const totalScore = Math.max(100, 1000 + timeBonus - hintsPenalty);
-        setScore(totalScore);
-
-        if (mode === 'daily') {
-          const today = new Date().toDateString();
-          localStorage.setItem(`data_path_daily_played_${today}_${currentTenant?.id || 'demo'}`, 'true');
-          setHasPlayedToday(true);
-          const newStreak = streak + 1;
-          setStreak(newStreak);
-          localStorage.setItem('data_path_streak', newStreak.toString());
-        }
-      }
-    }
-  };
-
-  // Hint Logic
+  // Hint Logic (Pista)
   const getHint = () => {
     if (hintsLeft <= 0 || gameWon || !board) return;
-    
-    // Pista shows the next correct cell along the solution path
-    // Let's find how much of the solution path matches the player path
     let matchLen = 0;
     for (let i = 0; i < board.solutionPath.length; i++) {
       if (i < playerPath.length && playerPath[i].r === board.solutionPath[i].r && playerPath[i].c === board.solutionPath[i].c) {
@@ -496,19 +464,38 @@ export default function DataPathChallengePage() {
     }
 
     if (matchLen < board.solutionPath.length) {
-      const nextCell = board.solutionPath[matchLen];
-      // Highlight or temporarily place path
       setPlayerPath(board.solutionPath.slice(0, matchLen + 1));
       setHintsLeft(prev => prev - 1);
-      if (soundEnabled) playSound(880, 'sine', 0.3);
+      playSound(880, 'sine', 0.3);
+    }
+  };
+
+  // Check Win
+  const checkWin = (path: Cell[]) => {
+    if (!board) return;
+    const numbersReached = path.filter(p => board.numbers[`${p.r},${p.c}`] !== undefined);
+    if (numbersReached.length === board.maxNumber && path.length === board.rows * board.cols) {
+      setGameWon(true);
+      setIsDragging(false);
+      playSound(1046.5, 'sine', 0.45);
+
+      const timeBonus = Math.max(0, 800 - elapsedTime * 2);
+      const totalScore = 1000 + timeBonus + hintsLeft * 100;
+      setScore(totalScore);
+
+      if (mode === 'daily') {
+        const today = new Date().toDateString();
+        localStorage.setItem(`data_path_daily_played_${today}_${currentTenant?.id || 'demo'}`, 'true');
+        setHasPlayedToday(true);
+        setStreak(prev => prev + 1);
+      }
     }
   };
 
   const handleShare = () => {
-    const today = new Date().toLocaleDateString();
-    const text = `🧠 DATA PATH CHALLENGE™ | RETO DIARIO\n¡Flujo de Datos Restaurado! 🚀\n📅 Fecha: ${today}\n🏆 Score: ${score} pts | ⏱️ Tiempo: ${formatTime(elapsedTime)}\n🔗 ¿Puedes superarme en GovData Nexus?`;
+    const text = `🧠 DATA PATH CHALLENGE™ | RETO DIARIO\n¡Flujo de Datos Restaurado! 🚀\n🏆 Score: ${score} pts | ⏱️ Tiempo: ${formatTime(elapsedTime)}\n🔗 Supera mi racha en GovData Nexus.`;
     navigator.clipboard.writeText(text);
-    alert('¡Copia de resultados lista para compartir en Teams / Slack!');
+    alert('¡Resultados copiados al portapapeles!');
   };
 
   const formatTime = (secs: number) => {
@@ -519,9 +506,10 @@ export default function DataPathChallengePage() {
 
   return (
     <div className={styles.container}>
+      {/* Top Navigation */}
       <div className={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <button onClick={() => window.history.back()} className={styles.backBtn}>
+          <button onClick={() => router.push('/appstore')} className={styles.backBtn}>
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -546,12 +534,11 @@ export default function DataPathChallengePage() {
         </div>
       </div>
 
-      <div className={styles.mainGrid}>
-        {/* Play Panel */}
-        <div className={styles.boardCard}>
+      <div className={styles.mainLayout}>
+        <div className={styles.gameView}>
           {hasPlayedToday && !gameWon ? (
             <div className={styles.lockOverlay}>
-              <Lock size={64} style={{ color: '#059669', marginBottom: '20px' }} />
+              <Lock size={64} style={{ color: '#10b981', marginBottom: '20px' }} />
               <h3>Reto Completado Hoy</h3>
               <p>Has asegurado la gobernanza de datos para el día de hoy. Vuelve a la medianoche para el próximo puzzle.</p>
               <button className={styles.shareBtn} onClick={handleShare} style={{ marginTop: '20px' }}>
@@ -559,69 +546,40 @@ export default function DataPathChallengePage() {
               </button>
             </div>
           ) : (
-            <>
-              {/* Game Control HUD */}
-              <div className={styles.hudHeader}>
-                <div style={{ display: 'flex', gap: '20px' }}>
-                  <div className={styles.hudStat}>
-                    <span>TIEMPO</span>
-                    <strong>{formatTime(elapsedTime)}</strong>
-                  </div>
-                  <div className={styles.hudStat}>
-                    <span>PISTAS</span>
-                    <strong>{hintsLeft}/3</strong>
-                  </div>
-                  {mode === 'daily' && (
-                    <div className={styles.hudStat}>
-                      <span>RACHA</span>
-                      <strong style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Flame size={16} fill="currentColor" /> {streak}
-                      </strong>
-                    </div>
-                  )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              
+              {/* Gameplay Metrics Row */}
+              <div className={styles.hudRow}>
+                <div className={styles.hudItem}>
+                  <span>Tiempo</span>
+                  <strong>{formatTime(elapsedTime)}</strong>
                 </div>
-
+                <div className={styles.hudItem}>
+                  <span>Racha</span>
+                  <strong>🔥 {streak}</strong>
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={() => generateBoard(size, difficulty, mode === 'daily')} 
-                    className={styles.iconBtn}
-                    title="Reiniciar Tablero"
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-                  <button 
-                    onClick={() => setSoundEnabled(!soundEnabled)} 
-                    className={styles.iconBtn}
-                    title={soundEnabled ? "Desactivar Sonido" : "Activar Sonido"}
-                  >
+                  <button onClick={() => setSoundEnabled(!soundEnabled)} className={styles.soundToggle}>
                     {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* Selection HUD for Free Play */}
+              {/* Grid Difficulty Config for Free Mode */}
               {mode === 'free' && (
-                <div className={styles.selectionHud}>
-                  <div className={styles.selectionRow}>
-                    <span>Tablero:</span>
-                    {[6, 8, 10, 12].map(s => (
-                      <button 
-                        key={s} 
-                        className={size === s ? styles.sizeBtnActive : styles.sizeBtn}
-                        onClick={() => setSize(s)}
-                      >
+                <div className={styles.configRow}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Tamaño:</span>
+                    {[6, 8, 10].map(s => (
+                      <button key={s} className={size === s ? styles.cfgBtnActive : styles.cfgBtn} onClick={() => setSize(s)}>
                         {s}x{s}
                       </button>
                     ))}
                   </div>
-                  <div className={styles.selectionRow}>
-                    <span>Dificultad:</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Dificultad:</span>
                     {(['easy', 'medium', 'hard', 'expert'] as const).map(d => (
-                      <button 
-                        key={d} 
-                        className={difficulty === d ? styles.diffBtnActive : styles.diffBtn}
-                        onClick={() => setDifficulty(d)}
-                      >
+                      <button key={d} className={difficulty === d ? styles.cfgBtnActive : styles.cfgBtn} onClick={() => setDifficulty(d)}>
                         {d.toUpperCase()}
                       </button>
                     ))}
@@ -629,22 +587,25 @@ export default function DataPathChallengePage() {
                 </div>
               )}
 
-              {/* The Interactive Logic Grid */}
+              {/* Dynamic Numbrix / Flow Grid */}
               {board && (
                 <div 
+                  ref={gridRef}
                   className={styles.gridContainer}
                   style={{
                     gridTemplateColumns: `repeat(${board.cols}, 1fr)`,
                     gridTemplateRows: `repeat(${board.rows}, 1fr)`
                   }}
-                  onMouseLeave={endDrawingPath}
+                  onMouseDown={(e) => {
+                    // Prevent default dragging behaviors
+                    e.preventDefault();
+                  }}
                 >
-                  {/* Glowing connector lines (SVG overlay) */}
+                  {/* Glowing neon path SVG overlay */}
                   <svg className={styles.svgOverlay}>
                     {playerPath.map((cell, idx) => {
                       if (idx === 0) return null;
                       const prev = playerPath[idx - 1];
-                      // Calculate percentages for positioning line segments
                       const x1 = `${(prev.c + 0.5) * (100 / board.cols)}%`;
                       const y1 = `${(prev.r + 0.5) * (100 / board.rows)}%`;
                       const x2 = `${(cell.c + 0.5) * (100 / board.cols)}%`;
@@ -657,45 +618,65 @@ export default function DataPathChallengePage() {
                           x2={x2}
                           y2={y2}
                           stroke="#10b981"
-                          strokeWidth="8"
+                          strokeWidth="22" // Bold green connecting line like Numbrix Flow
                           strokeLinecap="round"
-                          className={styles.neonLine}
+                          className={styles.greenFlowLine}
                         />
                       );
                     })}
                   </svg>
 
-                  {/* Render Cells */}
+                  {/* Outer & Inner border walls rendering */}
+                  {board.walls.map((wall, idx) => {
+                    // Calculate wall location based on cells
+                    const isHorizontal = wall.r1 === wall.r2; // Wall is vertical between cols
+                    const minR = Math.min(wall.r1, wall.r2);
+                    const minC = Math.min(wall.c1, wall.c2);
+
+                    let style: React.CSSProperties = {};
+                    if (isHorizontal) {
+                      // Vertical wall border
+                      style = {
+                        gridColumnStart: minC + 2,
+                        gridRowStart: minR + 1,
+                        width: '6px',
+                        height: '100%',
+                        left: '-3px',
+                        background: '#000000',
+                        position: 'absolute',
+                        zIndex: 10
+                      };
+                    } else {
+                      // Horizontal wall border
+                      style = {
+                        gridColumnStart: minC + 1,
+                        gridRowStart: minR + 2,
+                        width: '100%',
+                        height: '6px',
+                        top: '-3px',
+                        background: '#000000',
+                        position: 'absolute',
+                        zIndex: 10
+                      };
+                    }
+
+                    return <div key={idx} style={style} />;
+                  })}
+
+                  {/* Render board cells */}
                   {Array.from({ length: board.rows }).map((_, r) => 
                     Array.from({ length: board.cols }).map((_, c) => {
                       const key = `${r},${c}`;
-                      const isObstacle = board.obstacles.has(key);
                       const number = board.numbers[key];
                       const isPath = playerPath.some(cell => cell.r === r && cell.c === c);
                       const isStart = playerPath.length > 0 && playerPath[0].r === r && playerPath[0].c === c;
-                      const isEnd = playerPath.length > 0 && playerPath[playerPath.length - 1].r === r && playerPath[playerPath.length - 1].c === c;
 
                       return (
                         <div
                           key={key}
-                          className={`${styles.cell} ${isObstacle ? styles.obstacle : ''} ${isPath ? styles.pathCell : ''}`}
-                          onMouseDown={() => startDrawingPath({ r, c })}
-                          onMouseEnter={() => drawToCell({ r, c })}
-                          onMouseUp={endDrawingPath}
-                          onTouchStart={() => startDrawingPath({ r, c })}
-                          onTouchMove={(e) => {
-                            // Touch coordinates to cell mapping
-                            const touch = e.touches[0];
-                            const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                            if (elem) {
-                              const rVal = elem.getAttribute('data-r');
-                              const cVal = elem.getAttribute('data-c');
-                              if (rVal !== null && cVal !== null) {
-                                drawToCell({ r: parseInt(rVal), c: parseInt(cVal) });
-                              }
-                            }
-                          }}
-                          onTouchEnd={endDrawingPath}
+                          className={`${styles.cell} ${isPath ? styles.pathCell : ''}`}
+                          onMouseDown={() => handleCellStart({ r, c })}
+                          onTouchStart={() => handleCellStart({ r, c })}
                           data-r={r}
                           data-c={c}
                         >
@@ -706,7 +687,7 @@ export default function DataPathChallengePage() {
                           )}
                           {number && (
                             <span className={styles.thematicLabel}>
-                              {THEMATIC_LABELS[number] || 'Activo'}
+                              {THEMATIC_LABELS[number] || 'Dato'}
                             </span>
                           )}
                         </div>
@@ -716,47 +697,83 @@ export default function DataPathChallengePage() {
                 </div>
               )}
 
-              {/* Hints Button */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-                <button 
-                  onClick={getHint} 
-                  disabled={hintsLeft <= 0 || gameWon} 
-                  className={styles.hintBtn}
-                >
-                  <Sparkles size={16} /> Solicitar Pista ({hintsLeft} restantes)
+              {/* Action Buttons: Deshacer and Pista */}
+              <div className={styles.actionRow}>
+                <button onClick={undoPath} className={styles.undoBtn}>
+                  Deshacer
+                </button>
+                <button onClick={getHint} disabled={hintsLeft <= 0} className={styles.hintBtn}>
+                  Pista
                 </button>
               </div>
-            </>
+
+              {/* Accordion "Cómo se juega" */}
+              <div className={styles.accordion}>
+                <button 
+                  className={styles.accordionHeader} 
+                  onClick={() => setShowHowToPlay(!showHowToPlay)}
+                >
+                  <span>Cómo se juega</span>
+                  {showHowToPlay ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+                
+                <AnimatePresence>
+                  {showHowToPlay && (
+                    <motion.div 
+                      className={styles.accordionContent}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                    >
+                      <div className={styles.howToPlayGrid}>
+                        <div className={styles.howToItem}>
+                          <div className={styles.circleExample}>
+                            <span>1</span>
+                            <span>2</span>
+                            <span>3</span>
+                          </div>
+                          <strong>Conecta los puntos en orden</strong>
+                          <p>Arrastra tu cursor o dedo en orden consecutivo partiendo del nodo 1.</p>
+                        </div>
+                        <div className={styles.howToItem}>
+                          <div className={styles.cellExample}>
+                            <div className={styles.innerPathGlow} />
+                          </div>
+                          <strong>Pasa por cada celda</strong>
+                          <p>El flujo debe recorrer exactamente cada casilla vacía del tablero.</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+            </div>
           )}
         </div>
 
-        {/* Info & Side Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Instructions Card */}
+        {/* Global Rankings and Info Column */}
+        <div className={styles.sideColumn}>
           <div className={styles.sideCard}>
-            <h3>📋 ¿Cómo Jugar?</h3>
-            <ul className={styles.instructionsList}>
-              <li>Haz clic y arrastra desde el <strong>nodo 1</strong>.</li>
-              <li>Conecta la secuencia en orden: <strong>1 ➔ 2 ➔ 3 ➔ 4...</strong> hasta el final.</li>
-              <li>El camino debe llenar <strong>todas las celdas vacías</strong> del tablero.</li>
-              <li>No se puede pasar a través de obstáculos oscuros.</li>
-            </ul>
-          </div>
-
-          {/* Ranking Card */}
-          <div className={styles.sideCard}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Trophy size={18} style={{ color: '#fbbf24' }} /> Ranking Global
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 16px 0', fontSize: '1.1rem' }}>
+              <Trophy size={18} style={{ color: '#fbbf24' }} /> Ranking del Día
             </h3>
             <div className={styles.leaderboard}>
               {leaderboard.map((item, index) => (
                 <div key={index} className={styles.leaderRow}>
                   <span className={styles.leaderPos}>{index + 1}</span>
                   <span className={styles.leaderName}>{item.name}</span>
-                  <span className={styles.leaderTime}>{item.time}</span>
+                  <span className={styles.leaderScore}>{item.score} pts</span>
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className={styles.sideCard} style={{ background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+            <h3>💡 Data Governance Tip</h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
+              La coherencia lógica en la secuencia de flujo de datos asegura un linaje correcto y un diccionario estructurado bajo estándares DAMA.
+            </p>
           </div>
         </div>
       </div>
@@ -776,7 +793,6 @@ export default function DataPathChallengePage() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
             >
-              <CheckCircle size={64} style={{ color: '#10b981', marginBottom: '16px' }} />
               <h2>¡Flujo de Datos Restaurado!</h2>
               <p>Has trazado exitosamente la ruta de gobierno sin brechas.</p>
               
@@ -795,16 +811,8 @@ export default function DataPathChallengePage() {
                 </div>
               </div>
 
-              <div className={styles.statsSummary}>
-                <div>⏱️ Tiempo: <strong>{formatTime(elapsedTime)}</strong></div>
-                <div>🏆 Score Total: <strong>{score} pts</strong></div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-                <button 
-                  className={styles.modalShareBtn} 
-                  onClick={handleShare}
-                >
+              <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '20px' }}>
+                <button className={styles.modalShareBtn} onClick={handleShare}>
                   <Share2 size={16} /> Compartir Resultados
                 </button>
                 <button 
