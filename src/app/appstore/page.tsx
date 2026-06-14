@@ -587,35 +587,98 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
         ctx.fillRect(x, y, 2, 2);
       }
 
-      // Draw player (Nexus Guardian X1)
-      ctx.fillStyle = '#6366f1';
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#6366f1';
+      // Draw player (Nexus Guardian X1 with 3D perspective shading)
+      const centerX = player.x + player.width / 2;
+      const centerY = player.y + player.height / 2;
+
+      // Base body gradient (metallic 3D silver/blue finish)
+      const bodyGrad = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
+      bodyGrad.addColorStop(0, '#1e293b');
+      bodyGrad.addColorStop(0.3, '#3b82f6');
+      bodyGrad.addColorStop(0.5, '#60a5fa');
+      bodyGrad.addColorStop(0.7, '#2563eb');
+      bodyGrad.addColorStop(1, '#0f172a');
+
+      ctx.fillStyle = bodyGrad;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
+      
+      // Draw 3D wings
       ctx.beginPath();
-      ctx.moveTo(player.x + player.width / 2, player.y);
+      ctx.moveTo(centerX, player.y);
       ctx.lineTo(player.x + player.width, player.y + player.height);
+      ctx.lineTo(centerX + 6, player.y + player.height - 8);
+      ctx.lineTo(centerX - 6, player.y + player.height - 8);
       ctx.lineTo(player.x, player.y + player.height);
       ctx.closePath();
       ctx.fill();
 
-      // Engine light
-      ctx.fillStyle = '#d946ef';
+      // Draw 3D center canopy (glass cabin with cyan glow)
+      const canopyGrad = ctx.createLinearGradient(centerX - 6, player.y + 10, centerX + 6, player.y + 25);
+      canopyGrad.addColorStop(0, '#06b6d4');
+      canopyGrad.addColorStop(1, '#0891b2');
+      ctx.fillStyle = canopyGrad;
       ctx.beginPath();
-      ctx.arc(player.x + player.width / 2, player.y + player.height + 2, 6, 0, Math.PI * 2);
+      ctx.moveTo(centerX, player.y + 8);
+      ctx.lineTo(centerX + 6, player.y + 25);
+      ctx.lineTo(centerX - 6, player.y + 25);
+      ctx.closePath();
+      ctx.fill();
+
+      // Engine quantum light (3D flame thruster)
+      const thrusterSize = 10 + Math.random() * 8;
+      const engineGrad = ctx.createRadialGradient(centerX, player.y + player.height, 2, centerX, player.y + player.height, thrusterSize);
+      engineGrad.addColorStop(0, '#ffffff');
+      engineGrad.addColorStop(0.2, '#f472b6');
+      engineGrad.addColorStop(0.6, '#db2777');
+      engineGrad.addColorStop(1, 'rgba(219, 39, 119, 0)');
+      
+      ctx.fillStyle = engineGrad;
+      ctx.beginPath();
+      ctx.arc(centerX, player.y + player.height + 2, thrusterSize, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Draw enemies with neon rings
+      // Draw enemies with 3D voxel / isometric vector aesthetic
       enemies.forEach(enemy => {
-        ctx.strokeStyle = enemy.color;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = enemy.color;
-        ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        const eCenterX = enemy.x + enemy.width / 2;
+        const eCenterY = enemy.y + enemy.height / 2;
 
-        // Core weakness color tag
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = enemy.color;
+
+        // Draw isometric / 3D front face (brightest)
         ctx.fillStyle = enemy.color;
-        ctx.fillRect(enemy.x + 10, enemy.y + 10, enemy.width - 20, enemy.height - 20);
+        ctx.beginPath();
+        ctx.moveTo(eCenterX, enemy.y); // top center
+        ctx.lineTo(enemy.x + enemy.width - 4, enemy.y + enemy.height / 3); // right wing
+        ctx.lineTo(enemy.x + enemy.width - 8, enemy.y + enemy.height - 4); // right bottom
+        ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4); // left bottom
+        ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3); // left wing
+        ctx.closePath();
+        ctx.fill();
+
+        // 3D Shadow Overlay (darker side facet for depth)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(eCenterX, enemy.y);
+        ctx.lineTo(eCenterX, enemy.y + enemy.height - 4);
+        ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4);
+        ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glowing 3D core eye (representing vulnerable data field)
+        const eyePulse = 4 + Math.sin(Date.now() / 150) * 1.5;
+        const eyeGrad = ctx.createRadialGradient(eCenterX, eCenterY, 1, eCenterX, eCenterY, eyePulse);
+        eyeGrad.addColorStop(0, '#ffffff');
+        eyeGrad.addColorStop(0.4, enemy.color);
+        eyeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = eyeGrad;
+        ctx.beginPath();
+        ctx.arc(eCenterX, eCenterY, eyePulse, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
       });
 
