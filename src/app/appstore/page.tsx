@@ -639,7 +639,7 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Draw enemies with 3D voxel / isometric vector aesthetic
+      // Draw enemies with 3D custom structures aligned to GDD
       enemies.forEach(enemy => {
         const eCenterX = enemy.x + enemy.width / 2;
         const eCenterY = enemy.y + enemy.height / 2;
@@ -647,28 +647,144 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
         ctx.shadowBlur = 15;
         ctx.shadowColor = enemy.color;
 
-        // Draw isometric / 3D front face (brightest)
-        ctx.fillStyle = enemy.color;
-        ctx.beginPath();
-        ctx.moveTo(eCenterX, enemy.y); // top center
-        ctx.lineTo(enemy.x + enemy.width - 4, enemy.y + enemy.height / 3); // right wing
-        ctx.lineTo(enemy.x + enemy.width - 8, enemy.y + enemy.height - 4); // right bottom
-        ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4); // left bottom
-        ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3); // left wing
-        ctx.closePath();
-        ctx.fill();
+        if (enemy.type === 'Clone Records') {
+          // 👾 DUPLICATE DESTROYER: Mechanical construct with clone arms
+          // Draw Main 3D Box/Core
+          ctx.fillStyle = '#10b981';
+          ctx.fillRect(enemy.x + 4, enemy.y + 4, enemy.width - 8, enemy.height - 8);
+          // Dark overlay side for 3D depth
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+          ctx.fillRect(enemy.x + 4, enemy.y + 4, (enemy.width - 8) / 2, enemy.height - 8);
+          
+          // Draw left and right mechanical claw arms
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(enemy.x, enemy.y + 10);
+          ctx.lineTo(enemy.x - 6, enemy.y + 16);
+          ctx.lineTo(enemy.x - 2, enemy.y + 26);
+          ctx.stroke();
 
-        // 3D Shadow Overlay (darker side facet for depth)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.beginPath();
-        ctx.moveTo(eCenterX, enemy.y);
-        ctx.lineTo(eCenterX, enemy.y + enemy.height - 4);
-        ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4);
-        ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3);
-        ctx.closePath();
-        ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(enemy.x + enemy.width, enemy.y + 10);
+          ctx.lineTo(enemy.x + enemy.width + 6, enemy.y + 16);
+          ctx.lineTo(enemy.x + enemy.width + 2, enemy.y + 26);
+          ctx.stroke();
+        } 
+        else if (enemy.type === 'Compliance Raiders') {
+          // 👾 COMPLIANCE PREDATOR: Biomechanical armor & giant jaw
+          ctx.fillStyle = '#eab308';
+          // Draw dark helmet/armor upper
+          ctx.beginPath();
+          ctx.moveTo(enemy.x, enemy.y + 10);
+          ctx.lineTo(eCenterX, enemy.y);
+          ctx.lineTo(enemy.x + enemy.width, enemy.y + 10);
+          ctx.lineTo(enemy.x + enemy.width - 6, enemy.y + 24);
+          ctx.lineTo(enemy.x + 6, enemy.y + 24);
+          ctx.closePath();
+          ctx.fill();
 
-        // Glowing 3D core eye (representing vulnerable data field)
+          // 3D Shadow
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.beginPath();
+          ctx.moveTo(enemy.x, enemy.y + 10);
+          ctx.lineTo(eCenterX, enemy.y);
+          ctx.lineTo(eCenterX, enemy.y + 24);
+          ctx.lineTo(enemy.x + 6, enemy.y + 24);
+          ctx.closePath();
+          ctx.fill();
+
+          // Glowing mechanical yellow claws / jaw lines
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(enemy.x + 8, enemy.y + 24);
+          ctx.lineTo(enemy.x + 2, enemy.y + 32);
+          ctx.lineTo(eCenterX, enemy.y + 26);
+          ctx.lineTo(enemy.x + enemy.width - 2, enemy.y + 32);
+          ctx.lineTo(enemy.x + enemy.width - 8, enemy.y + 24);
+          ctx.stroke();
+        } 
+        else if (enemy.type === 'Missing Fields') {
+          // 👾 NULL PHANTOM: Ghostly floating shards (parpadeon en CSS/canvas)
+          const isFaded = Math.sin(Date.now() / 80) > 0;
+          ctx.fillStyle = isFaded ? 'rgba(6, 182, 212, 0.2)' : 'rgba(6, 182, 212, 0.85)';
+          
+          // Draw main floating diamond shard
+          ctx.beginPath();
+          ctx.moveTo(eCenterX, enemy.y);
+          ctx.lineTo(enemy.x + enemy.width - 6, eCenterY);
+          ctx.lineTo(eCenterX, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x + 6, eCenterY);
+          ctx.closePath();
+          ctx.fill();
+
+          // Left facet shadow
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(eCenterX, enemy.y);
+          ctx.lineTo(eCenterX, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x + 6, eCenterY);
+          ctx.closePath();
+          ctx.fill();
+        }
+        else if (enemy.type === 'Legacy Monsters') {
+          // 👾 METADATA REAPER / LEGACY MONSTER: Heavy tank / guadaña digital
+          // Draw Heavy 3D Base
+          ctx.fillStyle = '#8b5cf6';
+          ctx.beginPath();
+          ctx.moveTo(enemy.x + 8, enemy.y);
+          ctx.lineTo(enemy.x + enemy.width - 8, enemy.y);
+          ctx.lineTo(enemy.x + enemy.width, enemy.y + 20);
+          ctx.lineTo(enemy.x + enemy.width - 4, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x + 4, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x, enemy.y + 20);
+          ctx.closePath();
+          ctx.fill();
+
+          // 3D Dark Facet
+          ctx.fillStyle = 'rgba(0,0,0,0.35)';
+          ctx.beginPath();
+          ctx.moveTo(enemy.x + 8, enemy.y);
+          ctx.lineTo(eCenterX, enemy.y);
+          ctx.lineTo(eCenterX, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x + 4, enemy.y + enemy.height);
+          ctx.lineTo(enemy.x, enemy.y + 20);
+          ctx.closePath();
+          ctx.fill();
+
+          // Reaper Digital Scythe Lines
+          ctx.strokeStyle = '#a78bfa';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(enemy.x + 8, enemy.y + 4);
+          ctx.lineTo(enemy.x - 4, enemy.y - 4);
+          ctx.lineTo(enemy.x + 12, enemy.y - 4);
+          ctx.stroke();
+        }
+        else {
+          // DEFAULT 3D ALIEN: Isometric voxel structure
+          ctx.fillStyle = enemy.color;
+          ctx.beginPath();
+          ctx.moveTo(eCenterX, enemy.y); 
+          ctx.lineTo(enemy.x + enemy.width - 4, enemy.y + enemy.height / 3); 
+          ctx.lineTo(enemy.x + enemy.width - 8, enemy.y + enemy.height - 4); 
+          ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4); 
+          ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3); 
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+          ctx.beginPath();
+          ctx.moveTo(eCenterX, enemy.y);
+          ctx.lineTo(eCenterX, enemy.y + enemy.height - 4);
+          ctx.lineTo(enemy.x + 8, enemy.y + enemy.height - 4);
+          ctx.lineTo(enemy.x + 4, enemy.y + enemy.height / 3);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Glowing 3D central eye core (Vulnerability core point)
         const eyePulse = 4 + Math.sin(Date.now() / 150) * 1.5;
         const eyeGrad = ctx.createRadialGradient(eCenterX, eCenterY, 1, eCenterX, eCenterY, eyePulse);
         eyeGrad.addColorStop(0, '#ffffff');
