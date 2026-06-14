@@ -602,28 +602,22 @@ export default function DataPathChallengePage() {
                   }}
                 >
                   {/* Glowing neon path SVG overlay */}
-                  <svg className={styles.svgOverlay}>
-                    {playerPath.map((cell, idx) => {
-                      if (idx === 0) return null;
-                      const prev = playerPath[idx - 1];
-                      const x1 = `${(prev.c + 0.5) * (100 / board.cols)}%`;
-                      const y1 = `${(prev.r + 0.5) * (100 / board.rows)}%`;
-                      const x2 = `${(cell.c + 0.5) * (100 / board.cols)}%`;
-                      const y2 = `${(cell.r + 0.5) * (100 / board.rows)}%`;
-                      return (
-                        <line 
-                          key={idx}
-                          x1={x1}
-                          y1={y1}
-                          x2={x2}
-                          y2={y2}
-                          stroke="#10b981"
-                          strokeWidth="22" // Bold green connecting line like Numbrix Flow
-                          strokeLinecap="round"
-                          className={styles.greenFlowLine}
-                        />
-                      );
-                    })}
+                  <svg className={styles.svgOverlay} viewBox="0 0 400 400">
+                    {playerPath.length > 0 && (
+                      <path
+                        d={playerPath.map((cell, idx) => {
+                          const x = (cell.c + 0.5) * (400 / board.cols);
+                          const y = (cell.r + 0.5) * (400 / board.rows);
+                          return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+                        }).join(' ')}
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth={400 / board.cols * 0.46} // 46% of cell width
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={styles.greenFlowLine}
+                      />
+                    )}
                   </svg>
 
                   {/* Outer & Inner border walls rendering */}
@@ -671,6 +665,10 @@ export default function DataPathChallengePage() {
                       const isPath = playerPath.some(cell => cell.r === r && cell.c === c);
                       const isStart = playerPath.length > 0 && playerPath[0].r === r && playerPath[0].c === c;
 
+                      const cellWidth = 480 / board.cols;
+                      const circleSize = Math.max(26, cellWidth * 0.65);
+                      const fontSize = circleSize * 0.52;
+
                       return (
                         <div
                           key={key}
@@ -681,7 +679,14 @@ export default function DataPathChallengePage() {
                           data-c={c}
                         >
                           {number && (
-                            <div className={`${styles.nodeNumber} ${isStart ? styles.startNode : ''}`}>
+                            <div 
+                              className={`${styles.nodeNumber} ${isStart ? styles.startNode : ''}`}
+                              style={{
+                                width: `${circleSize}px`,
+                                height: `${circleSize}px`,
+                                fontSize: `${fontSize}px`
+                              }}
+                            >
                               {number}
                             </div>
                           )}
