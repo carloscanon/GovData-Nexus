@@ -193,6 +193,8 @@
   width: 100%;
   max-width: 480px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+  touch-action: none;
+  user-select: none;
 }
 
 .cell {
@@ -203,6 +205,7 @@
   align-items: center;
   justify-content: center;
   user-select: none;
+  touch-action: none;
 }
 
 .pathCell {

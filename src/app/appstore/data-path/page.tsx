@@ -113,6 +113,11 @@ export default function DataPathChallengePage() {
   const pathRef = useRef<Cell[]>([]);
   pathRef.current = playerPath;
 
+  const updatePath = (newPath: Cell[]) => {
+    pathRef.current = newPath;
+    setPlayerPath(newPath);
+  };
+
   const isDraggingRef = useRef(false);
 
   // Sound Synthesizer using Web Audio API
@@ -235,7 +240,7 @@ export default function DataPathChallengePage() {
           solutionPath: path,
           seed: seedValue
         });
-        setPlayerPath([]);
+        updatePath([]);
         isDraggingRef.current = false;
         setIsDragging(false);
         setGameWon(false);
@@ -340,7 +345,7 @@ export default function DataPathChallengePage() {
     if (existingIndex !== -1) {
       if (existingIndex < currentPath.length - 1) {
         playSound(300, 'sine', 0.05);
-        setPlayerPath(currentPath.slice(0, existingIndex + 1));
+        updatePath(currentPath.slice(0, existingIndex + 1));
       }
       return;
     }
@@ -374,7 +379,7 @@ export default function DataPathChallengePage() {
 
     // Extend path
     const newPath = [...currentPath, { r, c }];
-    setPlayerPath(newPath);
+    updatePath(newPath);
 
     // Check win condition
     checkWin(newPath);
@@ -424,7 +429,7 @@ export default function DataPathChallengePage() {
     const pathIndex = playerPath.findIndex(p => p.r === cell.r && p.c === cell.c);
     if (pathIndex !== -1) {
       playSound(440, 'sine', 0.1);
-      setPlayerPath(playerPath.slice(0, pathIndex + 1));
+      updatePath(playerPath.slice(0, pathIndex + 1));
       isDraggingRef.current = true;
       setIsDragging(true);
       if (!startTime) setStartTime(Date.now());
@@ -434,7 +439,7 @@ export default function DataPathChallengePage() {
     const num = board.numbers[`${cell.r},${cell.c}`];
     if (num === 1) {
       playSound(440, 'sine', 0.1);
-      setPlayerPath([cell]);
+      updatePath([cell]);
       isDraggingRef.current = true;
       setIsDragging(true);
       if (!startTime) setStartTime(Date.now());
@@ -445,9 +450,9 @@ export default function DataPathChallengePage() {
   const undoPath = () => {
     if (playerPath.length > 1) {
       playSound(300, 'sine', 0.05);
-      setPlayerPath(prev => prev.slice(0, -1));
+      updatePath(playerPath.slice(0, -1));
     } else {
-      setPlayerPath([]);
+      updatePath([]);
     }
   };
 
@@ -464,7 +469,7 @@ export default function DataPathChallengePage() {
     }
 
     if (matchLen < board.solutionPath.length) {
-      setPlayerPath(board.solutionPath.slice(0, matchLen + 1));
+      updatePath(board.solutionPath.slice(0, matchLen + 1));
       setHintsLeft(prev => prev - 1);
       playSound(880, 'sine', 0.3);
     }

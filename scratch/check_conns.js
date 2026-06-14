@@ -1,9 +1,26 @@
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient('https://vojsoqmhqorysapimutp.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvanNvcW1ocW9yeXNhcGltdXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDQ0NDEsImV4cCI6MjA5NDI4MDQ0MX0.UOrXo-87DNp2vXjS6lEnEGFfTeUVOyTEvN4ozZs4bXk');
+const { Pool } = require('pg');
 
-async function main() {
-  const { data, error } = await supabase.from('data_connections').select('*');
-  console.log("CONNECTIONS IN DB:");
-  console.log(JSON.stringify(data, null, 2));
+const pool = new Pool({
+  host: 'aws-1-us-east-1.pooler.supabase.com',
+  user: 'postgres.vojsoqmhqorysapimutp',
+  password: 'Consultores2026*',
+  port: 5432,
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false }
+});
+
+async function run() {
+  try {
+    const resCount = await pool.query('SELECT count(*) FROM public.saas_connections');
+    console.log(`Total connections seeded: ${resCount.rows[0].count}`);
+    
+    const resSample = await pool.query('SELECT user_name, user_email, user_role, status FROM public.saas_connections LIMIT 5');
+    console.log('Sample connections:');
+    console.log(resSample.rows);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    await pool.end();
+  }
 }
-main();
+run();
