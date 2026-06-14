@@ -826,6 +826,82 @@ const PHASES: Phase[] = [
         problemSolved: 'Soluciona la falta de salvaguardas reales e implementadas para auditar el cumplimiento regulatorio.',
         riskMitigated: 'Disminuye dramáticamente el riesgo de filtraciones y pérdida de integridad en la transmisión de datos.',
         businessBenefit: 'Prepara a la organización para pasar auditorías internacionales (ISO, SOC2) sin contratiempos.'
+      },
+      {
+        id: 'p2_stewardship',
+        title: 'Custodia de Políticas y Procedimientos',
+        context: 'Asigna custodios (Data Stewards) a las directivas de datos redactadas para garantizar su cumplimiento.',
+        expectedResult: 'Registrar al menos 7 políticas en el sistema para evidenciar la delegación de custodia.',
+        moduleHref: '/policies',
+        btnLabel: 'Asignar Custodia',
+        checkTable: 'data_policies',
+        checkKey: 'policy_stewardship',
+        whyDoIt: 'Garantizar que las políticas tengan un doliente operativo en el negocio que vele por su adopción.',
+        damaGuide: 'Cada política de datos debe tener un Data Steward asignado formalmente en el Catálogo de Roles.',
+        commonError: 'Dejar políticas huérfanas sin steward que las socialice y verifique.',
+        realExample: 'Asignación de la Política de Retención Contable al Steward de Finanzas.',
+        tips: 'Asocia cada política con su steward y su canal de comunicación en Slack o Teams.',
+        whyImportant: 'Asegura que el manual de políticas no sea letra muerta, sino una guía activa supervisada.',
+        problemSolved: 'Elimina el abandono normativo y la falta de supervisión directa de las reglas de datos.',
+        riskMitigated: 'Reduce la inoperancia regulatoria por falta de asignación de responsabilidades directas.',
+        businessBenefit: 'Mejora del 40% en la tasa de adopción de estándares por parte de los equipos de ingeniería.'
+      },
+      {
+        id: 'p2_privacy_consent',
+        title: 'Consentimiento de Privacidad y Controles',
+        context: 'Configura las directivas de captura de consentimiento explícito (Opt-in) del cliente para cumplir Habeas Data.',
+        expectedResult: 'Implementar al menos 4 controles de seguridad orientados a privacidad y consentimiento.',
+        moduleHref: '/security',
+        btnLabel: 'Configurar Privacidad',
+        checkTable: 'security_controls',
+        checkKey: 'privacy_consent',
+        whyDoIt: 'Evitar sanciones de entes de control por recolectar o utilizar datos sin autorización legal.',
+        damaGuide: 'El gobierno de datos debe asegurar que los metadatos de consentimiento viajen con el registro del cliente.',
+        commonError: 'Guardar consentimientos en formatos físicos sueltos o PDF no indexables en base de datos.',
+        realExample: 'Control: Consentimiento digital unificado de Habeas Data para clientes e-commerce.',
+        tips: 'Crea una columna en la tabla maestra de clientes para el flag digital de autorización.',
+        whyImportant: 'Cumple el principio legal de libertad y finalidad en el tratamiento de datos sensibles.',
+        problemSolved: 'Resuelve el uso ilícito de datos para campañas publicitarias o analíticas de negocio.',
+        riskMitigated: 'Mitiga multas millonarias de superintendencias por denuncias de spam o filtraciones.',
+        businessBenefit: 'Construye confianza digital con tus clientes incrementando la lealtad de marca.'
+      },
+      {
+        id: 'p2_mitigation_actions',
+        title: 'Remediación de Riesgos de Seguridad',
+        context: 'Define planes de contingencia detallados y controles mitigantes para los riesgos críticos identificados.',
+        expectedResult: 'Registrar al menos 4 riesgos de seguridad detallando su plan de acción correctivo.',
+        moduleHref: '/security',
+        btnLabel: 'Remediar Riesgos',
+        checkTable: 'security_risks',
+        checkKey: 'mitigation_actions',
+        whyDoIt: 'Reducir la severidad residual de los riesgos informáticos a un nivel aceptable para la junta.',
+        damaGuide: 'DAMA exige que los riesgos de datos se mitiguen mediante controles lógicos, físicos o de proceso.',
+        commonError: 'Documentar riesgos sin especificar fechas límite o personas responsables de la remediación.',
+        realExample: 'Instalación de tokenización automática para mitigar accesos directos de TI a tarjetas.',
+        tips: 'Revisa trimestralmente la efectividad de cada plan de remediación en el comité.',
+        whyImportant: 'Transforma un inventario pasivo de amenazas en un plan dinámico de defensa cibernética.',
+        problemSolved: 'Soluciona la inactividad operativa ante vulnerabilidades conocidas en la infraestructura.',
+        riskMitigated: 'Reduce el impacto financiero y reputacional de ataques por denegación de servicio o ransomware.',
+        businessBenefit: 'Protección proactiva del core corporativo reduciendo incidentes severos de seguridad.'
+      },
+      {
+        id: 'p2_normative_audit',
+        title: 'Auditoría de Normativas y Cumplimiento',
+        context: 'Evalúa el cumplimiento de las políticas publicadas mediante flujos de auditoría periódicos.',
+        expectedResult: 'Haber configurado y publicado al menos 3 flujos normativos de aprobación en la plataforma.',
+        moduleHref: '/policies',
+        btnLabel: 'Auditar Políticas',
+        checkTable: 'policy_workflows',
+        checkKey: 'normative_audit',
+        whyDoIt: 'Certificar ante auditores externos que los flujos de cambio y políticas están vigentes y supervisados.',
+        damaGuide: 'La gobernanza requiere auditorías independientes para verificar la efectividad de las directivas.',
+        commonError: 'Asumir que las políticas se cumplen solas sin correr procesos periódicos de verificación.',
+        realExample: 'Auditoría semestral del flujo de aprobación del glosario con firmas del CDO y Stewards.',
+        tips: 'Exporta el historial de logs de flujos de aprobación en formato PDF para el reporte de auditoría.',
+        whyImportant: 'Garantiza la trazabilidad legal del ciclo de vida de las políticas de la organización.',
+        problemSolved: 'Evita fallos normativos graves por la existencia de políticas desactualizadas o ignoradas.',
+        riskMitigated: 'Mitiga el riesgo de pérdida de certificaciones de calidad (ISO 9001, 27001) por falta de traza.',
+        businessBenefit: 'Otorga transparencia total ante socios e inversionistas sobre la madurez regulatoria del negocio.'
       }
     ]
   },
@@ -915,6 +991,82 @@ const PHASES: Phase[] = [
         problemSolved: 'Termina con la confusión de los desarrolladores sobre qué columnas contienen información restringida.',
         riskMitigated: 'Previene fugas accidentales al identificar exactamente qué columnas almacenan contraseñas o PII.',
         businessBenefit: 'Facilita la gobernanza técnica de bases de datos acelerando integraciones de software.'
+      },
+      {
+        id: 'p3_catalog_classification',
+        title: 'Clasificación de Criticidad de Datos',
+        context: 'Categoriza tus activos de información importados según su sensibilidad ante fugas (PII, PCI, Confidencial).',
+        expectedResult: 'Tener al menos 8 activos clasificados formalmente con etiquetas de criticidad en el Catálogo.',
+        moduleHref: '/catalog',
+        btnLabel: 'Clasificar Activos',
+        checkTable: 'data_assets',
+        checkKey: 'catalog_classification',
+        whyDoIt: 'Aplicar controles de enmascaramiento y accesos estrictos priorizando las tablas más críticas.',
+        damaGuide: 'La taxonomía de datos debe dividir los activos en públicos, restringidos y confidenciales para seguridad de datos.',
+        commonError: 'Catalogar todos los activos como confidenciales, ralentizando los accesos legítimos de BI.',
+        realExample: 'Clasificación de la tabla `core_tarjetas_credito` como Altamente Crítica (PCI).',
+        tips: 'Utiliza el glosario de términos para asociar automáticamente clasificaciones de sensibilidad.',
+        whyImportant: 'Determina las salvaguardas de cifrado y auditoría a nivel de tabla según su criticidad.',
+        problemSolved: 'Evita accesos accidentales a datos reservados por analistas no autorizados.',
+        riskMitigated: 'Minimiza la superficie de ataque limitando la visibilidad de datos sensibles del cliente.',
+        businessBenefit: 'Cumplimiento del 100% en auditorías de protección de datos personales a nivel de activos.'
+      },
+      {
+        id: 'p3_lineage_mapping',
+        title: 'Mapeo de Linaje Técnico Completo',
+        context: 'Documenta el flujo del dato desde su origen físico en la base de datos origen hasta el reporte final.',
+        expectedResult: 'Completar la documentación de linaje técnico para al menos 8 campos de base de datos.',
+        moduleHref: '/metadata',
+        btnLabel: 'Trazar Linaje',
+        checkTable: 'asset_fields',
+        checkKey: 'lineage_mapping',
+        whyDoIt: 'Entender el impacto de cambiar una columna de base de datos en los reportes de los directivos.',
+        damaGuide: 'El linaje de datos representa el flujo histórico (origen, transformación, destino) de la información.',
+        commonError: 'Dibujar linajes parciales que omiten transformaciones complejas en el pipeline ETL.',
+        realExample: 'Linaje: `Postgres.transacciones.monto` -> `ETL` -> `Snowflake.fact_ventas.total`.',
+        tips: 'Registra los nombres de los esquemas y las ETLs en la descripción del campo en el diccionario.',
+        whyImportant: 'Permite hacer análisis de impacto ágiles antes de realizar migraciones o refactorizaciones.',
+        problemSolved: 'Resuelve descuadres contables rastreando exactamente dónde se modificó o alteró un valor.',
+        riskMitigated: 'Evita reportes directivos rotos o vacíos por la eliminación inadvertida de columnas en origen.',
+        businessBenefit: 'Reducción del 70% en tiempos de soporte técnico de bases de datos e integraciones.'
+      },
+      {
+        id: 'p3_rules_dimensions',
+        title: 'Dimensiones de Calidad Avanzadas',
+        context: 'Crea reglas lógicas para validar dimensiones complejas de DAMA como consistencia referencial y precisión.',
+        expectedResult: 'Tener al menos 7 reglas de calidad activas cubriendo múltiples dimensiones.',
+        moduleHref: '/quality',
+        btnLabel: 'Reglas Avanzadas',
+        checkTable: 'quality_rules',
+        checkKey: 'rules_dimensions',
+        whyDoIt: 'Superar la validación básica de nulos y validar reglas lógicas cruzadas de negocio.',
+        damaGuide: 'DAMA recomienda aplicar perfiles de calidad sobre consistencia e integridad referencial cruzada.',
+        commonError: 'Crear reglas redundantes que ralentizan los procesos de escaneo sin aportar valor.',
+        realExample: 'Regla: Si `estado_cuenta` es "Activo", `saldo_disponible` no puede ser negativo.',
+        tips: 'Asocia las reglas lógicas a campos calculados para auditar su consistencia matemática.',
+        whyImportant: 'Garantiza la congruencia lógica de los datos de negocio en múltiples tablas.',
+        problemSolved: 'Elimina registros contradictorios que confunden a los directores en los dashboards.',
+        riskMitigated: 'Previene pérdidas de inventario físico por descuadres de stock lógicos no validados.',
+        businessBenefit: 'Genera información impecable y consistente para alimentar algoritmos de inteligencia artificial.'
+      },
+      {
+        id: 'p3_source_types',
+        title: 'Homologación de Orígenes de Datos',
+        context: 'Configura y cataloga conexiones físicas a diferentes tecnologías de bases de datos corporativas.',
+        expectedResult: 'Registrar y homologar al menos 4 orígenes o conexiones de datos en el sistema.',
+        moduleHref: '/catalog',
+        btnLabel: 'Homologar Orígenes',
+        checkTable: 'data_connections',
+        checkKey: 'source_types',
+        whyDoIt: 'Unificar el catálogo técnico independientemente de si los datos están en SQL Server, Snowflake o APIs.',
+        damaGuide: 'El catálogo de metadatos corporativo debe unificar todas las fuentes críticas de la compañía.',
+        commonError: 'Excluir servidores legacy del catálogo, manteniendo silos de datos ciegos al gobierno.',
+        realExample: 'Conexión a Oracle Contable, Snowflake Warehouse y MongoDB transaccional en la nube.',
+        tips: 'Utiliza nombres estandarizados en las conexiones para categorizarlas por entorno (QA, Prod).',
+        whyImportant: 'Establece la infraestructura del inventario del patrimonio de datos de la empresa.',
+        problemSolved: 'Termina con la fragmentación de la información unificando la vista del equipo tecnológico.',
+        riskMitigated: 'Previene la brecha de ciberseguridad sobre motores de datos antiguos no inventariados.',
+        businessBenefit: 'Permite un gobierno ágil en arquitecturas multi-nube y entornos híbridos complejos.'
       }
     ]
   },
@@ -1004,6 +1156,82 @@ const PHASES: Phase[] = [
         problemSolved: 'Resuelve la duda existencial de si la gobernanza de datos está realmente dando frutos prácticos.',
         riskMitigated: 'Previene la degradación silenciosa de la calidad de las tablas clave de la compañía.',
         businessBenefit: 'Sirve como justificación irrefutable del éxito del programa de gobierno ante la junta directiva.'
+      },
+      {
+        id: 'p4_workflows_sla',
+        title: 'Acuerdos de Niveles de Servicio (SLA)',
+        context: 'Monitorea los tiempos de respuesta y cierre de solicitudes en tus flujos de trabajo operativos.',
+        expectedResult: 'Tener al menos 4 flujos resueltos en el sistema para auditar los SLAs de atención del equipo.',
+        moduleHref: '/workflows',
+        btnLabel: 'Auditar SLAs',
+        checkTable: 'workflow_requests',
+        checkKey: 'workflows_sla',
+        whyDoIt: 'Asegurar que el gobierno no sea un cuello de botella y responda con agilidad al negocio.',
+        damaGuide: 'Los SLAs del gobierno de datos deben medir la velocidad en otorgar accesos y aprobar términos.',
+        commonError: 'Ignorar los cuellos de botella en la mesa de ayuda, desincentivando el uso de flujos gobernados.',
+        realExample: 'Tiempo promedio de aprobación de acceso reducido de 5 días a 4 horas.',
+        tips: 'Define notificaciones automáticas para alertar sobre solicitudes estancadas.',
+        whyImportant: 'Garantiza la operatividad y eficiencia de la oficina del CDO frente a las áreas de negocio.',
+        problemSolved: 'Evita demoras excesivas en proyectos analíticos por falta de aprobaciones a tiempo.',
+        riskMitigated: 'Mitiga el riesgo de elusión de canales de gobierno por parte de TI debido a demoras administrativas.',
+        businessBenefit: 'Mejora del 60% en la percepción de agilidad del equipo de datos por parte de la empresa.'
+      },
+      {
+        id: 'p4_quality_remediation',
+        title: 'Plan de Remediación de Calidad',
+        context: 'Ejecuta y documenta planes correctivos de causa raíz sobre incidentes de calidad reportados.',
+        expectedResult: 'Registrar y remediar formalmente al menos 4 incidentes de calidad de datos en la mesa.',
+        moduleHref: '/quality',
+        btnLabel: 'Mesa de Calidad',
+        checkTable: 'quality_incidents',
+        checkKey: 'quality_remediation',
+        whyDoIt: 'Cerrar de forma auditable los incidentes de calidad impidiendo que se repitan en producción.',
+        damaGuide: 'La remediación de calidad requiere documentar la acción definitiva de solución y la regla preventiva.',
+        commonError: 'Marcar incidentes como resueltos aplicando parches manuales sin corregir el pipeline origen.',
+        realExample: 'Cierre del incidente de SKUs nulos tras implementar validación obligatoria en el ERP.',
+        tips: 'Asocia el incidente con la regla de calidad que lo detectó para automatizar el cierre.',
+        whyImportant: 'Garantiza que el equipo ejecute mejoras definitivas en el software y en las bases de datos.',
+        problemSolved: 'Acaba con los reportes financieros erróneos recurrentes que dañan los cierres mensuales.',
+        riskMitigated: 'Previene multas fiscales por el envío involuntario de reportes de impuestos con valores nulos.',
+        businessBenefit: 'Reducción del 80% en la reincidencia de fallas graves en las bases de datos core.'
+      },
+      {
+        id: 'p4_security_mitigation',
+        title: 'Contención de Incidentes de Seguridad',
+        context: 'Registra las acciones inmediatas de bloqueo y los controles preventivos aplicados tras un incidente de seguridad.',
+        expectedResult: 'Registrar e implementar medidas de contención para al menos 4 incidentes de seguridad.',
+        moduleHref: '/security',
+        btnLabel: 'Contención Seguridad',
+        checkTable: 'security_incidents',
+        checkKey: 'security_mitigation',
+        whyDoIt: 'Cumplir con el reporte oficial de brechas de datos exigido por regulaciones de Habeas Data.',
+        damaGuide: 'El registro de incidentes de seguridad debe incluir impacto de negocio y controles de mitigación.',
+        commonError: 'Ocultar incidentes leves por temor a represalias de auditoría.',
+        realExample: 'Bloqueo de IP sospechosa e implementación de autenticación MFA obligatoria en bases de datos.',
+        tips: 'Detalla siempre el impacto a datos sensibles PII en la bitácora del incidente.',
+        whyImportant: 'Garantiza la transparencia institucional ante fugas e intrusiones de ciberseguridad.',
+        problemSolved: 'Resuelve la falta de documentación forense ante vulnerabilidades cibernéticas explotadas.',
+        riskMitigated: 'Mitiga demandas civiles y multas penales al demostrar debida diligencia de control.',
+        businessBenefit: 'Fortalecimiento continuo del perímetro de datos corporativos ante cada ataque frustrado.'
+      },
+      {
+        id: 'p4_monitoring_runs',
+        title: 'Ejecución de Monitoreo Continuo',
+        context: 'Programar y registrar corridas del motor de calidad de datos para medir el score global en el tiempo.',
+        expectedResult: 'Tener al menos 4 registros históricos secuenciales en el monitoreo de calidad.',
+        moduleHref: '/quality',
+        btnLabel: 'Monitorear Calidad',
+        checkTable: 'quality_monitoring_history',
+        checkKey: 'monitoring_runs',
+        whyDoIt: 'Visualizar tendencias reales en el tablero de control de salud de datos corporativos.',
+        damaGuide: 'El monitoreo periódico de métricas de calidad de datos proporciona los KPIs para evaluar la madurez.',
+        commonError: 'Ejecutar las reglas una sola vez y no volver a evaluar las bases de datos de forma sistemática.',
+        realExample: 'Corrida semanal automatizada registrando la subida de calidad del 82% al 98% en clientes.',
+        tips: 'Configura alertas para que el CDO reciba un correo si el score de calidad baja del 90%.',
+        whyImportant: 'Permite detectar degradaciones de datos antes de que los reportes lleguen a la junta.',
+        problemSolved: 'Termina con la incertidumbre gerencial sobre si las bases de datos están limpiándose.',
+        riskMitigated: 'Reduce la exposición a tomar malas decisiones corporativas por reportes de calidad corruptos.',
+        businessBenefit: 'Certificación de veracidad de la información analítica de la empresa ante inversionistas.'
       }
     ]
   }
@@ -1495,7 +1723,9 @@ export default function JourneyCDO() {
         const bootstrapFrameworks = ['DAMA', 'DCAM', 'HEALTH', 'PUBLIC', 'GDPR', 'STANDARD'];
         const validPolicies = policiesData.filter(r => !bootstrapFrameworks.includes((r.framework_origin || '').trim().toUpperCase()));
         newValidations['policies'] = validPolicies.length >= 5;
+        newValidations['policy_stewardship'] = validPolicies.length >= 7;
         evidenceData['policies'] = validPolicies;
+        evidenceData['policy_stewardship'] = validPolicies;
       }
 
       // 10. Workflows
@@ -1504,77 +1734,99 @@ export default function JourneyCDO() {
         const bootstrapWfs = ['FLUJO DOCUMENTAL NORMATIVO', 'ESTÁNDAR', 'CRÍTICO / LEGAL', 'ESTANDAR', 'CRITICO / LEGAL'];
         const validWfs = workflowsData.filter(r => !bootstrapWfs.includes((r.name || '').trim().toUpperCase()));
         newValidations['workflows'] = validWfs.length >= 2;
+        newValidations['normative_audit'] = validWfs.length >= 3;
         evidenceData['workflows'] = validWfs;
+        evidenceData['normative_audit'] = validWfs;
       }
 
       // 11. Security Risks
       const { data: risksData } = await supabase.from('security_risks').select('*').eq('tenant_id', currentTenant.id);
       if (risksData) {
         newValidations['risks'] = risksData.length >= 3;
+        newValidations['mitigation_actions'] = risksData.length >= 4;
         evidenceData['risks'] = risksData;
+        evidenceData['mitigation_actions'] = risksData;
       }
 
       // 12. Security Controls
       const { data: secControlsData } = await supabase.from('security_controls').select('*').eq('tenant_id', currentTenant.id);
       if (secControlsData) {
         newValidations['controls'] = secControlsData.length >= 3;
+        newValidations['privacy_consent'] = secControlsData.length >= 4;
         evidenceData['controls'] = secControlsData;
+        evidenceData['privacy_consent'] = secControlsData;
       }
 
       // 13. Connections
       const { data: connectionsData } = await supabase.from('data_connections').select('*').eq('tenant_id', currentTenant.id);
       if (connectionsData) {
         newValidations['connections'] = connectionsData.length >= 3;
+        newValidations['source_types'] = connectionsData.length >= 4;
         evidenceData['connections'] = connectionsData;
+        evidenceData['source_types'] = connectionsData;
       }
 
       // 14. Data Assets
       const { data: assetsData } = await supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id);
       if (assetsData) {
         newValidations['assets'] = assetsData.length >= 6;
+        newValidations['catalog_classification'] = assetsData.length >= 8;
         evidenceData['assets'] = assetsData;
+        evidenceData['catalog_classification'] = assetsData;
       }
 
       // 15. Quality Rules
       const { data: rulesData } = await supabase.from('quality_rules').select('*').eq('tenant_id', currentTenant.id);
       if (rulesData) {
         newValidations['rules'] = rulesData.length >= 5;
+        newValidations['rules_dimensions'] = rulesData.length >= 7;
         evidenceData['rules'] = rulesData;
+        evidenceData['rules_dimensions'] = rulesData;
       }
 
       // 16. Fields
       const { data: fieldsData } = await supabase.from('asset_fields').select('*').eq('tenant_id', currentTenant.id);
       if (fieldsData) {
         newValidations['fields'] = fieldsData.length >= 6;
+        newValidations['lineage_mapping'] = fieldsData.length >= 8;
         evidenceData['fields'] = fieldsData;
+        evidenceData['lineage_mapping'] = fieldsData;
       }
 
       // 17. Operational Workflows
       const { data: opWfsData } = await supabase.from('workflow_requests').select('*').eq('tenant_id', currentTenant.id).in('status', ['Aprobado', 'Cerrado', 'Completado']);
       if (opWfsData) {
         newValidations['workflows_op'] = opWfsData.length >= 3;
+        newValidations['workflows_sla'] = opWfsData.length >= 4;
         evidenceData['workflows_op'] = opWfsData;
+        evidenceData['workflows_sla'] = opWfsData;
       }
 
       // 18. Quality Incidents
       const { data: qualIncidents } = await supabase.from('quality_incidents').select('*').eq('tenant_id', currentTenant.id);
       if (qualIncidents) {
         newValidations['quality_incidents'] = qualIncidents.length >= 3;
+        newValidations['quality_remediation'] = qualIncidents.length >= 4;
         evidenceData['quality_incidents'] = qualIncidents;
+        evidenceData['quality_remediation'] = qualIncidents;
       }
 
       // 19. Security Incidents
       const { data: secIncidents } = await supabase.from('security_incidents').select('*').eq('tenant_id', currentTenant.id);
       if (secIncidents) {
         newValidations['security_incidents'] = secIncidents.length >= 3;
+        newValidations['security_mitigation'] = secIncidents.length >= 4;
         evidenceData['security_incidents'] = secIncidents;
+        evidenceData['security_mitigation'] = secIncidents;
       }
 
       // 20. Historical monitoring history
       const { data: historyData } = await supabase.from('quality_monitoring_history').select('*').eq('tenant_id', currentTenant.id);
       if (historyData) {
         newValidations['monitoring_history'] = historyData.length >= 3;
+        newValidations['monitoring_runs'] = historyData.length >= 4;
         evidenceData['monitoring_history'] = historyData;
+        evidenceData['monitoring_runs'] = historyData;
       }
 
       setValidations(newValidations);
@@ -1582,7 +1834,7 @@ export default function JourneyCDO() {
 
       // Compute database tasks completion (Max 60 points)
       const completedCount = Object.values(newValidations).filter(v => v).length;
-      const dbEarned = Math.round((completedCount / 20) * 60);
+      const dbEarned = Math.round((completedCount / 32) * 60);
       setDbScore(dbEarned);
 
     } catch (e) {
