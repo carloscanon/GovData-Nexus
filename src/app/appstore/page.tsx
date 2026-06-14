@@ -386,19 +386,22 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
     let bullets: any[] = [];
     let enemies: any[] = [];
     let particles: any[] = [];
+    let meteors: any[] = [];
 
-    // Enemies mapped to specific data threats (Color matching vulnerability)
-    const enemyTypes = [
-      { name: 'Clone Records', color: '#10b981', weaponAllowed: '🟢 Regla de Calidad' },
-      { name: 'Missing Fields', color: '#06b6d4', weaponAllowed: '🔵 Enriquecimiento de Metadatos' },
-      { name: 'Legacy Monsters', color: '#8b5cf6', weaponAllowed: '🟣 Data Purge / Borrado Seguro' },
-      { name: 'Compliance Raiders', color: '#eab308', weaponAllowed: '🟡 Control de Cumplimiento' },
-      { name: 'Uncertified AI Entities', color: '#ef4444', weaponAllowed: '🔴 Certificación de IA' }
-    ];
-
+    // Daily varying meteor path layouts based on day of the week
+    const currentDayIdx = new Date().getDay(); // 0-6
+    
     // Spawn 15 tactical enemies
     const spawnEnemies = () => {
       enemies = [];
+      const enemyTypes = [
+        { name: 'Clone Records', color: '#10b981', weaponAllowed: '🟢 Regla de Calidad' },
+        { name: 'Missing Fields', color: '#06b6d4', weaponAllowed: '🔵 Enriquecimiento de Metadatos' },
+        { name: 'Legacy Monsters', color: '#8b5cf6', weaponAllowed: '🟣 Data Purge / Borrado Seguro' },
+        { name: 'Compliance Raiders', color: '#eab308', weaponAllowed: '🟡 Control de Cumplimiento' },
+        { name: 'Uncertified AI Entities', color: '#ef4444', weaponAllowed: '🔴 Certificación de IA' }
+      ];
+
       for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 6; col++) {
           const type = enemyTypes[(col + row) % enemyTypes.length];
@@ -415,6 +418,22 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
           });
         }
       }
+    };
+
+    const spawnMeteor = () => {
+      // Meteors use a different initial offset path pattern each day of the week
+      const dailyOffset = (currentDayIdx * 85) % 150;
+      const xPos = 40 + Math.random() * (canvas.width - 80);
+      meteors.push({
+        x: xPos,
+        y: -40,
+        radius: 14 + Math.random() * 8,
+        // Day index scales the fall speed
+        speed: 1.5 + (currentDayIdx * 0.2) + Math.random() * 1.5,
+        // Curve trajectory varies dynamically day-to-day
+        wiggleOffset: Math.random() * 100,
+        wiggleSpeed: 0.02 + (currentDayIdx * 0.005)
+      });
     };
 
     spawnEnemies();
@@ -486,6 +505,52 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
         bullet.y -= bullet.speed;
         if (bullet.y < 0) {
           bullets.splice(index, 1);
+        }
+      });
+
+      // Spawning meteors dynamically
+      if (Math.random() < 0.02) {
+        spawnMeteor();
+      }
+
+      // Move meteors and detect collision with player
+      meteors.forEach((met, mIdx) => {
+        met.y += met.speed;
+        
+        // Dynamic horizontal drift based on the day of the week
+        // Monday (1) has zig-zag, Wednesday (3) has sinusoidal curves, etc.
+        const dayWave = Math.sin(met.y * met.wiggleSpeed + met.wiggleOffset) * (currentDayIdx * 1.5);
+        met.x += dayWave;
+
+        // Clean up out of bounds meteors
+        if (met.y > canvas.height + 40) {
+          meteors.splice(mIdx, 1);
+        }
+
+        // Collision detection with player ship (bounding circle vs bounding box approximation)
+        const pCenterX = player.x + player.width / 2;
+        const pCenterY = player.y + player.height / 2;
+        const dist = Math.hypot(pCenterX - met.x, pCenterY - met.y);
+        
+        if (dist < met.radius + 15) {
+          // Collision! Crash particle effect
+          for (let i = 0; i < 15; i++) {
+            particles.push({
+              x: met.x,
+              y: met.y,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              size: Math.random() * 4 + 3,
+              color: '#f97316', // Orange fire spark
+              life: 30
+            });
+          }
+
+          // Remove meteor and deplete shields completely (Instant crash / highly dangerous)
+          meteors.splice(mIdx, 1);
+          shieldsRef.current = Math.max(0, shieldsRef.current - 40); // Hard meteor impact
+          setShields(shieldsRef.current);
+          setNexiaMsg('🚨 ¡ALERTA DE COLISIÓN! Impacto de meteoro detectado en los sensores frontales. Integridad gravemente comprometida.');
         }
       });
 
@@ -807,6 +872,45 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
         ctx.shadowBlur = 10;
         ctx.shadowColor = col;
         ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+        ctx.shadowBlur = 0;
+      });
+
+      // Draw 3D rocky meteors
+      meteors.forEach(met => {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ea580c'; // Orange fire glow
+
+        // Outer burning shell
+        const fireGrad = ctx.createRadialGradient(met.x, met.y, met.radius - 4, met.x, met.y, met.radius + 8);
+        fireGrad.addColorStop(0, '#f97316');
+        fireGrad.addColorStop(0.5, '#ea580c');
+        fireGrad.addColorStop(1, 'rgba(234, 88, 12, 0)');
+        
+        ctx.fillStyle = fireGrad;
+        ctx.beginPath();
+        ctx.arc(met.x, met.y, met.radius + 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rocky core
+        const rockGrad = ctx.createLinearGradient(met.x - met.radius, met.y - met.radius, met.x + met.radius, met.y + met.radius);
+        rockGrad.addColorStop(0, '#475569');
+        rockGrad.addColorStop(0.7, '#1e293b');
+        rockGrad.addColorStop(1, '#0f172a');
+        
+        ctx.fillStyle = rockGrad;
+        ctx.beginPath();
+        
+        // Draw irregular asteroid polygon shape (5 points)
+        for (let i = 0; i < 5; i++) {
+          const angle = (i * Math.PI * 2) / 5;
+          const rDist = met.radius + (Math.sin(i * 1234 + met.wiggleOffset) * 3);
+          const px = met.x + Math.cos(angle) * rDist;
+          const py = met.y + Math.sin(angle) * rDist;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
         ctx.shadowBlur = 0;
       });
 
