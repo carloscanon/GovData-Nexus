@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Rocket, 
@@ -35,6 +36,17 @@ const APPS = [
     icon: Rocket
   },
   {
+    id: 'data-path',
+    name: 'Data Path Challenge™',
+    desc: 'JUEGO DE PUZZLE DIARIO. Conecta el flujo correcto de los datos en orden numérico para restaurar la gobernanza corporativa.',
+    category: 'Gamificación / Lógica',
+    rating: '5.0',
+    premium: true,
+    installed: true,
+    bgImg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    icon: Database
+  },
+  {
     id: 'steward-challenge',
     name: 'Data Steward Challenge',
     desc: 'Juego de roles interactivo donde resuelves incidentes de asignación de RACI en escenarios reales.',
@@ -59,6 +71,7 @@ const APPS = [
 ];
 
 export default function AppStorePage() {
+  const router = useRouter();
   const { currentTenant } = usePlatform();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   
@@ -154,7 +167,6 @@ export default function AppStorePage() {
                       <div className={styles.appImageArea} style={{ background: app.bgImg }}>
                         <span className={styles.appCategory}>{app.category}</span>
                       </div>
-
                       <div className={styles.appInfoArea}>
                         <h3 className={styles.appTitle}>{app.name}</h3>
                         <p className={styles.appDesc}>{app.desc}</p>
@@ -179,6 +191,22 @@ export default function AppStorePage() {
                               onClick={() => setActiveApp('data-defender')}
                             >
                               <Play size={14} fill="currentColor" /> {hasPlayedToday ? 'Ver Resultados' : 'Iniciar Reto'}
+                            </button>
+                          ) : app.id === 'data-path' ? (
+                            <button 
+                              className={styles.playBtn} 
+                              style={{ 
+                                padding: '8px 18px', 
+                                fontSize: '0.9rem', 
+                                borderRadius: '8px', 
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => router.push('/appstore/data-path')}
+                            >
+                              <Play size={14} fill="currentColor" /> Iniciar Reto
                             </button>
                           ) : (
                             <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 700 }}>Próximamente</span>
