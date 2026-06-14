@@ -2152,6 +2152,49 @@ export default function Settings() {
                     </div>
                   </div>
 
+                  {/* App Store & Gamification Configuration */}
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '24px', marginTop: '32px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '8px' }}>Configuración de App Store & Gamificación</h3>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85rem', marginBottom: '20px' }}>
+                      Controla los parámetros operativos de las aplicaciones complementarias e interactivas.
+                    </p>
+
+                    <div style={{ background: 'rgba(124, 58, 237, 0.05)', border: '1px solid rgba(124, 58, 237, 0.2)', padding: '20px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '0.92rem', color: '#ffffff', marginBottom: '4px' }}>Modo Ilimitado (Data Defender Galaxy)</strong>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Permitir a los usuarios jugar y realizar el Reto Diario múltiples veces sin el bloqueo de 24 horas.</span>
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => {
+                            const current = localStorage.getItem('daily_challenge_unlimited') === 'true';
+                            localStorage.setItem('daily_challenge_unlimited', (!current).toString());
+                            if (current) {
+                              // If turning OFF unlimited, clear state to force normal daily tracking
+                              localStorage.removeItem(`daily_challenge_played_${currentTenant?.id || 'demo'}`);
+                            }
+                            alert(`Modo Ilimitado ${!current ? 'ACTIVADO' : 'DESACTIVADO'}.`);
+                            // Force state reload by updating window event
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          style={{
+                            background: typeof window !== 'undefined' && localStorage.getItem('daily_challenge_unlimited') === 'true' ? '#10b981' : 'rgba(255, 255, 255, 0.08)',
+                            color: '#ffffff',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {typeof window !== 'undefined' && localStorage.getItem('daily_challenge_unlimited') === 'true' ? 'Activado (Jugar Siempre)' : 'Desactivado (Solo 1 vez)'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       className={styles.saveBtn} 

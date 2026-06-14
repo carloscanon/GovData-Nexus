@@ -87,10 +87,13 @@ export default function AppStorePage() {
 
     // Load attempt state from localStorage to enforce "One Shot" policy
     const played = localStorage.getItem(`daily_challenge_played_${currentTenant?.id || 'demo'}`);
-    if (played === 'true') {
+    const isUnlimited = localStorage.getItem('daily_challenge_unlimited') === 'true';
+    if (played === 'true' && !isUnlimited) {
       setHasPlayedToday(true);
       setLastScore(parseInt(localStorage.getItem(`daily_challenge_score_${currentTenant?.id || 'demo'}`) || '0'));
       setLastPrecision(parseInt(localStorage.getItem(`daily_challenge_precision_${currentTenant?.id || 'demo'}`) || '0'));
+    } else if (isUnlimited) {
+      setHasPlayedToday(false);
     }
   }, [currentTenant?.id]);
 
@@ -288,7 +291,7 @@ export default function AppStorePage() {
                     {/* Leaderboard */}
                     <div className={styles.sideCard}>
                       <h4 className={styles.sideCardTitle}>
-                        <Users size={18} style={{ color: '#38bdf8' }} /> RANKING CORPORATIVO
+                        <Users size={18} style={{ color: '#38bdf8' }} /> RANKING DE {currentTenant?.name?.toUpperCase() || 'EMPRESA'}
                       </h4>
                       
                       <div className={styles.rankRow}>
@@ -305,6 +308,11 @@ export default function AppStorePage() {
                         <div className={`${styles.rankPos} ${styles.rank3}`}>3</div>
                         <div className={styles.rankName}>TI Infraestructura</div>
                         <div className={styles.rankScore}>980 pts</div>
+                      </div>
+                      <div className={styles.rankRow} style={{ background: 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', padding: '10px' }}>
+                        <div className={styles.rankPos} style={{ background: '#6366f1', color: '#fff' }}>4</div>
+                        <div className={styles.rankName} style={{ fontWeight: 700 }}>Tú (Gobernanza {currentTenant?.name})</div>
+                        <div className={styles.rankScore}>{lastScore || 750} pts</div>
                       </div>
                     </div>
                   </div>
