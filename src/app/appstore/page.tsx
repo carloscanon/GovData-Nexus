@@ -5,20 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Rocket, 
   ShoppingBag, 
-  Grid, 
   ShieldCheck, 
-  Settings, 
   Database, 
   Brain, 
-  Zap, 
   Star, 
   Download, 
-  ArrowRight, 
   Play, 
-  MessageSquare,
   Award,
   Users,
-  Compass
+  AlertTriangle,
+  CheckCircle2,
+  Share2,
+  Calendar
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
 import styles from './appstore.module.css';
@@ -28,7 +26,7 @@ const APPS = [
   {
     id: 'data-defender',
     name: 'Data Defender Galaxy',
-    desc: 'Minijuego premium de gamificación empresarial. Protege el ecosistema destruyendo entidades corruptas.',
+    desc: 'MINI-JUEGO RETO DIARIO. Protege el ecosistema de datos resolviendo anomalías reales. Solo una oportunidad cada 24 horas.',
     category: 'Gamificación / Capacitación',
     rating: '5.0',
     premium: true,
@@ -57,47 +55,49 @@ const APPS = [
     installed: false,
     bgImg: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
     icon: ShieldCheck
-  },
-  {
-    id: 'metadata-explorer',
-    name: 'Metadata Explorer',
-    desc: 'Explora de forma tridimensional el linaje de datos de tu corporación en un entorno de realidad virtual.',
-    category: 'Inteligencia / Diccionario',
-    rating: '4.9',
-    premium: true,
-    installed: false,
-    bgImg: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-    icon: Compass
-  },
-  {
-    id: 'ai-governance',
-    name: 'AI Governance Lab',
-    desc: 'Sandbox avanzado para entrenar y certificar agentes de inteligencia artificial bajo normas éticas.',
-    category: 'IA / Sandbox',
-    rating: '4.9',
-    premium: true,
-    installed: false,
-    bgImg: 'linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%)',
-    icon: Brain
   }
 ];
 
 export default function AppStorePage() {
   const { currentTenant } = usePlatform();
   const [activeApp, setActiveApp] = useState<string | null>(null);
-  const [nexiaMsg, setNexiaMsg] = useState<string>(
-    '¡Saludos Guardián! Detecté 234 registros duplicados en el Maestro de Clientes. Recomiendo iniciar la misión y disparar Reglas de Calidad para mitigarlos.'
-  );
+  
+  // Daily challenge locking states
+  const [hasPlayedToday, setHasPlayedToday] = useState(false);
+  const [lastScore, setLastScore] = useState(0);
+  const [lastPrecision, setLastPrecision] = useState(0);
+  
+  // Nexia briefing messages based on the current day of the week
+  const [nexiaMsg, setNexiaMsg] = useState<string>('');
 
-  // Installed states
-  const [installedApps, setInstalledApps] = useState<Record<string, boolean>>({
-    'data-defender': true
-  });
+  useEffect(() => {
+    // Determine the day of the week and set briefing
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const currentDay = days[new Date().getDay()];
+    
+    let briefing = '';
+    if (currentDay === 'Lunes' || currentDay === 'Martes') {
+      briefing = '🚨 BRIEFING DE LA MISIÓN (LUNES/MARTES): CRM reporta un pico de duplicaciones del 35% en registros de clientes corporativos. Los Clone Records (👾 Verdes) dominan la zona. Usa la Regla de Calidad (🟢) para destruirlos de forma limpia.';
+    } else if (currentDay === 'Miércoles' || currentDay === 'Jueves') {
+      briefing = '🚨 BRIEFING DE LA MISIÓN (MIÉRCOLES/JUEVES): Se detectaron 528 diccionarios de datos sin términos comerciales en el Data Lake. Los Missing Fields (👾 Celestes) parpadean en las sombras. Usa el Enriquecimiento de Metadatos (🔵).';
+    } else {
+      briefing = '🚨 BRIEFING DE LA MISIÓN (FIN DE SEMANA): Un modelo de scoring de crédito no supervisado fue desplegado sin validación ética. Las Uncertified AI Entities (👾 Rojas) persiguen tu nave. ¡Equipa la Certificación de IA (🔴)!';
+    }
+    setNexiaMsg(briefing);
 
-  const handleInstall = (appId: string) => {
-    if (installedApps[appId]) return;
-    setInstalledApps(prev => ({ ...prev, [appId]: true }));
-    alert(`¡Éxito! La aplicación fue parametrizada e instalada en el tenant de "${currentTenant?.name || 'su empresa'}".`);
+    // Load attempt state from localStorage to enforce "One Shot" policy
+    const played = localStorage.getItem(`daily_challenge_played_${currentTenant?.id || 'demo'}`);
+    if (played === 'true') {
+      setHasPlayedToday(true);
+      setLastScore(parseInt(localStorage.getItem(`daily_challenge_score_${currentTenant?.id || 'demo'}`) || '0'));
+      setLastPrecision(parseInt(localStorage.getItem(`daily_challenge_precision_${currentTenant?.id || 'demo'}`) || '0'));
+    }
+  }, [currentTenant?.id]);
+
+  const handleShare = () => {
+    const text = `🛸 DATA DEFENDER GALAXY | RETO DIARIO\n¡Gobernanza al 100%! Hoy defendí mi organización en GovData Nexus.\n🏆 Puntaje: ${lastScore} pts | 🎯 Precisión: ${lastPrecision}%\n¿Puedes superarme?`;
+    navigator.clipboard.writeText(text);
+    alert('¡Copiado al portapapeles! Compártelo en Slack o Microsoft Teams.');
   };
 
   return (
@@ -144,11 +144,9 @@ export default function AppStorePage() {
               
               <div className={styles.grid}>
                 {APPS.map((app) => {
-                  const isInstalled = installedApps[app.id];
-                  const Icon = app.icon;
                   return (
-                    <div key={app.id} className={styles.appCard}>
-                      {app.premium && <span className={styles.premiumBadge}>PREMIUM</span>}
+                    <div key={app.id} className={styles.appCard} style={app.id === 'data-defender' ? { borderColor: 'rgba(124, 58, 237, 0.5)', boxShadow: '0 0 20px rgba(124,58,237,0.15)' } : {}}>
+                      {app.premium && <span className={styles.premiumBadge} style={app.id === 'data-defender' ? { background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' } : {}}>RETO DIARIO</span>}
                       
                       <div className={styles.appImageArea} style={{ background: app.bgImg }}>
                         <span className={styles.appCategory}>{app.category}</span>
@@ -166,23 +164,21 @@ export default function AppStorePage() {
                           {app.id === 'data-defender' ? (
                             <button 
                               className={styles.playBtn} 
-                              style={{ padding: '8px 18px', fontSize: '0.9rem', borderRadius: '8px' }}
+                              style={{ 
+                                padding: '8px 18px', 
+                                fontSize: '0.9rem', 
+                                borderRadius: '8px', 
+                                background: hasPlayedToday ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)',
+                                color: hasPlayedToday ? '#94a3b8' : '#ffffff',
+                                border: hasPlayedToday ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                                cursor: 'pointer'
+                              }}
                               onClick={() => setActiveApp('data-defender')}
                             >
-                              <Play size={14} fill="currentColor" /> Jugar
+                              <Play size={14} fill="currentColor" /> {hasPlayedToday ? 'Ver Resultados' : 'Iniciar Reto'}
                             </button>
                           ) : (
-                            <button 
-                              className={`${styles.installBtn} ${isInstalled ? styles.installedBtn : ''}`}
-                              onClick={() => handleInstall(app.id)}
-                              disabled={isInstalled}
-                            >
-                              {isInstalled ? 'Instalada' : (
-                                <>
-                                  <Download size={14} /> Instalar
-                                </>
-                              )}
-                            </button>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 700 }}>Próximamente</span>
                           )}
                         </div>
                       </div>
@@ -200,84 +196,120 @@ export default function AppStorePage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, background: 'linear-gradient(135deg, #fff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    🎮 Data Defender Galaxy
+                  <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, background: 'linear-gradient(135deg, #fff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    🎮 Reto Diario: Data Defender Galaxy <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#f87171', padding: '2px 8px', borderRadius: '4px' }}>Una Oportunidad al Día</span>
                   </h2>
                   <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
-                    La galaxia GovData está siendo invadida por entidades corruptas. ¡Protege el ecosistema!
+                    Protege el ecosistema de datos resolviendo anomalías simuladas de la empresa.
                   </p>
                 </div>
                 <button 
                   className={styles.quitGameBtn}
                   onClick={() => setActiveApp(null)}
+                  style={{ background: 'rgba(255,255,255,0.05)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' }}
                 >
-                  Salir al Marketplace
+                  Regresar al Marketplace
                 </button>
               </div>
 
-              <div className={styles.gameLayout}>
-                {/* Game Canvas Module */}
-                <GameCanvasContainer setNexiaMsg={setNexiaMsg} />
+              {hasPlayedToday ? (
+                <div style={{
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '2px solid rgba(124, 58, 237, 0.3)',
+                  borderRadius: '24px',
+                  padding: '40px',
+                  textAlign: 'center',
+                  maxWidth: '700px',
+                  margin: '40px auto',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+                }}>
+                  <Calendar size={48} style={{ color: '#a855f7', marginBottom: '20px' }} />
+                  <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 10px 0' }}>Misión Completada</h3>
+                  <p style={{ color: '#94a3b8', margin: '0 0 30px 0' }}>
+                    Has agotado tu oportunidad diaria para el día de hoy. La nave **Nexus Guardian X1** se encuentra en la bahía de mantenimiento y calibración.
+                  </p>
 
-                {/* Cyber Sidecards */}
-                <div className={styles.sideContainer}>
-                  {/* NEXIA AI */}
-                  <div className={styles.sideCard}>
-                    <h4 className={styles.sideCardTitle}>
-                      <Brain size={18} style={{ color: '#c084fc' }} /> NEXIA AI COPILOTO
-                    </h4>
-                    <p className={styles.nexiaText}>
-                      "{nexiaMsg}"
-                    </p>
-                  </div>
-
-                  {/* Leaderboard */}
-                  <div className={styles.sideCard}>
-                    <h4 className={styles.sideCardTitle}>
-                      <Users size={18} style={{ color: '#38bdf8' }} /> RANKING CORPORATIVO
-                    </h4>
-                    
-                    <div className={styles.rankRow}>
-                      <div className={`${styles.rankPos} ${styles.rank1}`}>1</div>
-                      <div className={styles.rankName}>María Steward (Finanzas)</div>
-                      <div className={styles.rankScore}>1,450 pts</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>PUNTOS LOGRADOS</span>
+                      <strong style={{ fontSize: '1.8rem', color: '#a855f7' }}>{lastScore} pts</strong>
                     </div>
-                    <div className={styles.rankRow}>
-                      <div className={`${styles.rankPos} ${styles.rank2}`}>2</div>
-                      <div className={styles.rankName}>CDO Office Team</div>
-                      <div className={styles.rankScore}>1,200 pts</div>
-                    </div>
-                    <div className={styles.rankRow}>
-                      <div className={`${styles.rankPos} ${styles.rank3}`}>3</div>
-                      <div className={styles.rankName}>TI Infraestructura</div>
-                      <div className={styles.rankScore}>980 pts</div>
-                    </div>
-                    <div className={styles.rankRow}>
-                      <div className={styles.rankPos}>4</div>
-                      <div className={styles.rankName}>Tú (Nexus Guardian)</div>
-                      <div className={styles.rankScore}>750 pts</div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>PRECISIÓN DE GOBIERNO</span>
+                      <strong style={{ fontSize: '1.8rem', color: '#38bdf8' }}>{lastPrecision}%</strong>
                     </div>
                   </div>
 
-                  {/* Logros */}
-                  <div className={styles.sideCard}>
-                    <h4 className={styles.sideCardTitle}>
-                      <Award size={18} style={{ color: '#fbbf24' }} /> LOGROS DESBLOQUEADOS
-                    </h4>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', padding: '4px 8px', borderRadius: '6px' }}>
-                        🏆 Quality Guardian
-                      </span>
-                      <span style={{ fontSize: '0.75rem', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px' }}>
-                        🏆 Metadata Master
-                      </span>
-                      <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', padding: '4px 8px', borderRadius: '6px' }}>
-                        🔒 AI Trust Defender
-                      </span>
+                  <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                    <button 
+                      className={styles.playBtn}
+                      onClick={handleShare}
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <Share2 size={16} /> Compartir en Slack / Teams
+                    </button>
+                    <button 
+                      className={styles.quitGameBtn}
+                      onClick={() => setActiveApp(null)}
+                      style={{ background: 'rgba(255,255,255,0.05)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      Volver
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.gameLayout}>
+                  {/* Game Canvas Module */}
+                  <GameCanvasContainer 
+                    setNexiaMsg={setNexiaMsg} 
+                    onFinishGame={(finalScore, precision) => {
+                      setLastScore(finalScore);
+                      setLastPrecision(precision);
+                      setHasPlayedToday(true);
+                      localStorage.setItem(`daily_challenge_played_${currentTenant?.id || 'demo'}`, 'true');
+                      localStorage.setItem(`daily_challenge_score_${currentTenant?.id || 'demo'}`, finalScore.toString());
+                      localStorage.setItem(`daily_challenge_precision_${currentTenant?.id || 'demo'}`, precision.toString());
+                    }}
+                  />
+
+                  {/* Cyber Sidecards */}
+                  <div className={styles.sideContainer}>
+                    {/* NEXIA AI */}
+                    <div className={styles.sideCard}>
+                      <h4 className={styles.sideCardTitle}>
+                        <Brain size={18} style={{ color: '#c084fc' }} /> BRIEFING DE NEXIA AI
+                      </h4>
+                      <p className={styles.nexiaText}>
+                        "{nexiaMsg}"
+                      </p>
+                    </div>
+
+                    {/* Leaderboard */}
+                    <div className={styles.sideCard}>
+                      <h4 className={styles.sideCardTitle}>
+                        <Users size={18} style={{ color: '#38bdf8' }} /> RANKING CORPORATIVO
+                      </h4>
+                      
+                      <div className={styles.rankRow}>
+                        <div className={`${styles.rankPos} ${styles.rank1}`}>1</div>
+                        <div className={styles.rankName}>María Steward (Finanzas)</div>
+                        <div className={styles.rankScore}>1,450 pts</div>
+                      </div>
+                      <div className={styles.rankRow}>
+                        <div className={`${styles.rankPos} ${styles.rank2}`}>2</div>
+                        <div className={styles.rankName}>CDO Office Team</div>
+                        <div className={styles.rankScore}>1,200 pts</div>
+                      </div>
+                      <div className={styles.rankRow}>
+                        <div className={`${styles.rankPos} ${styles.rank3}`}>3</div>
+                        <div className={styles.rankName}>TI Infraestructura</div>
+                        <div className={styles.rankScore}>980 pts</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -286,36 +318,42 @@ export default function AppStorePage() {
   );
 }
 
-/* Internal Space Invaders Game Engine component */
-interface GameCanvasContainerProps {
+/* Space shooter with strict vulnerability matrix */
+interface DailyGameCanvasProps {
   setNexiaMsg: (msg: string) => void;
+  onFinishGame: (score: number, precision: number) => void;
 }
 
-function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
+function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [qualityPoints, setQualityPoints] = useState(90);
+  const [shields, setShields] = useState(100);
+  const [precision, setPrecision] = useState(100);
   const [activeWeapon, setActiveWeapon] = useState('🟢 Regla de Calidad');
+  const [isOverheated, setIsOverheated] = useState(false);
 
   const scoreRef = useRef(0);
-  const livesRef = useRef(3);
-  const qualityRef = useRef(90);
+  const shieldsRef = useRef(100);
+  const shotsFiredRef = useRef(0);
+  const shotsHitRef = useRef(0);
   const weaponRef = useRef('🟢 Regla de Calidad');
+  const overheatedRef = useRef(false);
+  const lastShotTimeRef = useRef(0);
+  const consecutiveShotsRef = useRef(0);
 
-  // Weapons list
+  // 5 Weapons aligned to Data Governance roles and tools
   const weapons = [
-    '🟢 Regla de Calidad',
-    '🔵 Política de Datos',
-    '🟣 Catálogo de Metadatos',
-    '🟡 Stewardship',
-    '🔴 Control de Cumplimiento'
+    { name: '🟢 Regla de Calidad', color: '#10b981' },
+    { name: '🔵 Enriquecimiento de Metadatos', color: '#06b6d4' },
+    { name: '🟣 Data Purge / Borrado Seguro', color: '#8b5cf6' },
+    { name: '🟡 Control de Cumplimiento', color: '#eab308' },
+    { name: '🔴 Certificación de IA', color: '#ef4444' }
   ];
 
   const handleWeaponChange = (idx: number) => {
-    setActiveWeapon(weapons[idx]);
-    weaponRef.current = weapons[idx];
+    setActiveWeapon(weapons[idx].name);
+    weaponRef.current = weapons[idx].name;
   };
 
   useEffect(() => {
@@ -341,30 +379,31 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
     let enemies: any[] = [];
     let particles: any[] = [];
 
-    // Enemy definitions
+    // Enemies mapped to specific data threats (Color matching vulnerability)
     const enemyTypes = [
-      { name: 'Clone Records', color: '#ec4899', desc: 'Duplicado eliminado' },
-      { name: 'Missing Fields', color: '#eab308', desc: 'Campo completado' },
-      { name: 'Format Destroyers', color: '#3b82f6', desc: 'Formato corregido' },
-      { name: 'Legacy Monsters', color: '#a855f7', desc: 'Datos obsoletos archivados' },
-      { name: 'Compliance Raiders', color: '#ef4444', desc: 'Cumplimiento verificado' }
+      { name: 'Clone Records', color: '#10b981', weaponAllowed: '🟢 Regla de Calidad' },
+      { name: 'Missing Fields', color: '#06b6d4', weaponAllowed: '🔵 Enriquecimiento de Metadatos' },
+      { name: 'Legacy Monsters', color: '#8b5cf6', weaponAllowed: '🟣 Data Purge / Borrado Seguro' },
+      { name: 'Compliance Raiders', color: '#eab308', weaponAllowed: '🟡 Control de Cumplimiento' },
+      { name: 'Uncertified AI Entities', color: '#ef4444', weaponAllowed: '🔴 Certificación de IA' }
     ];
 
-    // Spawn enemies helper
+    // Spawn 15 tactical enemies
     const spawnEnemies = () => {
       enemies = [];
-      for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < 8; col++) {
-          const type = enemyTypes[row % enemyTypes.length];
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 6; col++) {
+          const type = enemyTypes[(col + row) % enemyTypes.length];
           enemies.push({
-            x: 50 + col * 75,
-            y: 50 + row * 50,
-            width: 32,
-            height: 32,
+            x: 80 + col * 90,
+            y: 60 + row * 60,
+            width: 36,
+            height: 36,
             type: type.name,
             color: type.color,
-            desc: type.desc,
-            points: 40
+            weaponAllowed: type.weaponAllowed,
+            points: 100,
+            direction: 1
           });
         }
       }
@@ -377,17 +416,42 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       keys[e.key] = true;
       if (e.key === ' ' || e.code === 'Space') {
-        // Shoot
+        const now = Date.now();
+        
+        // Anti-Gatillo Fácil logic (Overheat check)
+        if (overheatedRef.current) return;
+        
+        if (now - lastShotTimeRef.current < 250) {
+          consecutiveShotsRef.current++;
+          if (consecutiveShotsRef.current >= 4) {
+            overheatedRef.current = true;
+            setIsOverheated(true);
+            setNexiaMsg('⚠️ ¡ADVERTENCIA DE SOBRECALENTAMIENTO! Núcleo bloqueado. No dispares reglas masivas en producción sin análisis.');
+            setTimeout(() => {
+              overheatedRef.current = false;
+              setIsOverheated(false);
+              consecutiveShotsRef.current = 0;
+            }, 3000);
+            return;
+          }
+        } else {
+          consecutiveShotsRef.current = 0;
+        }
+
+        lastShotTimeRef.current = now;
+        shotsFiredRef.current++;
+
+        // Shoot bullet
         bullets.push({
           x: player.x + player.width / 2 - 2,
           y: player.y,
-          width: 5,
-          height: 15,
+          width: 6,
+          height: 16,
           speed: 8,
           weapon: weaponRef.current
         });
       }
-      // Switch weapon with numbers 1-5
+      
       if (['1','2','3','4','5'].includes(e.key)) {
         handleWeaponChange(parseInt(e.key) - 1);
       }
@@ -399,7 +463,7 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    // Game loop
+    // Update game state loop
     const update = () => {
       // Move player
       if (keys['ArrowLeft'] && player.x > 0) {
@@ -417,16 +481,22 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
         }
       });
 
-      // Move enemies
-      let edgeReached = false;
+      // Move enemies (horizontal swap and crawl)
       enemies.forEach(enemy => {
-        enemy.x += 1; // Basic right movement
-        if (enemy.x > canvas.width - enemy.width || enemy.x < 0) {
-          // Keep inside simple boundaries
+        enemy.x += enemy.direction * 0.8;
+        if (enemy.x > canvas.width - enemy.width - 20 || enemy.x < 20) {
+          enemy.direction *= -1;
+          enemy.y += 10;
+        }
+
+        // Breach detection: reached player zone
+        if (enemy.y > canvas.height - 110) {
+          shieldsRef.current = 0;
+          setShields(0);
         }
       });
 
-      // Collision detection
+      // Collision detection with vulnerability check
       bullets.forEach((bullet, bIdx) => {
         enemies.forEach((enemy, eIdx) => {
           if (
@@ -435,42 +505,43 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
             bullet.y < enemy.y + enemy.height &&
             bullet.y + bullet.height > enemy.y
           ) {
-            // Hit! Create particles
-            for (let i = 0; i < 8; i++) {
-              particles.push({
-                x: enemy.x + enemy.width / 2,
-                y: enemy.y + enemy.height / 2,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                size: Math.random() * 4 + 2,
-                color: enemy.color,
-                life: 30
-              });
-            }
-
-            // Remove enemy and bullet
-            enemies.splice(eIdx, 1);
+            // Collision occurred! Remove bullet
             bullets.splice(bIdx, 1);
 
-            // Update scores
-            scoreRef.current += enemy.points;
-            qualityRef.current = Math.min(100, qualityRef.current + 2);
-            setScore(scoreRef.current);
-            setQualityPoints(qualityRef.current);
+            // Verify if weapon matches weakness
+            if (bullet.weapon === enemy.weaponAllowed) {
+              shotsHitRef.current++;
+              
+              // Spark particles
+              for (let i = 0; i < 10; i++) {
+                particles.push({
+                  x: enemy.x + enemy.width / 2,
+                  y: enemy.y + enemy.height / 2,
+                  vx: (Math.random() - 0.5) * 8,
+                  vy: (Math.random() - 0.5) * 8,
+                  size: Math.random() * 3 + 2,
+                  color: enemy.color,
+                  life: 25
+                });
+              }
 
-            // Update Nexia copilot tip
-            setNexiaMsg(
-              `¡Excelente! Has destruido un ${enemy.type} usando tu ${bullet.weapon}. +${enemy.points} Puntos. Proceso de remediación registrado en workflows.`
-            );
+              enemies.splice(eIdx, 1);
+              scoreRef.current += enemy.points;
+              setScore(scoreRef.current);
+              setNexiaMsg(`✅ ¡Impacto correcto! ${enemy.type} mitigado usando ${bullet.weapon}.`);
+            } else {
+              // WRONG WEAPON - Penalize shields and sound alarm
+              shieldsRef.current = Math.max(0, shieldsRef.current - 15);
+              setShields(shieldsRef.current);
+              setNexiaMsg(`❌ ERROR DE GOBIERNO: Disparaste ${bullet.weapon} contra un ${enemy.type} (requiere ${enemy.weaponAllowed}). Carga estática recibida.`);
+            }
+
+            // Calculate precision
+            const computedPrecision = Math.round((shotsHitRef.current / Math.max(1, shotsFiredRef.current)) * 100);
+            setPrecision(computedPrecision);
           }
         });
       });
-
-      // Respawn if all destroyed
-      if (enemies.length === 0) {
-        spawnEnemies();
-        setNexiaMsg('¡Alerta de Oleada! Se detectó un nuevo lote de datos sin estructurar. Prepárate.');
-      }
 
       // Move particles
       particles.forEach((p, index) => {
@@ -481,20 +552,34 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
           particles.splice(index, 1);
         }
       });
+
+      // Check end game conditions
+      if (shieldsRef.current <= 0) {
+        cancelAnimationFrame(animationFrameId);
+        setIsPlaying(false);
+        onFinishGame(scoreRef.current, Math.round((shotsHitRef.current / Math.max(1, shotsFiredRef.current)) * 100));
+      } else if (enemies.length === 0) {
+        // Clear! Add shield bonus
+        scoreRef.current += (shieldsRef.current * 10);
+        setScore(scoreRef.current);
+        cancelAnimationFrame(animationFrameId);
+        setIsPlaying(false);
+        onFinishGame(scoreRef.current, Math.round((shotsHitRef.current / Math.max(1, shotsFiredRef.current)) * 100));
+      }
     };
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Starfield background
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      for (let i = 0; i < 30; i++) {
-        const x = (Math.sin(i * 12345) * 0.5 + 0.5) * canvas.width;
-        const y = ((Date.now() / 15 + i * 20) % canvas.height);
+      // Stars
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      for (let i = 0; i < 20; i++) {
+        const x = (Math.sin(i * 999) * 0.5 + 0.5) * canvas.width;
+        const y = ((Date.now() / 20 + i * 35) % canvas.height);
         ctx.fillRect(x, y, 2, 2);
       }
 
-      // Draw player (Nexus Guardian ship)
+      // Draw player (Nexus Guardian X1)
       ctx.fillStyle = '#6366f1';
       ctx.shadowBlur = 15;
       ctx.shadowColor = '#6366f1';
@@ -505,40 +590,35 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
       ctx.closePath();
       ctx.fill();
 
-      // Core engine glow
+      // Engine light
       ctx.fillStyle = '#d946ef';
       ctx.beginPath();
       ctx.arc(player.x + player.width / 2, player.y + player.height + 2, 6, 0, Math.PI * 2);
       ctx.fill();
-
-      // Reset shadows
       ctx.shadowBlur = 0;
 
-      // Draw enemies (Galaxian style)
+      // Draw enemies with neon rings
       enemies.forEach(enemy => {
-        ctx.fillStyle = enemy.color;
-        ctx.shadowBlur = 10;
+        ctx.strokeStyle = enemy.color;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 12;
         ctx.shadowColor = enemy.color;
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
-        // Core eye/shield effect
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillRect(enemy.x + 8, enemy.y + 10, 6, 6);
-        ctx.fillRect(enemy.x + 18, enemy.y + 10, 6, 6);
+        // Core weakness color tag
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x + 10, enemy.y + 10, enemy.width - 20, enemy.height - 20);
         ctx.shadowBlur = 0;
       });
 
-      // Draw bullets
+      // Draw tactical laser beams
       bullets.forEach(bullet => {
-        let bColor = '#10b981'; // Green rule
-        if (bullet.weapon.includes('Política')) bColor = '#3b82f6';
-        if (bullet.weapon.includes('Catálogo')) bColor = '#8b5cf6';
-        if (bullet.weapon.includes('Stewardship')) bColor = '#eab308';
-        if (bullet.weapon.includes('Control')) bColor = '#ef4444';
+        const weaponObj = weapons.find(w => w.name === bullet.weapon);
+        const col = weaponObj ? weaponObj.color : '#ffffff';
 
-        ctx.fillStyle = bColor;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = bColor;
+        ctx.fillStyle = col;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = col;
         ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
         ctx.shadowBlur = 0;
       });
@@ -567,11 +647,12 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
 
   const startGame = () => {
     scoreRef.current = 0;
-    livesRef.current = 3;
-    qualityRef.current = 90;
+    shieldsRef.current = 100;
+    shotsFiredRef.current = 0;
+    shotsHitRef.current = 0;
     setScore(0);
-    setLives(3);
-    setQualityPoints(90);
+    setShields(100);
+    setPrecision(100);
     setIsPlaying(true);
   };
 
@@ -579,17 +660,19 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
     <div className={styles.gameScreen}>
       {!isPlaying ? (
         <div className={styles.gameSplash}>
-          <Rocket size={64} style={{ color: '#818cf8', filter: 'drop-shadow(0 0 15px rgba(129, 140, 248, 0.4))' }} />
-          <h3 className={styles.splashTitle}>DATA DEFENDER GALAXY</h3>
-          <p className={styles.splashSubtitle}>Estación de Defensa Galáctica de Datos</p>
+          <Rocket size={64} style={{ color: '#a855f7', filter: 'drop-shadow(0 0 15px rgba(168, 85, 247, 0.4))' }} />
+          <h3 className={styles.splashTitle}>RETO DIARIO ACTIVADO</h3>
+          <p className={styles.splashSubtitle}>Bahía de Despegue del Nexus Guardian X1</p>
           <p className={styles.splashDesc}>
-            Controla tu nave **Nexus Guardian X1**. Dispara reglas de calidad y políticas de datos para limpiar duplicados, vacíos y amenazas normativas.
+            Para completar el reto diario debes erradicar las anomalías usando la matriz de vulnerabilidad estricta. Disparar al azar dañará tus escudos de gobernanza.
           </p>
           
-          <div style={{ display: 'flex', gap: '20px', background: 'rgba(255,255,255,0.03)', padding: '15px 25px', borderRadius: '12px', fontSize: '0.82rem', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8' }}>
-            <div>⬅ / ➡ : Moverse</div>
-            <div>[Espacio] : Disparar</div>
-            <div>[1-5] : Cambiar Armas</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#10b981' }}>🟢 Regla de Calidad (Teclado 1)</span> <span>Vulnerables: Clone Records</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#06b6d4' }}>🔵 Enriquecimiento de Metadatos (Teclado 2)</span> <span>Vulnerables: Missing Fields</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8b5cf6' }}>🟣 Data Purge / Borrado (Teclado 3)</span> <span>Vulnerables: Legacy Monsters</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#eab308' }}>🟡 Control de Cumplimiento (Teclado 4)</span> <span>Vulnerables: Compliance Raiders</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#ef4444' }}>🔴 Certificación de IA (Teclado 5)</span> <span>Vulnerables: Uncertified AI Entities</span></div>
           </div>
 
           <button className={styles.playBtn} onClick={startGame}>
@@ -600,14 +683,14 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
         <>
           <div className={styles.gameControlsOverlay}>
             <div className={styles.gameHud}>
-              <span>PUNTOS: {score}</span>
+              <span>SCORE: {score}</span>
             </div>
             <div className={styles.gameHud}>
-              <span>CALIDAD GLOBAL: {qualityPoints}%</span>
+              <span style={{ color: shields < 40 ? '#ef4444' : '#10b981' }}>ESCUDOS DE GOBERNANZA: {shields}%</span>
             </div>
-            <button className={styles.quitGameBtn} onClick={() => setIsPlaying(false)}>
-              Reiniciar
-            </button>
+            <div className={styles.gameHud}>
+              <span>PRECISIÓN: {precision}%</span>
+            </div>
           </div>
 
           <canvas 
@@ -620,21 +703,21 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
           {/* Console / Controls Panel */}
           <div className={styles.gameConsolePanel}>
             <div className={styles.consoleStatCard}>
-              <div className={styles.consoleStatLabel}>ARMA ACTUAL</div>
-              <div className={styles.consoleStatVal} style={{ fontSize: '0.9rem', color: '#a5b4fc' }}>
+              <div className={styles.consoleStatLabel}>ARMA ACTIVA</div>
+              <div className={styles.consoleStatVal} style={{ fontSize: '0.85rem', color: '#a855f7' }}>
                 {activeWeapon}
               </div>
             </div>
             
             <div className={styles.consoleStatCard}>
-              <div className={styles.consoleStatLabel}>SELECCIÓN (Teclas 1-5)</div>
+              <div className={styles.consoleStatLabel}>SELECCIÓN DIRECTA</div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
                 {weapons.map((w, idx) => (
                   <button 
                     key={idx}
                     onClick={() => handleWeaponChange(idx)}
                     style={{
-                      background: activeWeapon === w ? '#4f46e5' : 'rgba(255,255,255,0.05)',
+                      background: activeWeapon === w.name ? '#7c3aed' : 'rgba(255,255,255,0.05)',
                       border: 'none',
                       color: 'white',
                       padding: '4px 8px',
@@ -651,13 +734,15 @@ function GameCanvasContainer({ setNexiaMsg }: GameCanvasContainerProps) {
             </div>
 
             <div className={styles.consoleStatCard}>
-              <div className={styles.consoleStatLabel}>ESCUDOS</div>
-              <div className={styles.consoleStatVal} style={{ color: '#10b981' }}>ACTIVO</div>
+              <div className={styles.consoleStatLabel}>SOBRECALENTAMIENTO</div>
+              <div className={styles.consoleStatVal} style={{ color: isOverheated ? '#ef4444' : '#10b981', fontSize: '0.9rem' }}>
+                {isOverheated ? 'BLOQUEADO' : 'NORMAL'}
+              </div>
             </div>
 
             <div className={styles.consoleStatCard}>
-              <div className={styles.consoleStatLabel}>ESTADO DEL MOTOR</div>
-              <div className={styles.consoleStatVal} style={{ color: '#06b6d4' }}>ESTABLE</div>
+              <div className={styles.consoleStatLabel}>FUSIBLE CUÁNTICO</div>
+              <div className={styles.consoleStatVal} style={{ color: '#06b6d4', fontSize: '0.9rem' }}>ACTIVO</div>
             </div>
           </div>
         </>
