@@ -177,7 +177,7 @@ export default function DataPathChallengePage() {
     else targetNodes = 20;
 
     let attempts = 0;
-    while (attempts < 150) {
+    while (attempts < 10) {
       attempts++;
       const walls: Wall[] = [];
       
@@ -185,7 +185,7 @@ export default function DataPathChallengePage() {
       let path = generateHamiltonianPath(gridSize, rng);
       
       // Fallback: if we are struggling to find a path randomly, use a guaranteed snake path
-      if (!path && attempts >= 140) {
+      if (!path && attempts >= 8) {
         path = [];
         for (let r = 0; r < gridSize; r++) {
           if (r % 2 === 0) {
@@ -276,7 +276,7 @@ export default function DataPathChallengePage() {
     visited.add('0,0');
 
     let steps = 0;
-    const maxSteps = gridSize * gridSize * 120; // Safe threshold (e.g. 7680 steps for 8x8) to prevent CPU lockups
+    const maxSteps = gridSize * gridSize * 15; // Extremely safe limit (e.g. 960 steps for 8x8) to guarantee sub-millisecond execution
 
     function dfs(r: number, c: number): boolean {
       steps++;
