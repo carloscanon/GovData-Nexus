@@ -505,6 +505,22 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
           speed: 8,
           weapon: weaponRef.current
         });
+
+        // Laser sound effect synthesis
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.15);
+        } catch (err) {}
       }
       
       if (['1','2','3','4','5'].includes(e.key)) {
@@ -609,9 +625,32 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
             // Collision occurred! Remove bullet
             bullets.splice(bIdx, 1);
 
+            // Synthesize audio context sound effects
+            const playSound = (freq: number, type: OscillatorType, duration: number, gainVal = 0.08) => {
+              try {
+                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                if (type === 'sawtooth') {
+                  osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + duration);
+                }
+                gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+              } catch (e) {}
+            };
+
             // Verify if weapon matches weakness
             if (bullet.weapon === enemy.weaponAllowed) {
               shotsHitRef.current++;
+              playSound(440, 'triangle', 0.25); // Good hit sound
               
               // Spark particles
               for (let i = 0; i < 10; i++) {
@@ -632,6 +671,7 @@ function GameCanvasContainer({ setNexiaMsg, onFinishGame }: DailyGameCanvasProps
               setNexiaMsg(`✅ ¡Impacto correcto! ${enemy.type} mitigado usando ${bullet.weapon}.`);
             } else {
               // WRONG WEAPON - Penalize shields and sound alarm
+              playSound(150, 'sawtooth', 0.4, 0.15); // Alarm buzzer sound
               shieldsRef.current = Math.max(0, shieldsRef.current - 15);
               setShields(shieldsRef.current);
               setNexiaMsg(`❌ ERROR DE GOBIERNO: Disparaste ${bullet.weapon} contra un ${enemy.type} (requiere ${enemy.weaponAllowed}). Carga estática recibida.`);

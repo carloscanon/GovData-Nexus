@@ -135,8 +135,14 @@ export default function Login() {
   const [demoSuccess, setDemoSuccess] = useState(false);
   const [demoError, setDemoError] = useState('');
 
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const reason = searchParams?.get('reason');
+
   // Load config: show localStorage cache instantly, then fetch from DB
   useEffect(() => {
+    if (reason === 'inactivity') {
+      setError('Su sesión ha expirado por inactividad. Por favor, ingrese de nuevo.');
+    }
     // 1. Instant render from local cache
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -255,10 +261,12 @@ export default function Login() {
     let tenantId = '';
 
     // Solo superadmin es hardcodeado
+    // IMPORTANT: tenant_id is UUID type in DB - use the global tenant UUID for superadmin
+    const SUPERADMIN_TENANT_UUID = '00000000-0000-0000-0000-000000000001';
     if (normalizedEmail === 'admin@govdata.io') {
       role = 'superadmin';
       name = 'Super Admin';
-      tenantId = 'global';
+      tenantId = SUPERADMIN_TENANT_UUID;
     } else {
       try {
         // Intentar obtener metadatos seguros de la sesión servidor/NextAuth
@@ -299,6 +307,56 @@ export default function Login() {
     localStorage.setItem('govdata_user_name', name);
     localStorage.setItem('govdata_current_tenant_id', tenantId);
     localStorage.setItem('govdata_user_email', normalizedEmail);
+
+    // Write auth cookie so Next.js middleware can protect routes server-side
+    // SameSite=Strict prevents CSRF; no HttpOnly so JS can also read it client-side
+    const maxAge = 8 * 60 * 60; // 8 hours
+    document.cookie = `govdata_role=${role}; path=/; max-age=${maxAge}; SameSite=Strict`;
+
+
+    // Create session connection log record in database table saas_connections
+    try {
+      // First, set any previously lingering active sessions for this user to 'Cerrada' to keep it clean
+      await supabase
+        .from('saas_connections')
+        .update({ status: 'Cerrada', logout_time: new Date().toISOString() })
+        .ilike('user_email', normalizedEmail.trim())
+        .eq('status', 'Activa');
+
+      // Detect browser client details
+      const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+      let browser = 'Chrome';
+      if (userAgent.indexOf('Firefox') > -1) browser = 'Firefox';
+      else if (userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
+      else if (userAgent.indexOf('Edge') > -1) browser = 'Edge';
+
+      const SUPERADMIN_TENANT_UUID = '00000000-0000-0000-0000-000000000001';
+      // tenant_id must be a valid UUID (not 'global' string)
+      const safetenantId = (tenantId && tenantId !== 'global') ? tenantId : SUPERADMIN_TENANT_UUID;
+
+      const { error: insertError } = await supabase.from('saas_connections').insert({
+        tenant_id: safetenantId,
+        user_email: normalizedEmail,
+        user_name: name,
+        user_role: role,
+        login_time: new Date().toISOString(),
+        ip_address: '186.116.15.24', // mock office IP
+        browser: browser,
+        os: 'Windows 11',
+        device: 'Desktop PC',
+        city: 'Bogotá',
+        country: 'Colombia',
+        status: 'Activa',
+        is_suspicious: false
+      });
+      if (insertError) {
+        console.error('[Login] Error inserting session into saas_connections:', insertError);
+      } else {
+        console.log('[Login] Session registered in saas_connections for:', normalizedEmail);
+      }
+    } catch (e) {
+      console.warn('Error inserting saas_connections row on login:', e);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {

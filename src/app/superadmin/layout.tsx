@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 import {
   LayoutDashboard,
@@ -48,13 +49,46 @@ export default function SuperAdminLayout({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem('govdata_role');
-      if (role !== 'superadmin') {
-        router.push('/');
-      }
+    // Check cookie (set on login) instead of only localStorage
+    // This ensures direct URL access after logout is blocked
+    const roleCookie = document.cookie
+      .split(';')
+      .find(c => c.trim().startsWith('govdata_role='))
+      ?.split('=')[1]
+      ?.trim();
+
+    if (!roleCookie) {
+      router.replace('/login?reason=unauthorized');
+      return;
+    }
+    if (roleCookie !== 'superadmin') {
+      router.replace('/');
     }
   }, [router]);
+
+  // Close session in DB and redirect
+  const handleLogout = async (redirectTo: string = '/login') => {
+    const email = localStorage.getItem('govdata_user_email');
+    if (email) {
+      try {
+        await supabase
+          .from('saas_connections')
+          .update({ status: 'Cerrada', logout_time: new Date().toISOString() })
+          .ilike('user_email', email.trim())
+          .eq('status', 'Activa');
+      } catch (e) {
+        console.warn('[Logout] Could not update session status:', e);
+      }
+    }
+    localStorage.removeItem('govdata_role');
+    localStorage.removeItem('govdata_user_name');
+    localStorage.removeItem('govdata_current_tenant_id');
+    localStorage.removeItem('govdata_user_email');
+    localStorage.removeItem('govdata_avatar_url');
+    // Expire the auth cookie so middleware blocks protected routes immediately
+    document.cookie = 'govdata_role=; path=/; max-age=0; SameSite=Strict';
+    router.push(redirectTo);
+  };
 
   return (
     <div className="sa-layout">
@@ -119,14 +153,11 @@ export default function SuperAdminLayout({
         {/* Footer info */}
         <div className="sa-sidebar-footer">
           <button
-            onClick={() => {
-              setIsMobileSidebarOpen(false);
-              router.push('/');
-            }}
+            onClick={() => handleLogout('/login')}
             className="sa-btn-back"
           >
             <LogOut className="w-4 h-4" />
-            <span>Volver al Portal</span>
+            <span>Cerrar Sesión</span>
           </button>
         </div>
       </aside>

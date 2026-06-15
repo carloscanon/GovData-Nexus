@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Save, RotateCcw, Eye, EyeOff, Type, Image as ImageIcon,
   Palette, AlignLeft, Monitor, Upload, Check,
-  ChevronDown, ChevronUp, Layout, Sliders, Layers, Music, Play, Trash2, Sparkles
+  ChevronDown, ChevronUp, Layout, Sliders, Layers, Music, Play, Trash2, Sparkles, Lock
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -55,6 +55,8 @@ export interface LoginPageConfig {
   loginSoundUrl?: string;  // custom uploaded audio file as data URL
   themeId?: 'classic' | 'cyberpunk' | 'luxury' | 'minimalist' | 'custom';
   fontFamily?: string;
+  sessionInactivityTimeoutMinutes?: number;
+  adminSessionCheckIntervalSeconds?: number;
 }
 
 export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
@@ -94,6 +96,8 @@ export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
   loginSoundUrl: '',
   themeId: 'classic',
   fontFamily: 'system-ui, -apple-system, sans-serif',
+  sessionInactivityTimeoutMinutes: 5,
+  adminSessionCheckIntervalSeconds: 15,
 };
 
 export const STORAGE_KEY = 'govdata_login_config';
@@ -1135,6 +1139,42 @@ export default function LoginConfigPage() {
                 )}
               </Field>
             )}
+          </Section>
+
+          <Section title="Seguridad y Sesión" icon={Lock}>
+            <Field label="Tiempo Límite de Inactividad (minutos)">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <input
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={cfg.sessionInactivityTimeoutMinutes || 5}
+                  onChange={e => update('sessionInactivityTimeoutMinutes', Math.max(1, parseInt(e.target.value) || 5))}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>minutos</span>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: '#475569', marginTop: '0.35rem', margin: 0 }}>
+                Las sesiones de los usuarios se cerrarán automáticamente después de este tiempo de inactividad técnica.
+              </p>
+            </Field>
+
+            <Field label="Frecuencia de Validación Administrativa (segundos)">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <input
+                  type="number"
+                  min="2"
+                  max="300"
+                  value={cfg.adminSessionCheckIntervalSeconds || 15}
+                  onChange={e => update('adminSessionCheckIntervalSeconds', Math.max(2, parseInt(e.target.value) || 15))}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>segundos</span>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: '#475569', marginTop: '0.35rem', margin: 0 }}>
+                Intervalo en segundos para comprobar en la base de datos si la sesión ha sido revocada por el administrador. (Recomendado: 15s)
+              </p>
+            </Field>
           </Section>
         </div>
       </div>

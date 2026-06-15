@@ -34,6 +34,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 import styles from './Sidebar.module.css';
 
 const menuItems = [
@@ -143,13 +144,27 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     };
   }, [currentTenant?.id, userRole]);
 
-  // Logout handler
-  const handleLogout = () => {
+  // Logout handler — marks session as 'Cerrada' in DB before clearing local state
+  const handleLogout = async () => {
+    const email = localStorage.getItem('govdata_user_email');
+    if (email) {
+      try {
+        await supabase
+          .from('saas_connections')
+          .update({ status: 'Cerrada', logout_time: new Date().toISOString() })
+          .ilike('user_email', email.trim())
+          .eq('status', 'Activa');
+      } catch (e) {
+        console.warn('[Logout] Could not update session status:', e);
+      }
+    }
     localStorage.removeItem('govdata_role');
     localStorage.removeItem('govdata_user_name');
     localStorage.removeItem('govdata_current_tenant_id');
     localStorage.removeItem('govdata_avatar_url');
     localStorage.removeItem('govdata_user_email');
+    // Expire the auth cookie so the middleware blocks routes immediately
+    document.cookie = 'govdata_role=; path=/; max-age=0; SameSite=Strict';
     window.location.href = '/login';
   };
 

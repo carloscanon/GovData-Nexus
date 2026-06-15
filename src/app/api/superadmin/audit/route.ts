@@ -137,6 +137,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, data });
     }
 
+    // Action 2b: Bulk terminate connection sessions
+    if (action === 'terminate_sessions') {
+      const { sessionIds } = body;
+      if (!Array.isArray(sessionIds) || sessionIds.length === 0) {
+        return NextResponse.json({ success: false, error: 'Lista de IDs no válida' }, { status: 400 });
+      }
+      const { data, error } = await supabase
+        .from('saas_connections')
+        .update({
+          status: 'Forzada',
+          logout_time: new Date().toISOString()
+        })
+        .in('id', sessionIds)
+        .select();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
     // Action 3: Resolve security alert
     if (action === 'resolve_alert') {
       const { data, error } = await supabase

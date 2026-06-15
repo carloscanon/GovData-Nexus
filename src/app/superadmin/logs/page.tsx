@@ -64,10 +64,11 @@ export default function CentralizedAuditPage() {
   const [ipSearch, setIpSearch] = useState('');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('Activa');
 
   // Interactive Modals
   const [selectedDiffLog, setSelectedDiffLog] = useState<any>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
   const fetchAuditData = useCallback(async () => {
     setLoading(true);
@@ -81,6 +82,7 @@ export default function CentralizedAuditPage() {
         setSettings(data.data.settings || { retention_days: 8 });
         setTenants(data.data.tenants || []);
         setStats(data.data.stats || {});
+        setSelectedSessionIds([]); // Reset selections on data reload
       }
     } catch (err) {
       console.error('Error fetching audit logs:', err);
@@ -125,6 +127,25 @@ export default function CentralizedAuditPage() {
       const data = await res.json();
       if (data.success) {
         alert('✅ Sesión revocada exitosamente.');
+        fetchAuditData();
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handleBulkForceLogout = async () => {
+    if (selectedSessionIds.length === 0) return;
+    if (!confirm(`¿Está seguro de forzar el cierre de las ${selectedSessionIds.length} sesiones seleccionadas?`)) return;
+    try {
+      const res = await fetch('/api/superadmin/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'terminate_sessions', sessionIds: selectedSessionIds })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Sesiones seleccionadas revocadas exitosamente.');
         fetchAuditData();
       }
     } catch (err: any) {
@@ -553,10 +574,38 @@ export default function CentralizedAuditPage() {
       {/* Connections List Tab */}
       {activeTab === 'connections' && (
         <div className="sa-card-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          {selectedSessionIds.length > 0 && (
+            <div style={{ padding: '12px 20px', background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fca5a5' }}>
+                {selectedSessionIds.length} sesiones seleccionadas
+              </span>
+              <button 
+                onClick={handleBulkForceLogout}
+                style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+              >
+                Cerrar Sesiones Seleccionadas
+              </button>
+            </div>
+          )}
           <div className="sa-table-container">
             <table className="sa-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox"
+                      checked={filteredConnections.length > 0 && filteredConnections.filter(c => c.status === 'Activa').every(c => selectedSessionIds.includes(c.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          const activeIds = filteredConnections.filter(c => c.status === 'Activa').map(c => c.id);
+                          setSelectedSessionIds(activeIds);
+                        } else {
+                          setSelectedSessionIds([]);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
                   <th>Usuario</th>
                   <th>Empresa</th>
                   <th>Fecha de Ingreso</th>
@@ -577,8 +626,28 @@ export default function CentralizedAuditPage() {
                     ? 'Transcurriendo...' 
                     : 'Corto plazo';
 
+                  const isChecked = selectedSessionIds.includes(con.id);
+
                   return (
-                    <tr key={con.id} style={{ background: con.is_suspicious ? 'rgba(239,68,68,0.02)' : undefined }}>
+                    <tr key={con.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.05)' : con.is_suspicious ? 'rgba(239,68,68,0.02)' : undefined }}>
+                      <td style={{ textAlign: 'center' }}>
+                        {con.status === 'Activa' ? (
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedSessionIds(prev => [...prev, con.id]);
+                              } else {
+                                setSelectedSessionIds(prev => prev.filter(id => id !== con.id));
+                              }
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        ) : (
+                          <input type="checkbox" checked={false} disabled onChange={() => {}} style={{ opacity: 0.3 }} />
+                        )}
+                      </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 700, color: '#ffffff' }}>{con.user_name || 'Usuario SaaS'}</span>
@@ -631,7 +700,7 @@ export default function CentralizedAuditPage() {
                 })}
                 {filteredConnections.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', color: '#64748b', padding: '32px' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', color: '#64748b', padding: '32px' }}>
                       No se encontraron conexiones que coincidan con los filtros aplicados.
                     </td>
                   </tr>

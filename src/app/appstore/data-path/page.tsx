@@ -88,8 +88,8 @@ export default function DataPathChallengePage() {
   const router = useRouter();
   const { currentTenant } = usePlatform();
   const [mode, setMode] = useState<'daily' | 'free'>('daily');
-  const [size, setSize] = useState<number>(8);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('hard');
+  const [size, setSize] = useState<number>(6);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('medium');
   const [board, setBoard] = useState<BoardData | null>(null);
   
   // Dragging / Drawing state
@@ -257,8 +257,12 @@ export default function DataPathChallengePage() {
     const visited = new Set<string>();
     const path: Cell[] = [{ r: 0, c: 0 }];
     visited.add('0,0');
+    let steps = 0;
+    const maxSteps = 10000; // safety ceiling to prevent browser hanging
 
     function dfs(r: number, c: number): boolean {
+      steps++;
+      if (steps > maxSteps) return false;
       if (path.length === gridSize * gridSize) {
         return true;
       }
@@ -294,9 +298,9 @@ export default function DataPathChallengePage() {
   // Load Daily or Custom Challenge
   useEffect(() => {
     if (mode === 'daily') {
-      setSize(8);
-      setDifficulty('hard');
-      generateBoard(8, 'hard', true);
+      setSize(6);
+      setDifficulty('medium');
+      generateBoard(6, 'medium', true);
       const today = new Date().toDateString();
       const status = localStorage.getItem(`data_path_daily_played_${today}_${currentTenant?.id || 'demo'}`);
       setHasPlayedToday(status === 'true');
@@ -360,22 +364,31 @@ export default function DataPathChallengePage() {
     // Check walls constraint (cannot cross walls)
     if (hasWallBetween(lastCell, { r, c }, board.walls)) return;
 
-    // Validate sequential connect
+    // Validate sequential connect — only numbered cells require order enforcement
+    // Rule: you CAN freely cross unnumbered cells in any direction.
+    // You CAN step on the NEXT expected numbered cell.
+    // You CANNOT step on a numbered cell that has ALREADY been collected in the current path.
+    // You CANNOT step on a numbered cell that would skip a number which is ALREADY placed
+    //   earlier in the path but hasn't been reached yet (prevents collecting out of order).
     const targetVal = board.numbers[`${r},${c}`];
     if (targetVal !== undefined) {
-      // Find expected next number in sequence
-      let expected = 2;
+      // Find the highest-numbered node already collected in current path
+      let lastCollected = 0;
       for (const pCell of currentPath) {
         const val = board.numbers[`${pCell.r},${pCell.c}`];
-        if (val !== undefined && val === expected) {
-          expected++;
-        }
+        if (val !== undefined && val > lastCollected) lastCollected = val;
       }
-      if (targetVal !== expected) return;
+      // You can only step on numbered cells in ascending order, one at a time
+      // Allow stepping on (lastCollected + 1), block anything else
+      if (targetVal !== lastCollected + 1) {
+        playSound(200, 'sawtooth', 0.05); // subtle error buzz
+        return;
+      }
       playSound(520 + targetVal * 40, 'triangle', 0.15);
     } else {
       playSound(400, 'sine', 0.02);
     }
+
 
     // Extend path
     const newPath = [...currentPath, { r, c }];
@@ -575,7 +588,7 @@ export default function DataPathChallengePage() {
                 <div className={styles.configRow}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Tamaño:</span>
-                    {[6, 8, 10].map(s => (
+                    {[6].map(s => (
                       <button key={s} className={size === s ? styles.cfgBtnActive : styles.cfgBtn} onClick={() => setSize(s)}>
                         {s}x{s}
                       </button>
@@ -583,7 +596,7 @@ export default function DataPathChallengePage() {
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>Dificultad:</span>
-                    {(['easy', 'medium', 'hard', 'expert'] as const).map(d => (
+                    {(['easy', 'medium', 'hard'] as const).map(d => (
                       <button key={d} className={difficulty === d ? styles.cfgBtnActive : styles.cfgBtn} onClick={() => setDifficulty(d)}>
                         {d.toUpperCase()}
                       </button>
@@ -616,7 +629,7 @@ export default function DataPathChallengePage() {
                           return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
                         }).join(' ')}
                         fill="none"
-                        stroke="#10b981"
+                        stroke="#ff453a"
                         strokeWidth={400 / board.cols * 0.46} // 46% of cell width
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -625,42 +638,7 @@ export default function DataPathChallengePage() {
                     )}
                   </svg>
 
-                  {/* Outer & Inner border walls rendering */}
-                  {board.walls.map((wall, idx) => {
-                    // Calculate wall location based on cells
-                    const isHorizontal = wall.r1 === wall.r2; // Wall is vertical between cols
-                    const minR = Math.min(wall.r1, wall.r2);
-                    const minC = Math.min(wall.c1, wall.c2);
-
-                    let style: React.CSSProperties = {};
-                    if (isHorizontal) {
-                      // Vertical wall border
-                      style = {
-                        gridColumnStart: minC + 2,
-                        gridRowStart: minR + 1,
-                        width: '6px',
-                        height: '100%',
-                        left: '-3px',
-                        background: '#000000',
-                        position: 'absolute',
-                        zIndex: 10
-                      };
-                    } else {
-                      // Horizontal wall border
-                      style = {
-                        gridColumnStart: minC + 1,
-                        gridRowStart: minR + 2,
-                        width: '100%',
-                        height: '6px',
-                        top: '-3px',
-                        background: '#000000',
-                        position: 'absolute',
-                        zIndex: 10
-                      };
-                    }
-
-                    return <div key={idx} style={style} />;
-                  })}
+                  {/* Outer & Inner border walls rendering (Removed to only keep the clean grid) */}
 
                   {/* Render board cells */}
                   {Array.from({ length: board.rows }).map((_, r) => 
