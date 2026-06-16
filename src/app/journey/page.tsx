@@ -568,7 +568,6 @@ const DECISION_CHALLENGES: Record<string, Record<string, DecisionChallenge>> = {
   }
 };
 
-// Fill in other sectors dynamically if requested (using a fallback)
 const getChallengeForSector = (sector: string, phaseId: string): DecisionChallenge => {
   const sect = DECISION_CHALLENGES[sector] || DECISION_CHALLENGES['financiero'];
   return sect[phaseId] || DECISION_CHALLENGES['financiero'][phaseId];
@@ -589,7 +588,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_dama',
         title: 'Diagnóstico DAMA Inicial',
-        context: 'Evalúa las 11 disciplinas de DAMA-DMBOK para entender el nivel de madurez organizativo.',
+        context: 'Ingresa al módulo Command Center 360° y completa el cuestionario de las 11 disciplinas de DAMA-DMBOK. Evalúa el estado real de los procesos de datos para obtener la línea base organizativa. Este autodiagnóstico es el primer paso indispensable para identificar brechas y justificar presupuestos frente a la dirección.',
         expectedResult: 'Haber completado y guardado al menos 1 evaluación de madurez DAMA en el Command Center 360.',
         moduleHref: '/command-center',
         btnLabel: 'Ir a Evaluación DAMA',
@@ -608,7 +607,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_findings',
         title: 'Documentar Hallazgos de Madurez',
-        context: 'Registra los problemas, oportunidades y brechas identificadas en el diagnóstico inicial.',
+        context: 'Navega a la sección de Hallazgos en el Command Center 360° tras completar la evaluación de madurez. Registra los problemas específicos, dolores del negocio y oportunidades detectadas en cada área. Clasifica los hallazgos según su severidad para priorizar planes de acción concretos.',
         expectedResult: 'Tener al menos 5 hallazgos registrados e integrados en el Command Center 360.',
         moduleHref: '/command-center',
         btnLabel: 'Ir a Hallazgos',
@@ -627,7 +626,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_roadmaps',
         title: 'Diseñar el Plan de Ruta (Roadmap)',
-        context: 'Define las fases temporales y hitos para cerrar las brechas identificadas.',
+        context: 'Dirígete a la pestaña del Plan de Ruta dentro del Command Center 360°. Define hitos, plazos y objetivos estratégicos ordenados en fases incrementales a corto y mediano plazo. Este cronograma visual organiza las acciones correctivas del gobierno y alinea al equipo directivo con metas realistas.',
         expectedResult: 'Configurar al menos 4 hitos o fases planificadas en el Roadmap del Command Center 360.',
         moduleHref: '/command-center',
         btnLabel: 'Ir a Plan de Ruta',
@@ -646,7 +645,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_roles',
         title: 'Estructurar el Equipo de Gobierno',
-        context: 'Designa a las personas responsables de orquestar el gobierno: CDO, Data Owners, Stewards y Custodians.',
+        context: 'Accede al módulo de Roles y Equipo para formalizar los roles clave del gobierno. Registra y asigna las responsabilidades indispensables: CDO, Data Owners, Stewards y Custodians. Esta estructura organizativa garantiza que cada dominio cuente con líderes de negocio y de TI para la toma de decisiones.',
         expectedResult: 'Asignar al menos 4 miembros del equipo con roles asignados correctamente.',
         moduleHref: '/team',
         btnLabel: 'Configurar Equipo',
@@ -665,7 +664,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_domains',
         title: 'Establecer Dominios de Datos',
-        context: 'Divide el ecosistema de información en dominios lógicos de negocio para asignar propiedad.',
+        context: 'Ve a la sección de Dominios de Datos dentro del módulo de Roles y Equipo. Clasifica y segmenta la información crítica de la empresa en dominios de negocio lógicos e independientes. Definir estas fronteras conceptuales permite asignar propiedad sobre activos de datos específicos y evita silos organizacionales.',
         expectedResult: 'Tener configurados al menos 2 dominios personalizados de gobierno.',
         moduleHref: '/team',
         btnLabel: 'Crear Dominios',
@@ -684,7 +683,7 @@ const PHASES: Phase[] = [
       {
         id: 'p1_raci',
         title: 'Diseñar la Matriz RACI Operativa',
-        context: 'Define las responsabilidades (R, A, C, I) por proceso clave entre los roles del equipo.',
+        context: 'Ingresa a la pestaña de Matriz RACI en el panel de Roles y Equipo. Mapea las actividades de gobierno principales e identifica qué perfiles serán Responsables, Autorizadores, Consultados o Informados. Esto formaliza los flujos de tareas y asegura que no haya vacíos de autoridad en la operación diaria.',
         expectedResult: 'Configurar y guardar al menos 5 procesos operativos personalizados en tu Matriz RACI.',
         moduleHref: '/team',
         btnLabel: 'Configurar RACI',
@@ -1468,6 +1467,19 @@ const MENTOR_GUIDES: Record<string, {
     governanceProgress: "Alcanza el 93% de avance. Demuestra que el gobierno es una práctica cotidiana y viva, no solo documentación.",
     flowchart: "Crear Ticket de Solicitud ➔ Evaluar por Responsables ➔ Autorizar Cambios ➔ Cerrar y Archivar Ticket"
   },
+  p4_workflows: {
+    purpose: "Operar solicitudes de cambio mediante flujos aprobados formalmente.",
+    stepByStep: [
+      "Ingresa al módulo de Workflows Operativos.",
+      "Crea o gestiona solicitudes de cambio asociadas a glosarios o accesos.",
+      "Valida que cuenten con la aprobación del Data Owner del dominio correspondiente."
+    ],
+    suggestedCases: [
+      { name: "Flujo de Aprobación de Acceso CDO", desc: "Solicitud formal de credenciales de lectura para tablas críticas de la base de datos." }
+    ],
+    governanceProgress: "Llega al 93% de avance operacional.",
+    flowchart: "Solicitud de Cambio ➔ Revisión de Steward ➔ Aprobación de Owner ➔ Cierre de Ticket"
+  },
   p4_incidents_qual: {
     purpose: "Registrar fallos de calidad detectados (descuadres, nulos) para investigar la causa raíz y mitigarlos de forma auditable.",
     stepByStep: [
@@ -1479,6 +1491,19 @@ const MENTOR_GUIDES: Record<string, {
     ],
     governanceProgress: "Avanza al 96%. Mitiga fallos sistémicos de datos garantizando la remediación oportuna.",
     flowchart: "Detectar Error de Calidad ➔ Abrir Incidente de Calidad ➔ Asignar a Steward ➔ Registrar Remediación"
+  },
+  p4_quality_incidents: {
+    purpose: "Registrar fallas en la calidad de datos y realizar el seguimiento.",
+    stepByStep: [
+      "Ve a Calidad de Datos ➔ pestaña Mesa de Incidentes.",
+      "Registra los incidentes por descuadres o nulos identificados.",
+      "Asigna severidad e involucra al Data Steward para su remediación."
+    ],
+    suggestedCases: [
+      { name: "Registros nulos en campo Cédula", desc: "Falla de calidad en el sistema escolar con 30 registros sin identificación." }
+    ],
+    governanceProgress: "Llega al 96% de madurez operativa de calidad.",
+    flowchart: "Identificar Inconsistencia ➔ Levantar Ticket de Calidad ➔ Asignar Responsable ➔ Mitigar"
   },
   p4_incidents_sec: {
     purpose: "Gestionar y remediar brechas de seguridad o accesos anómalos de forma inmediata para documentar ante auditores.",
@@ -1492,6 +1517,19 @@ const MENTOR_GUIDES: Record<string, {
     governanceProgress: "Alcanza el 98% de madurez. Previene hackeos recurrentes y multas legales documentando la respuesta ante brechas.",
     flowchart: "Detectar Alerta de Seguridad ➔ Crear Incidente ➔ Aplicar Control de Contención ➔ Cerrar Incidente"
   },
+  p4_security_incidents: {
+    purpose: "Registrar incidentes de seguridad para auditoría de accesos.",
+    stepByStep: [
+      "Ve a Seguridad y Riesgos ➔ pestaña Incidentes de Seguridad.",
+      "Registra accesos indebidos o fugas potenciales de información.",
+      "Vincula el incidente con la mitigación preventiva aplicada."
+    ],
+    suggestedCases: [
+      { name: "Intento de intrusión a base contable", desc: "Log de seguridad reportando 5 intentos fallidos de conexión administrativa." }
+    ],
+    governanceProgress: "Avanza al 98% de madurez de seguridad corporativa.",
+    flowchart: "Alerta de Acceso ➔ Abrir Incidente de Seguridad ➔ Aplicar Bloqueo IP ➔ Registrar Log"
+  },
   p4_monitoring_history: {
     purpose: "Registrar las corridas del monitoreo de calidad para visualizar la evolución del índice de calidad global en el tiempo.",
     stepByStep: [
@@ -1503,6 +1541,162 @@ const MENTOR_GUIDES: Record<string, {
     ],
     governanceProgress: "Completa el 100% de madurez en la ruta (CDO Master Champion). Demuestra el control continuo y la evolución medible del programa de datos.",
     flowchart: "Correr Reglas de Calidad ➔ Obtener Score Global ➔ Registrar Log Histórico ➔ Visualizar Gráfico de Evolución"
+  },
+  p2_stewardship: {
+    purpose: "Garantizar la custodia de las directivas publicadas asignando stewards responsables.",
+    stepByStep: [
+      "Ve al módulo de Políticas de Datos.",
+      "Edita las políticas activas y asocia un Data Steward de negocio en el campo correspondiente.",
+      "Valida que el Steward asignado acepte y formalice las directrices."
+    ],
+    suggestedCases: [
+      { name: "Custodia de Privacidad de Datos", desc: "Asignación del Oficial de Cumplimiento como custodio de la regla Habeas Data." }
+    ],
+    governanceProgress: "Avanza al 72% de madurez normativa.",
+    flowchart: "Seleccionar Política ➔ Vincular Data Steward ➔ Formalizar Responsabilidad ➔ Registrar"
+  },
+  p2_privacy_consent: {
+    purpose: "Configurar directivas y controles para la captura de consentimiento de clientes.",
+    stepByStep: [
+      "Navega al módulo de Seguridad y Riesgos ➔ pestaña Controles.",
+      "Crea un control específico para almacenar los tokens y fechas de autorización del Habeas Data.",
+      "Enlaza el control a las tablas de almacenamiento de información de clientes."
+    ],
+    suggestedCases: [
+      { name: "Captura de Consentimiento Opt-In", desc: "Control técnico para registrar la aceptación en web antes de almacenar datos." }
+    ],
+    governanceProgress: "Sube al 74% de madurez regulatorio.",
+    flowchart: "Configurar Check en Portal ➔ Generar Token Único ➔ Almacenar Consentimiento ➔ Validar"
+  },
+  p2_mitigation_actions: {
+    purpose: "Diseñar planes de contención para riesgos críticos identificados en la matriz.",
+    stepByStep: [
+      "Ve a Seguridad y Riesgos ➔ Matriz de Riesgos.",
+      "Edita los riesgos catalogados como altos o críticos.",
+      "Redacta un plan de mitigación detallado, vinculando a los encargados técnicos y plazos."
+    ],
+    suggestedCases: [
+      { name: "Mitigación por pérdida de bases de datos", desc: "Respaldo diario georeplicado e inmutable para evitar secuestros de información." }
+    ],
+    governanceProgress: "Alcanza el 76% de control preventivo.",
+    flowchart: "Analizar Riesgo Crítico ➔ Diseñar Plan de Contingencia ➔ Asignar Responsable TI ➔ Guardar"
+  },
+  p2_normative_audit: {
+    purpose: "Ejecutar auditorías periódicas sobre el cumplimiento de las políticas publicadas.",
+    stepByStep: [
+      "Dirígete al módulo de Políticas y Workflows.",
+      "Configura una auditoría periódica de cumplimiento para verificar el apego a las directivas.",
+      "Registra los reportes de cumplimiento o desviaciones detectadas en las bases de datos."
+    ],
+    suggestedCases: [
+      { name: "Auditoría de Cifrado Contable Q2", desc: "Verificación técnica trimestral del enmascaramiento de cuentas en logs." }
+    ],
+    governanceProgress: "Alcanza el 78% de madurez en control interno.",
+    flowchart: "Programar Auditoría ➔ Escanear Aplicación de Normas ➔ Reportar Hallazgos ➔ Actualizar"
+  },
+  p3_catalog_classification: {
+    purpose: "Categorizar activos de información según su nivel de confidencialidad y criticidad.",
+    stepByStep: [
+      "Ve al Catálogo de Activos ➔ Tablas y Reportes.",
+      "Edita las tablas importadas y define su clasificación de seguridad (PII, PCI, Confidencial).",
+      "Confirma que la clasificación sea visible para los analistas que consulten el catálogo."
+    ],
+    suggestedCases: [
+      { name: "Clasificación de Tablas Financieras", desc: "Etiquetar bases contables como PCI debido a transacciones de tarjetas." }
+    ],
+    governanceProgress: "Avanza al 86% de madurez de catálogo.",
+    flowchart: "Seleccionar Activo ➔ Clasificar Sensibilidad ➔ Asignar Etiqueta de Seguridad ➔ Registrar"
+  },
+  p3_lineage_mapping: {
+    purpose: "Trazar el camino de los campos desde su origen físico hasta el reporte final.",
+    stepByStep: [
+      "Navega al Catálogo de Activos y edita la estructura interna de los campos.",
+      "Documenta el campo origen y los sistemas transaccionales por donde fluye el dato.",
+      "Guarda la trazabilidad para generar el mapa de linaje del activo."
+    ],
+    suggestedCases: [
+      { name: "Linaje de Reporte de Margen Operativo", desc: "Mapeo desde la tabla local ERP hasta la dimensión final del Data Warehouse." }
+    ],
+    governanceProgress: "Llega al 88% de trazabilidad de metadatos.",
+    flowchart: "Identificar Campo Destino ➔ Trazar Sistema Origen ➔ Registrar Lógica de Cambio ➔ Guardar"
+  },
+  p3_rules_dimensions: {
+    purpose: "Validar la consistencia y exactitud del dato usando dimensiones del estándar DAMA.",
+    stepByStep: [
+      "Ve al módulo de Calidad de Datos ➔ pestaña Reglas.",
+      "Configura reglas lógicas asociadas a consistencia referencial o precisión.",
+      "Vincula estas validaciones avanzadas a tus activos críticos."
+    ],
+    suggestedCases: [
+      { name: "Consistencia de Cuentas Contables", desc: "Regla que valida que no existan saldos descuadrados respecto al libro mayor." }
+    ],
+    governanceProgress: "Aumenta la calidad técnica al 90%.",
+    flowchart: "Definir Dimensión DAMA ➔ Configurar Regla Lógica ➔ Ejecutar Evaluación ➔ Guardar"
+  },
+  p3_source_types: {
+    purpose: "Homologar y catalogar la conexión física de motores de bases de datos corporativas.",
+    stepByStep: [
+      "Ingresa a Catálogo de Activos ➔ Conexiones de Datos.",
+      "Homologa y valida los orígenes físicos registrados en el ecosistema corporativo.",
+      "Asigna nombres estandarizados para clasificar QA, Staging o Producción."
+    ],
+    suggestedCases: [
+      { name: "Homologación Oracle y Snowflake", desc: "Clasificar motores relacionales y analíticos bajo un mismo estándar técnico." }
+    ],
+    governanceProgress: "Completa el 92% de orígenes integrados.",
+    flowchart: "Validar Servidores ➔ Estandarizar Nombres ➔ Probar Conexión ➔ Homologar Catálogo"
+  },
+  p4_workflows_sla: {
+    purpose: "Monitorear los acuerdos de niveles de servicio (SLA) en flujos resueltos.",
+    stepByStep: [
+      "Navega a Workflows Operativos.",
+      "Revisa la bitácora de solicitudes aprobadas o cerradas.",
+      "Verifica que el tiempo promedio de atención respete el SLA de la organización."
+    ],
+    suggestedCases: [
+      { name: "Auditoría de SLA de Accesos", desc: "Validar que la aprobación de roles se realice en un lapso menor a 12 horas." }
+    ],
+    governanceProgress: "Avanza al 94% de eficiencia operativa.",
+    flowchart: "Medir Fecha Creación ➔ Medir Fecha Cierre ➔ Calcular Tiempo Promedio ➔ Reportar"
+  },
+  p4_quality_remediation: {
+    purpose: "Ejecutar planes de remediación permanentes sobre incidentes de calidad reportados.",
+    stepByStep: [
+      "Ingresa a Calidad de Datos ➔ pestaña Mesa de Incidentes.",
+      "Edita los incidentes registrados y documenta el plan correctivo aplicado en el origen.",
+      "Vincula la regla de calidad que prevendrá la repetición del error en producción."
+    ],
+    suggestedCases: [
+      { name: "Remediación de SKUs Nulos", desc: "Ajuste del pipeline de carga para forzar validación de campos obligatorios en el origen." }
+    ],
+    governanceProgress: "Sube al 97% de remediación continua.",
+    flowchart: "Identificar Falla de Calidad ➔ Aplicar Corrección en Origen ➔ Vincular Regla Preventiva ➔ Cerrar"
+  },
+  p4_security_mitigation: {
+    purpose: "Implementar medidas inmediatas de bloqueo y contención ante brechas de seguridad.",
+    stepByStep: [
+      "Navega al módulo de Seguridad y Riesgos.",
+      "Registra las medidas de contención aplicadas ante incidentes (ej. bloqueo IP, MFA obligatorio).",
+      "Documenta el impacto potencial en campos clasificados PII para auditoría legal."
+    ],
+    suggestedCases: [
+      { name: "Contención ante suplantación", desc: "Bloqueo inmediato de credenciales sospechosas e implantación de autenticación multifactor." }
+    ],
+    governanceProgress: "Llega al 99% de resiliencia ante incidentes.",
+    flowchart: "Alerta de Brecha ➔ Aplicar Bloqueo de Contención ➔ Registrar Acción ➔ Notificar Oficial"
+  },
+  p4_monitoring_runs: {
+    purpose: "Programar corridas de calidad para registrar la evolución del score histórico.",
+    stepByStep: [
+      "Ve a Calidad de Datos ➔ pestaña Historial de Monitoreo.",
+      "Ejecuta el motor de calidad de datos de manera sistemática sobre las tablas.",
+      "Confirma el registro histórico secuencial para analizar la tendencia de mejora."
+    ],
+    suggestedCases: [
+      { name: "Corrida Semanal de Validación", desc: "Evaluación recurrente que genera registros del score contable en el tiempo." }
+    ],
+    governanceProgress: "Completa el 100% de madurez de la ruta de gobierno.",
+    flowchart: "Programar Corrida ➔ Validar Bases de Datos ➔ Registrar Score Global ➔ Generar Gráfico Histórico"
   }
 };
 
@@ -1565,38 +1759,79 @@ export default function JourneyCDO() {
     const role = localStorage.getItem('govdata_role') || '';
     setUserRole(role);
 
-    // Load selected sector
-    const sector = localStorage.getItem('govdata_selected_sector');
-    if (sector && sector !== 'null') {
-      setSelectedSector(sector);
-    }
+    const loadSupabaseState = async () => {
+      if (!currentTenant?.id) return;
+      const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+      
+      try {
+        const { data: userState, error } = await supabase
+          .from('journey_user_state')
+          .select('*')
+          .eq('tenant_id', currentTenant.id)
+          .eq('user_email', userEmail)
+          .single();
 
-    // Load solved decisions
-    const decs: Record<string, string> = {};
-    const feed: Record<string, { text: string; isCorrect: boolean }> = {};
-    let earnedDecisionPts = 0;
+        if (userState) {
+          if (userState.selected_sector) {
+            setSelectedSector(userState.selected_sector);
+          }
+          if (userState.decision_answers) {
+            setResolvedDecisions(userState.decision_answers);
+            // Recompute feedback and score
+            const feed: Record<string, { text: string; isCorrect: boolean }> = {};
+            let earnedDecisionPts = 0;
+            const activeS = userState.selected_sector || 'financiero';
+            
+            Object.keys(userState.decision_answers).forEach((pId) => {
+              const ansKey = userState.decision_answers[pId];
+              const challenge = getChallengeForSector(activeS, pId);
+              const opt = challenge.options.find(o => o.key === ansKey);
+              if (opt) {
+                feed[pId] = { text: opt.feedback, isCorrect: opt.isCorrect };
+                if (opt.isCorrect) earnedDecisionPts += 10;
+              }
+            });
+            setDecisionFeedback(feed);
+            setDecisionScore(earnedDecisionPts);
+          }
+        } else {
+          // Fallback to localStorage
+          const sector = localStorage.getItem('govdata_selected_sector');
+          if (sector && sector !== 'null') {
+            setSelectedSector(sector);
+          }
 
-    ['phase_1', 'phase_2', 'phase_3', 'phase_4'].forEach((pId) => {
-      const savedAns = localStorage.getItem(`govdata_decision_${pId}`);
-      if (savedAns) {
-        decs[pId] = savedAns;
-        // Find if correct
-        const activeS = sector || 'financiero';
-        const challenge = getChallengeForSector(activeS, pId);
-        const opt = challenge.options.find(o => o.key === savedAns);
-        if (opt) {
-          feed[pId] = { text: opt.feedback, isCorrect: opt.isCorrect };
-          if (opt.isCorrect) earnedDecisionPts += 10;
+          const decs: Record<string, string> = {};
+          const feed: Record<string, { text: string; isCorrect: boolean }> = {};
+          let earnedDecisionPts = 0;
+
+          ['phase_1', 'phase_2', 'phase_3', 'phase_4'].forEach((pId) => {
+            const savedAns = localStorage.getItem(`govdata_decision_${pId}`);
+            if (savedAns) {
+              decs[pId] = savedAns;
+              const activeS = sector || 'financiero';
+              const challenge = getChallengeForSector(activeS, pId);
+              const opt = challenge.options.find(o => o.key === savedAns);
+              if (opt) {
+                feed[pId] = { text: opt.feedback, isCorrect: opt.isCorrect };
+                if (opt.isCorrect) earnedDecisionPts += 10;
+              }
+            }
+          });
+
+          setResolvedDecisions(decs);
+          setDecisionFeedback(feed);
+          setDecisionScore(earnedDecisionPts);
         }
+      } catch (err) {
+        console.error("Error loading journey state from Supabase:", err);
       }
-    });
+    };
 
-    setResolvedDecisions(decs);
-    setDecisionFeedback(feed);
-    setDecisionScore(earnedDecisionPts);
-  }, []);
+    loadSupabaseState();
+  }, [currentTenant?.id]);
 
-  const handleSelectSector = (sectorId: string) => {
+  const handleSelectSector = async (sectorId: string) => {
     setSelectedSector(sectorId);
     localStorage.setItem('govdata_selected_sector', sectorId);
     // Reset decisions for a fresh game
@@ -1606,15 +1841,53 @@ export default function JourneyCDO() {
     setResolvedDecisions({});
     setDecisionFeedback({});
     setDecisionScore(0);
+
+    if (currentTenant?.id) {
+      const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+      try {
+        await supabase.from('journey_user_state').upsert({
+          tenant_id: currentTenant.id,
+          user_email: userEmail,
+          selected_sector: sectorId,
+          decision_answers: {},
+          decision_score: 0,
+          db_score: 0,
+          total_score: 0,
+          level: 'CDO Junior',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id,user_email' });
+      } catch (err) {
+        console.error("Error saving sector to Supabase:", err);
+      }
+    }
   };
 
-  const handleResetSector = () => {
+  const handleResetSector = async () => {
     setSelectedSector(null);
     localStorage.setItem('govdata_selected_sector', 'null');
+
+    if (currentTenant?.id) {
+      const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+      try {
+        await supabase.from('journey_user_state').upsert({
+          tenant_id: currentTenant.id,
+          user_email: userEmail,
+          selected_sector: null,
+          decision_answers: {},
+          decision_score: 0,
+          db_score: 0,
+          total_score: 0,
+          level: 'CDO Junior',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id,user_email' });
+      } catch (err) {
+        console.error("Error resetting sector in Supabase:", err);
+      }
+    }
   };
 
   // Submit decision option
-  const handleSelectOption = (phaseId: string, optionKey: string, isCorrect: boolean, feedbackText: string) => {
+  const handleSelectOption = async (phaseId: string, optionKey: string, isCorrect: boolean, feedbackText: string) => {
     if (resolvedDecisions[phaseId]) return; // Cannot edit once selected
 
     const newDecs = { ...resolvedDecisions, [phaseId]: optionKey };
@@ -1624,9 +1897,26 @@ export default function JourneyCDO() {
     setDecisionFeedback(newFeed);
     localStorage.setItem(`govdata_decision_${phaseId}`, optionKey);
 
+    let newDecScore = decisionScore;
     if (isCorrect) {
-      const newDecScore = decisionScore + 10;
+      newDecScore = decisionScore + 10;
       setDecisionScore(newDecScore);
+    }
+
+    if (currentTenant?.id) {
+      const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+      try {
+        await supabase.from('journey_user_state').upsert({
+          tenant_id: currentTenant.id,
+          user_email: userEmail,
+          decision_answers: newDecs,
+          decision_score: newDecScore,
+          total_score: dbScore + newDecScore,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id,user_email' });
+      } catch (err) {
+        console.error("Error saving decision to Supabase:", err);
+      }
     }
   };
 
@@ -1837,6 +2127,63 @@ export default function JourneyCDO() {
       const dbEarned = Math.round((completedCount / 32) * 60);
       setDbScore(dbEarned);
 
+      // Save each activity progress to Supabase
+      if (currentTenant?.id) {
+        const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+        const upsertPromises = PHASES.flatMap(p => p.activities).map(async (act) => {
+          const isCompleted = !!newValidations[act.checkKey];
+          const evidenceList = evidenceData[act.checkKey] || [];
+          const count = evidenceList.length;
+          
+          // Deduce required count based on checkJourneyProgress conditions
+          let reqCount = 1;
+          if (act.checkKey === 'findings') reqCount = 5;
+          else if (act.checkKey === 'roadmaps') reqCount = 4;
+          else if (act.checkKey === 'roles') reqCount = 5;
+          else if (act.checkKey === 'domains') reqCount = 3;
+          else if (act.checkKey === 'raci') reqCount = 7;
+          else if (act.checkKey === 'capacity') reqCount = 2;
+          else if (act.checkKey === 'committees') reqCount = 2;
+          else if (act.checkKey === 'policies') reqCount = 5;
+          else if (act.checkKey === 'policy_stewardship') reqCount = 7;
+          else if (act.checkKey === 'workflows') reqCount = 2;
+          else if (act.checkKey === 'normative_audit') reqCount = 3;
+          else if (act.checkKey === 'risks') reqCount = 3;
+          else if (act.checkKey === 'mitigation_actions') reqCount = 4;
+          else if (act.checkKey === 'controls') reqCount = 3;
+          else if (act.checkKey === 'privacy_consent') reqCount = 4;
+          else if (act.checkKey === 'connections') reqCount = 3;
+          else if (act.checkKey === 'source_types') reqCount = 4;
+          else if (act.checkKey === 'assets') reqCount = 6;
+          else if (act.checkKey === 'catalog_classification') reqCount = 8;
+          else if (act.checkKey === 'rules') reqCount = 5;
+          else if (act.checkKey === 'rules_dimensions') reqCount = 7;
+          else if (act.checkKey === 'fields') reqCount = 6;
+          else if (act.checkKey === 'lineage_mapping') reqCount = 8;
+          else if (act.checkKey === 'workflows_op') reqCount = 3;
+          else if (act.checkKey === 'workflows_sla') reqCount = 4;
+          else if (act.checkKey === 'quality_incidents') reqCount = 3;
+          else if (act.checkKey === 'quality_remediation') reqCount = 4;
+          else if (act.checkKey === 'security_incidents') reqCount = 3;
+          else if (act.checkKey === 'security_mitigation') reqCount = 4;
+          else if (act.checkKey === 'monitoring_history') reqCount = 3;
+          else if (act.checkKey === 'monitoring_runs') reqCount = 4;
+
+          await supabase.from('journey_activity_progress').upsert({
+            tenant_id: currentTenant.id,
+            user_email: userEmail,
+            activity_key: act.checkKey,
+            is_completed: isCompleted,
+            evidence_count: count,
+            required_count: reqCount,
+            completed_at: isCompleted ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'tenant_id,user_email,activity_key' });
+        });
+
+        await Promise.all(upsertPromises);
+      }
+
     } catch (e) {
       console.error(e);
     } finally {
@@ -1850,17 +2197,37 @@ export default function JourneyCDO() {
     }
   }, [selectedSector, checkJourneyProgress]);
 
-  // Recalculate total score dynamically (Max 100)
+  // Recalculate total score dynamically (Max 100) and save to DB
   useEffect(() => {
     const total = dbScore + decisionScore;
     setTotalScore(total);
 
-    if (total >= 95) setLevel('CDO Master Supreme');
-    else if (total >= 75) setLevel('Policy & Risk Architect');
-    else if (total >= 50) setLevel('Especialista de Gobierno Senior');
-    else if (total >= 20) setLevel('Arquitecto de Gobierno');
-    else setLevel('CDO Junior');
-  }, [dbScore, decisionScore]);
+    let calculatedLevel = 'CDO Junior';
+    if (total >= 95) calculatedLevel = 'CDO Master Supreme';
+    else if (total >= 75) calculatedLevel = 'Policy & Risk Architect';
+    else if (total >= 50) calculatedLevel = 'Especialista de Gobierno Senior';
+    else if (total >= 20) calculatedLevel = 'Arquitecto de Gobierno';
+    setLevel(calculatedLevel);
+
+    const saveScoreState = async () => {
+      if (currentTenant?.id) {
+        const userEmail = localStorage.getItem('govdata_user_email') || 'anonymous@govdata.org';
+        try {
+          await supabase.from('journey_user_state').upsert({
+            tenant_id: currentTenant.id,
+            user_email: userEmail,
+            db_score: dbScore,
+            total_score: total,
+            level: calculatedLevel,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'tenant_id,user_email' });
+        } catch (err) {
+          console.error("Error saving score state to Supabase:", err);
+        }
+      }
+    };
+    saveScoreState();
+  }, [dbScore, decisionScore, currentTenant?.id]);
 
   const activePhase = PHASES.find(p => p.id === activePhaseId) || PHASES[0];
 
@@ -1882,7 +2249,8 @@ export default function JourneyCDO() {
   };
 
   const renderMentorActivityGuide = (activityId: string) => {
-    const guide = MENTOR_GUIDES[activityId] || MENTOR_GUIDES['p1_dama'];
+    const key = selectedMentorActivity?.checkKey || activityId;
+    const guide = MENTOR_GUIDES[key] || MENTOR_GUIDES[activityId] || MENTOR_GUIDES['p1_dama'];
     return (
       <div style={{ 
         display: 'flex', 
@@ -2508,27 +2876,116 @@ export default function JourneyCDO() {
                           {isOk ? 'Evidencia Validada' : 'Evidencia Pendiente'}
                         </span>
                       </div>
-                      <p>{act.context}</p>
+                      <p style={{
+                        fontSize: '1.05rem',
+                        lineHeight: 1.6,
+                        color: '#1e293b',
+                        background: '#f8fafc',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        borderLeft: '4px solid #6366f1',
+                        margin: '8px 0 16px 0',
+                        fontWeight: 500
+                      }}>{act.context}</p>
+
+                      {/* Detailed Progress Panel */}
+                      {(() => {
+                        const evidenceList = realEvidence[act.checkKey] || [];
+                        const count = evidenceList.length;
+                        
+                        let reqCount = 1;
+                        if (act.checkKey === 'findings') reqCount = 5;
+                        else if (act.checkKey === 'roadmaps') reqCount = 4;
+                        else if (act.checkKey === 'roles') reqCount = 5;
+                        else if (act.checkKey === 'domains') reqCount = 3;
+                        else if (act.checkKey === 'raci') reqCount = 7;
+                        else if (act.checkKey === 'capacity') reqCount = 2;
+                        else if (act.checkKey === 'committees') reqCount = 2;
+                        else if (act.checkKey === 'policies') reqCount = 5;
+                        else if (act.checkKey === 'policy_stewardship') reqCount = 7;
+                        else if (act.checkKey === 'workflows') reqCount = 2;
+                        else if (act.checkKey === 'normative_audit') reqCount = 3;
+                        else if (act.checkKey === 'risks') reqCount = 3;
+                        else if (act.checkKey === 'mitigation_actions') reqCount = 4;
+                        else if (act.checkKey === 'controls') reqCount = 3;
+                        else if (act.checkKey === 'privacy_consent') reqCount = 4;
+                        else if (act.checkKey === 'connections') reqCount = 3;
+                        else if (act.checkKey === 'source_types') reqCount = 4;
+                        else if (act.checkKey === 'assets') reqCount = 6;
+                        else if (act.checkKey === 'catalog_classification') reqCount = 8;
+                        else if (act.checkKey === 'rules') reqCount = 5;
+                        else if (act.checkKey === 'rules_dimensions') reqCount = 7;
+                        else if (act.checkKey === 'fields') reqCount = 6;
+                        else if (act.checkKey === 'lineage_mapping') reqCount = 8;
+                        else if (act.checkKey === 'workflows_op') reqCount = 3;
+                        else if (act.checkKey === 'workflows_sla') reqCount = 4;
+                        else if (act.checkKey === 'quality_incidents') reqCount = 3;
+                        else if (act.checkKey === 'quality_remediation') reqCount = 4;
+                        else if (act.checkKey === 'security_incidents') reqCount = 3;
+                        else if (act.checkKey === 'security_mitigation') reqCount = 4;
+                        else if (act.checkKey === 'monitoring_history') reqCount = 3;
+                        else if (act.checkKey === 'monitoring_runs') reqCount = 4;
+
+                        const percent = Math.min(100, Math.round((count / reqCount) * 100));
+                        const isCompleted = count >= reqCount;
+                        const missingCount = reqCount - count;
+
+                        return (
+                          <div style={{
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            marginBottom: '16px'
+                          }}>
+                            {/* Progress bar info */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#334155' }}>
+                                Progreso de la Actividad
+                              </span>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: isCompleted ? '#16a34a' : '#4f46e5' }}>
+                                {count} / {reqCount} ({percent}%)
+                              </span>
+                            </div>
+
+                            {/* Visual Bar */}
+                            <div style={{ width: '100%', height: '8px', background: '#cbd5e1', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
+                              <div style={{ width: `${percent}%`, height: '100%', background: isCompleted ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #6366f1, #4f46e5)', borderRadius: '4px', transition: 'width 0.5s ease-in-out' }} />
+                            </div>
+
+                            {/* Completed list */}
+                            {count > 0 && (
+                              <div style={{ marginBottom: '8px' }}>
+                                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a', display: 'block', marginBottom: '4px' }}>
+                                  ✓ Registros completados en base de datos:
+                                </span>
+                                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.8rem', color: '#15803d' }}>
+                                  {evidenceList.map((ev: any, idx: number) => (
+                                    <li key={idx}>
+                                      {ev.name || ev.title || ev.process || `Registro #${idx + 1}`}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Missing info */}
+                            {!isCompleted ? (
+                              <div style={{ color: '#b45309', fontSize: '0.8rem', fontWeight: 600 }}>
+                                🔄 Falta por realizar: Necesitas registrar {missingCount} evidencia(s) más para completar esta actividad.
+                              </div>
+                            ) : (
+                              <div style={{ color: '#15803d', fontSize: '0.8rem', fontWeight: 800 }}>
+                                🎉 ¡Actividad Completada Exitosamente! Todo guardado en base de datos.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div className={styles.activityResultBox}>
                         <strong>Resultado Esperado:</strong> {act.expectedResult}
                       </div>
-
-                      {/* Display evidence list if completed */}
-                      {isOk && realEvidence[act.checkKey] && (
-                        <div style={{ marginBottom: '16px', background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#065f46', display: 'block', marginBottom: '4px' }}>
-                            Evidencias encontradas en BD:
-                          </span>
-                          <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.82rem', color: '#047857' }}>
-                            {realEvidence[act.checkKey].slice(0, 3).map((ev: any, idx: number) => (
-                              <li key={idx}>
-                                {ev.name || ev.title || ev.process || `Registro #${idx+1}`}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
 
                       <div className={styles.activityFooter}>
                         <span className={styles.moduleTag}>
