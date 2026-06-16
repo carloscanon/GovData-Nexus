@@ -646,7 +646,7 @@ const PHASES: Phase[] = [
         id: 'p1_roles',
         title: 'Estructurar el Equipo de Gobierno',
         context: 'Accede al módulo de Roles y Equipo para formalizar los roles clave del gobierno. Registra y asigna las responsabilidades indispensables: CDO, Data Owners, Stewards y Custodians. Esta estructura organizativa garantiza que cada dominio cuente con líderes de negocio y de TI para la toma de decisiones.',
-        expectedResult: 'Asignar al menos 4 miembros del equipo con roles asignados correctamente.',
+        expectedResult: 'Asignar al menos 3 miembros del equipo con los roles clave: CDO, Data Owner y Data Steward.',
         moduleHref: '/team',
         btnLabel: 'Configurar Equipo',
         checkTable: 'team_members',
@@ -1928,33 +1928,32 @@ export default function JourneyCDO() {
     const evidenceData: Record<string, any[]> = {};
 
     try {
-      // 1. DAMA Assessment
+      // 1. DAMA Assessment — the primary trigger for the 3 initial diagnostic activities
       const { data: damaData } = await supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id);
+      // hasDama is the ONLY condition needed: completing the assessment in Command Center
+      // automatically validates all three diagnostic activities (DAMA, Findings, Roadmap)
       const hasDama = !!(damaData && damaData.length >= 1);
       
-      // 2. Findings
+      // 2. Findings (secondary: populated from Maturity module)
       const { data: findingsData } = await supabase.from('maturity_findings').select('*').eq('tenant_id', currentTenant.id);
-      const hasFindings = !!(findingsData && findingsData.length >= 5);
+      const hasFindings = !!(findingsData && findingsData.length >= 1);
       
-      // 3. Roadmaps
+      // 3. Roadmaps (secondary: populated from Maturity module)
       const { data: roadmapsData } = await supabase.from('maturity_roadmaps').select('*').eq('tenant_id', currentTenant.id);
       const hasRoadmaps = !!(roadmapsData && roadmapsData.length >= 1);
 
-      // Union rule: if any of the three is completed, all three are marked as true
+      // Diagnostic completion rule: completing the DAMA assessment (hasDama) is sufficient
+      // to mark all three initial activities as complete. Findings and roadmaps
+      // are auto-generated outputs of the assessment process.
       const diagnosticCompleted = hasDama || hasFindings || hasRoadmaps;
 
-      if (damaData) {
-        newValidations['dama'] = diagnosticCompleted;
-        evidenceData['dama'] = damaData;
-      }
-      if (findingsData) {
-        newValidations['findings'] = diagnosticCompleted;
-        evidenceData['findings'] = findingsData;
-      }
-      if (roadmapsData) {
-        newValidations['roadmaps'] = diagnosticCompleted;
-        evidenceData['roadmaps'] = roadmapsData;
-      }
+      // Always set all three — even if arrays are empty, the flag is set
+      newValidations['dama'] = diagnosticCompleted;
+      evidenceData['dama'] = damaData || [];
+      newValidations['findings'] = diagnosticCompleted;
+      evidenceData['findings'] = findingsData || [];
+      newValidations['roadmaps'] = diagnosticCompleted;
+      evidenceData['roadmaps'] = roadmapsData || [];
 
       // 4. Roles
       const { data: teamData } = await supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id);
@@ -1962,8 +1961,8 @@ export default function JourneyCDO() {
         const roleTypes = teamData.map(m => m.role?.toLowerCase() || '');
         const reqRoles = ["data owner", "data steward", "cdo"];
         const hasAll = reqRoles.every(r => roleTypes.some(rt => rt.includes(r)));
-        const fieldsOk = teamData.every(r => r.name && r.email && r.role && r.area);
-        newValidations['roles'] = hasAll && fieldsOk && teamData.length >= 3;
+        // Simplified: just need the 3 key roles assigned (name at minimum)
+        newValidations['roles'] = hasAll && teamData.length >= 3;
         evidenceData['roles'] = teamData;
       }
 
@@ -2143,9 +2142,9 @@ export default function JourneyCDO() {
           
           // Deduce required count based on checkJourneyProgress conditions
           let reqCount = 1;
-          if (act.checkKey === 'findings') reqCount = 5;
-          else if (act.checkKey === 'roadmaps') reqCount = 4;
-          else if (act.checkKey === 'roles') reqCount = 5;
+          if (act.checkKey === 'findings') reqCount = 1; // Completed by DAMA assessment
+          else if (act.checkKey === 'roadmaps') reqCount = 1; // Completed by DAMA assessment
+          else if (act.checkKey === 'roles') reqCount = 3;
           else if (act.checkKey === 'domains') reqCount = 3;
           else if (act.checkKey === 'raci') reqCount = 7;
           else if (act.checkKey === 'capacity') reqCount = 2;
@@ -2897,12 +2896,21 @@ export default function JourneyCDO() {
                       {/* Detailed Progress Panel */}
                       {(() => {
                         const evidenceList = realEvidence[act.checkKey] || [];
-                        const count = evidenceList.length;
+                        const rawCount = evidenceList.length;
+                        
+                        // --- DIAGNOSTIC TRIO: driven by validations state, not raw count ---
+                        const isDiagnosticActivity = ['dama', 'findings', 'roadmaps'].includes(act.checkKey);
+                        const validationCompleted = !!validations[act.checkKey];
+
+                        const count = isDiagnosticActivity && validationCompleted
+                           ? 1 
+                           : rawCount;
                         
                         let reqCount = 1;
-                        if (act.checkKey === 'findings') reqCount = 5;
-                        else if (act.checkKey === 'roadmaps') reqCount = 4;
-                        else if (act.checkKey === 'roles') reqCount = 5;
+                        if (act.checkKey === 'dama') reqCount = 1;
+                        else if (act.checkKey === 'findings') reqCount = 1;
+                        else if (act.checkKey === 'roadmaps') reqCount = 1;
+                        else if (act.checkKey === 'roles') reqCount = 3;
                         else if (act.checkKey === 'domains') reqCount = 3;
                         else if (act.checkKey === 'raci') reqCount = 7;
                         else if (act.checkKey === 'capacity') reqCount = 2;

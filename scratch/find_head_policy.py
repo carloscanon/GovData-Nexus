@@ -1,0 +1,14 @@
+import subprocess
+
+res = subprocess.run(["git", "show", "HEAD:src/app/policies/page.tsx"], capture_output=True, text=True, encoding="utf-8")
+lines = res.stdout.splitlines()
+
+for idx, line in enumerate(lines):
+    if "selectedPolicy" in line:
+        print(f"Line {idx+1}: {line}")
+        # print context
+        start = max(0, idx - 5)
+        end = min(len(lines), idx + 20)
+        for c in range(start, end):
+            print(f"  {c+1}: {lines[c]}")
+        print("-" * 40)

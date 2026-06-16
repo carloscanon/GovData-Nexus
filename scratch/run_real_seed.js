@@ -12,13 +12,13 @@ const pool = new Pool({
 
 async function run() {
   try {
-    console.log("Reading SQL file...");
-    const sql = fs.readFileSync('sql/journey_progress_schema.sql', 'utf8');
-    console.log("Executing migration on Supabase PostgreSQL...");
-    const res = await pool.query(sql);
-    console.log("Migration executed successfully!");
+    console.log("Reading sql/seed_real_audit_logs.sql...");
+    const sql = fs.readFileSync('sql/seed_real_audit_logs.sql', 'utf8');
+    console.log("Running seed sql...");
+    await pool.query(sql);
+    console.log("Seeding real audit logs executed successfully!");
   } catch (err) {
-    console.error("Migration failed:", err);
+    console.error("Seeding execution failed:", err);
   } finally {
     await pool.end();
   }

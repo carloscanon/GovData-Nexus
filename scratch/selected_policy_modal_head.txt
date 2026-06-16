@@ -1,0 +1,473 @@
+        {selectedPolicy && (
+          <div className={styles.modalOverlay} onClick={() => setSelectedPolicy(null)}>
+            <motion.div 
+              className={styles.modalContent}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.9 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div className={styles.headerInfo}>
+                  <h2>{selectedPolicy.title}</h2>
+                  <div className={styles.headerBadges}>
+                    <span className={styles.statusBadge} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+                      Versión {selectedPolicy.version}
+                    </span>
+                    <span className={styles.statusBadge} style={{ background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe' }}>
+                      {selectedPolicy.status}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                   {!isEditing ? (
+                     <>
+                        <button className={styles.secondaryBtn} onClick={startEditing}>
+                          <Settings size={18} style={{ marginRight: '8px' }} /> Editar
+                        </button>
+                        {selectedPolicy.status === 'Borrador' && (
+                          <button className={styles.primaryBtn} style={{ background: '#f59e0b' }} onClick={() => handleUpdateStatus(selectedPolicy.id, 'En Revisión')}>
+                            Enviar a Revisión
+                          </button>
+                        )}
+                        {selectedPolicy.status === 'En Revisión' && (
+                          <button className={styles.primaryBtn} style={{ background: '#10b981' }} onClick={() => handleUpdateStatus(selectedPolicy.id, 'Vigente')}>
+                            <CheckSquare size={18} style={{ marginRight: '8px' }} /> Publicar Política
+                          </button>
+                        )}
+                     </>
+                   ) : (
+                     <button className={styles.primaryBtn} style={{ background: '#10b981' }} onClick={saveEdits}>
+                        <CheckCircle size={18} style={{ marginRight: '8px' }} /> Guardar Cambios
+                     </button>
+                   )}
+                   <button onClick={() => { setSelectedPolicy(null); setIsEditing(false); }} className={styles.modalCloseBtn}>
+                     <X size={18} />
+                   </button>
+                </div>
+              </div>
+
+              <div className={styles.modalBody}>
+                {/* ... Sidebar ... */}
+                <div className={styles.sidebar}>
+                  {[
+                    { id: 'general', label: '1. Objetivo y Alcance', icon: <BookOpen size={16} /> },
+                    { id: 'ciclo', label: '2. Ciclo de Vida', icon: <GitBranch size={16} /> },
+                    { id: 'lineamientos', label: '3. Lineamientos', icon: <Layers size={16} /> },
+                    { id: 'responsables', label: '4. Responsables', icon: <User size={16} /> },
+                    { id: 'controles', label: '5. Controles y Sanciones', icon: <Shield size={16} /> },
+                    { id: 'evidencias', label: '6. Evidencias y Doc.', icon: <FileSearch size={16} /> }
+                  ].map(t => (
+                    <div 
+                      key={t.id}
+                      className={`${styles.sideTab} ${modalTab === t.id ? styles.activeSideTab : ''}`}
+                      onClick={() => setModalTab(t.id)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {t.icon} {t.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.mainDetail}>
+                  {modalTab === 'ciclo' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                       <h3 className={styles.sectionTitle}>Gestión del Ciclo de Vida</h3>
+                       <div style={{ padding: '24px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ marginBottom: '32px' }}>
+                             <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
+                                Flujo aplicado: <strong style={{ color: '#1e293b' }}>{getPolicyWorkflow(selectedPolicy.workflowId)?.name}</strong>
+                             </div>
+                             <div className={styles.horizontalStepper}>
+                                {getPolicyWorkflow(selectedPolicy.workflowId)?.steps.map((step: string, sIdx: number) => {
+                                   const isPast = sIdx < (selectedPolicy.currentStep || 0);
+                                   const isCurrent = sIdx === (selectedPolicy.currentStep || 0);
+                                   return (
+                                     <div key={sIdx} className={`${styles.hStep} ${isCurrent ? styles.hStepActive : isPast ? styles.hStepPast : ''}`}>
+                                        <div className={styles.hStepDot}>
+                                           {isPast ? <CheckCircle size={14} /> : sIdx + 1}
+                                        </div>
+                                        <div className={styles.hStepLabel}>{step}</div>
+                                        {sIdx < (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 0) - 1 && (
+                                          <div className={styles.hStepLine}></div>
+                                        )}
+                                     </div>
+                                   );
+                                })}
+                             </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, color: '#1e293b' }}>Paso Actual: {selectedPolicy.status}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
+                                   {selectedPolicy.currentStep === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 
+                                     ? 'Esta política ha completado su ciclo y se encuentra vigente.' 
+                                     : `Siguiente paso: ${getPolicyWorkflow(selectedPolicy.workflowId)?.steps[(selectedPolicy.currentStep || 0) + 1]}`
+                                   }
+                                </div>
+                             </div>
+                             {(selectedPolicy.currentStep || 0) < (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 && (
+                               <div>
+                                 {selectedPolicy.status === 'Subir Documento' || selectedPolicy.status === 'Borrador' || (selectedPolicy.currentStep === 0 && !selectedPolicy.documentUrl) ? (
+                                   <>
+                                     <input 
+                                       type="file" 
+                                       id={`workflow-file-upload-${selectedPolicy.id}`} 
+                                       style={{ display: 'none' }} 
+                                       onChange={(e) => {
+                                         if (e.target.files && e.target.files.length > 0) {
+                                           handleFileUpload(selectedPolicy.id, e.target.files[0].name);
+                                           advanceWorkflow(selectedPolicy.id);
+                                         }
+                                       }} 
+                                     />
+                                     <button 
+                                       className={styles.primaryBtn} 
+                                       onClick={() => document.getElementById(`workflow-file-upload-${selectedPolicy.id}`)?.click()}
+                                       style={{ padding: '10px 20px', background: '#10b981' }}
+                                     >
+                                        <FileText size={16} style={{ marginRight: '8px' }} /> Adjuntar Doc y Avanzar
+                                     </button>
+                                   </>
+                                 ) : (
+                                   <button 
+                                     className={styles.primaryBtn} 
+                                     onClick={() => advanceWorkflow(selectedPolicy.id)}
+                                     style={{ padding: '10px 20px', background: '#f59e0b' }}
+                                   >
+                                      <CheckCircle size={16} style={{ marginRight: '8px' }} /> Asignar Aprobador y Avanzar
+                                   </button>
+                                 )}
+                               </div>
+                             )}
+                             {(selectedPolicy.currentStep || 0) === (getPolicyWorkflow(selectedPolicy.workflowId)?.steps.length || 1) - 1 && (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, padding: '10px 20px', background: '#d1fae5', borderRadius: '8px' }}>
+                                 <ShieldCheck size={20} /> Cumpliendo Normativa
+                               </div>
+                             )}
+                          </div>
+                       </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'general' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Objetivo y Alcance</h3>
+                         {isEditing && (
+                            <button 
+                              className={styles.aiBtn} 
+                              onClick={() => simulateAiGeneration('edit')}
+                              disabled={isAiGenerating}
+                            >
+                               <Cpu size={14} /> {isAiGenerating ? 'Generando...' : 'Asistente IA'}
+                            </button>
+                         )}
+                      </div>
+                      <div className={styles.richText}>
+                        {!isEditing ? (
+                          <>
+                            <p><strong>Objetivo:</strong> {selectedPolicy.objective}</p>
+                            <p style={{ marginTop: '24px' }}><strong>Alcance:</strong> {selectedPolicy.scope}</p>
+                          </>
+                        ) : (
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              <div>
+                                 <label className={styles.modalLabel}>Título de la Política</label>
+                                 <input 
+                                   type="text" 
+                                   className={styles.modalInput} 
+                                   value={editForm.title}
+                                   onChange={e => setEditForm({...editForm, title: e.target.value})}
+                                 />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div>
+                                   <label className={styles.modalLabel}>Propietario (Owner)</label>
+                                   <select 
+                                     className={styles.modalInput} 
+                                     value={editForm.owner}
+                                     onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                   >
+                                      {teamMembers.map((m, i) => (
+                                        <option key={i} style={{ color: 'black' }}>{m.name} ({m.role})</option>
+                                      ))}
+                                   </select>
+                                </div>
+                                <div>
+                                   <label className={styles.modalLabel}>Tipo</label>
+                                   <select 
+                                     className={styles.modalInput} 
+                                     value={editForm.type}
+                                     onChange={e => setEditForm({...editForm, type: e.target.value})}
+                                   >
+                                      <option style={{ color: 'black' }}>Gobierno de Datos</option>
+                                      <option style={{ color: 'black' }}>Seguridad / Privacidad</option>
+                                      <option style={{ color: 'black' }}>Cumplimiento / Legal</option>
+                                      <option style={{ color: 'black' }}>Tecnología / IA</option>
+                                   </select>
+                                </div>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                 <div>
+                                    <label className={styles.modalLabel}>Versión</label>
+                                    <input 
+                                      type="text" 
+                                      className={styles.modalInput} 
+                                      value={editForm.version}
+                                      onChange={e => setEditForm({...editForm, version: e.target.value})}
+                                    />
+                                 </div>
+                                 <div>
+                                    <label className={styles.modalLabel}>Vigencia (Año)</label>
+                                    <input 
+                                      type="number" 
+                                      className={styles.modalInput} 
+                                      value={editForm.expiry}
+                                      onChange={e => setEditForm({...editForm, expiry: e.target.value})}
+                                    />
+                                 </div>
+                              </div>
+                              <div>
+                                 <label className={styles.modalLabel}>Objetivo</label>
+                                 <textarea 
+                                   rows={4}
+                                   className={styles.modalInput} 
+                                   style={{ minHeight: '100px' }}
+                                   value={editForm.objective}
+                                   onChange={e => setEditForm({...editForm, objective: e.target.value})}
+                                 />
+                              </div>
+                              <div>
+                                 <label className={styles.modalLabel}>Alcance (Scope)</label>
+                                 <textarea 
+                                   rows={4}
+                                   className={styles.modalInput} 
+                                   style={{ minHeight: '100px' }}
+                                   value={editForm.scope}
+                                   onChange={e => setEditForm({...editForm, scope: e.target.value})}
+                                 />
+                              </div>
+                           </div>
+                        )}
+                        <div style={{ marginTop: '32px', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                           <h5 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Definiciones Clave</h5>
+                           <ul style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                              <li><strong>Dato Sensible:</strong> Aquel que afecta la intimidad del titular.</li>
+                              <li><strong>PII:</strong> Personally Identifiable Information.</li>
+                           </ul>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'lineamientos' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Lineamientos Obligatorios</h3>
+                      </div>
+                      <div className={styles.richText}>
+                        <ul className={styles.guidelineList} style={{ listStyle: 'none', padding: 0 }}>
+                          {(isEditing ? editForm.guidelines : selectedPolicy.guidelines)?.map((g: string, i: number) => (
+                            <li key={i} style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                              <CheckCircle size={18} color="#10b981" style={{ flexShrink: 0, marginTop: '4px' }} />
+                              {isEditing ? (
+                                <input 
+                                  type="text" 
+                                  value={g}
+                                  style={{ border: 'none', borderBottom: '1px solid #e2e8f0', width: '100%', fontSize: '0.95rem' }}
+                                  onChange={e => {
+                                    const newG = [...editForm.guidelines];
+                                    newG[i] = e.target.value;
+                                    setEditForm({...editForm, guidelines: newG});
+                                  }}
+                                />
+                              ) : (
+                                <span>{g}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        {isEditing && (
+                           <button 
+                             className={styles.secondaryBtn} 
+                             onClick={() => setEditForm({...editForm, guidelines: [...editForm.guidelines, '']})}
+                             style={{ marginTop: '10px', fontSize: '0.8rem' }}
+                           >
+                             + Añadir Lineamiento
+                           </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'responsables' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                       <h3 className={styles.sectionTitle}>Matriz de Responsabilidades</h3>
+                       <div className={styles.evidenceGrid} style={{ gridTemplateColumns: '1fr' }}>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#eef2ff', borderRadius: '8px' }}><User color="#6366f1" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Data Owner (Dueño)</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.owner}
+                                      onChange={e => setEditForm({...editForm, owner: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.owner}</div>
+                                 )}
+                             </div>
+                          </div>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><Shield color="#10b981" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Data Custodian (TI)</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.data_custodian}
+                                      onChange={e => setEditForm({...editForm, data_custodian: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.data_custodian}</div>
+                                 )}
+                             </div>
+                          </div>
+                          <div className={styles.evidenceCard}>
+                             <div style={{ padding: '10px', background: '#fffbeb', borderRadius: '8px' }}><CheckSquare color="#f59e0b" /></div>
+                             <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Auditor Designado</div>
+                                 {isEditing ? (
+                                    <select 
+                                      style={{ width: '100%', padding: '8px', marginTop: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}
+                                      value={editForm.auditor_designado}
+                                      onChange={e => setEditForm({...editForm, auditor_designado: e.target.value})}
+                                    >
+                                       {teamMembers.map((m: any, i: number) => <option key={i} value={`${m.name} (${m.role})`}>{m.name} ({m.role})</option>)}
+                                    </select>
+                                 ) : (
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedPolicy.auditor_designado}</div>
+                                 )}
+                             </div>
+                          </div>
+                       </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'controles' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <h3 className={styles.sectionTitle}>Controles y Sanciones</h3>
+                      <div className={styles.controlList}>
+                         {(isEditing ? editForm.controls : selectedPolicy.controls)?.map((c: string, i: number) => (
+                           <div key={i} className={styles.controlItem} style={{ marginBottom: '12px' }}>
+                              <ShieldCheck size={20} color="#6366f1" />
+                              <div style={{ flex: 1 }}>
+                                {isEditing ? (
+                                   <input 
+                                     type="text" 
+                                     value={c}
+                                     style={{ border: 'none', borderBottom: '1px solid #e2e8f0', width: '100%', fontSize: '0.95rem' }}
+                                     onChange={e => {
+                                       const newC = [...editForm.controls];
+                                       newC[i] = e.target.value;
+                                       setEditForm({...editForm, controls: newC});
+                                     }}
+                                   />
+                                ) : (
+                                   <>
+                                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{c}</div>
+                                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Frecuencia: Mensual | Estado: <span style={{ color: '#10b981', fontWeight: 800 }}>ACTIVO</span></div>
+                                   </>
+                                )}
+                              </div>
+                           </div>
+                         ))}
+                         {isEditing && (
+                            <button 
+                              className={styles.secondaryBtn} 
+                              onClick={() => setEditForm({...editForm, controls: [...editForm.controls, '']})}
+                              style={{ marginTop: '10px', fontSize: '0.8rem' }}
+                            >
+                              + Añadir Control
+                            </button>
+                         )}
+                      </div>
+                      <div style={{ marginTop: '32px', padding: '20px', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fca5a5' }}>
+                         <h5 style={{ margin: '0 0 8px 0', color: '#dc2626' }}>Sanciones por Incumplimiento</h5>
+                         {isEditing ? (
+                             <textarea 
+                               rows={3}
+                               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #fca5a5', background: '#fff5f5', color: '#1e293b', marginTop: '8px', outline: 'none' }}
+                               value={editForm.sancions}
+                               onChange={e => setEditForm({...editForm, sancions: e.target.value})}
+                             />
+                          ) : (
+                             <p style={{ margin: 0, fontSize: '0.95rem', color: '#dc2626' }}>{selectedPolicy.sancions}</p>
+                          )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {modalTab === 'evidencias' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                         <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Evidencias y Documentos</h3>
+                         <input 
+                           type="file" 
+                           id={`evidence-file-upload-${selectedPolicy.id}`} 
+                           style={{ display: 'none' }} 
+                           onChange={(e) => {
+                             if (e.target.files && e.target.files.length > 0) {
+                               handleFileUpload(selectedPolicy.id, e.target.files[0].name);
+                             }
+                           }} 
+                         />
+                         <button className={styles.primaryBtn} style={{ padding: '8px 16px', fontSize: '0.8rem' }} onClick={() => document.getElementById(`evidence-file-upload-${selectedPolicy.id}`)?.click()}>
+                            <Plus size={14} style={{ marginRight: '6px' }} /> Subir Documento
+                         </button>
+                      </div>
+                      <div className={styles.evidenceGrid}>
+                         <div className={styles.evidenceCard}>
+                            <div style={{ padding: '10px', background: '#fef2f2', borderRadius: '8px' }}><FileText color="#ef4444" /></div>
+                            <div>
+                               <div style={{ fontWeight: 700 }}>Manual_Procedimiento.pdf</div>
+                               <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>2.4 MB | Firmado Digitalmente</div>
+                            </div>
+                         </div>
+                         {uploadedFiles[selectedPolicy.id]?.map((f, i) => (
+                           <div key={i} className={styles.evidenceCard} style={{ border: '1px solid #10b981' }}>
+                              <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '8px' }}><FileCheck color="#10b981" /></div>
+                              <div>
+                                 <div style={{ fontWeight: 700 }}>{f.name}</div>
+                                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Cargado el: {f.date}</div>
+                              </div>
+                           </div>
+                         ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.footer}>
+                <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div className={styles.avatarMini}>{selectedPolicy.owner?.split(' ')[0]?.[0] || 'U'}</div>
+                   <div style={{ fontSize: '0.8rem' }}>
+                      <div style={{ color: '#64748b' }}>Propietario Principal</div>
+                      <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
+                   </div>
+                </div>
+                <button className={styles.secondaryBtn} onClick={() => setSelectedPolicy(null)}>Cerrar</button>
+                <button className={styles.primaryBtn} onClick={handleExportPDF}><Download size={16} style={{ marginRight: '8px' }} /> Exportar PDF</button>
+              </div>
+            </motion.div>
+          </div>
+        )}

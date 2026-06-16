@@ -13,10 +13,10 @@ const pool = new Pool({
 async function run() {
   try {
     console.log("Reading SQL file...");
-    const sql = fs.readFileSync('sql/journey_progress_schema.sql', 'utf8');
+    const sql = fs.readFileSync('supabase_modal_config.sql', 'utf8');
     console.log("Executing migration on Supabase PostgreSQL...");
     const res = await pool.query(sql);
-    console.log("Migration executed successfully!");
+    console.log("Migration executed successfully!", res);
   } catch (err) {
     console.error("Migration failed:", err);
   } finally {

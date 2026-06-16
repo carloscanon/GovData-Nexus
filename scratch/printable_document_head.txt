@@ -1,0 +1,84 @@
+      {/* --- Template Formal para Exportación PDF --- */}
+      {selectedPolicy && (
+        <div id="formal-policy-document" className={styles.printableDocument}>
+          <div 
+            className={styles.printWatermark} 
+            style={{ 
+              color: selectedPolicy.status === 'Vigente' || selectedPolicy.status === 'Publicado' || selectedPolicy.status?.includes('Aproba') ? 'rgba(16, 185, 129, 0.1)' : 
+                     selectedPolicy.status === 'Borrador' ? 'rgba(100, 116, 139, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            {selectedPolicy.status}
+          </div>
+          <div className={styles.printHeader}>
+             <div style={{ fontSize: '24px', fontWeight: 900, color: '#1e293b' }}>GovData<span style={{ color: '#6366f1' }}>Nexus</span></div>
+             <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{selectedPolicy.title}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Referencia: {selectedPolicy.id?.substring(0,8).toUpperCase()} | Versión: {selectedPolicy.version}</div>
+             </div>
+          </div>
+
+          <div className={styles.printBody}>
+             <div className={styles.printMetaGrid}>
+                <div><strong>Estado:</strong> {selectedPolicy.status}</div>
+                <div><strong>Vigencia:</strong> {selectedPolicy.expiry}</div>
+                <div><strong>Propietario:</strong> {selectedPolicy.owner}</div>
+                <div><strong>Clasificación:</strong> Confidencial / Uso Interno</div>
+             </div>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>1. Objetivo</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.objective || 'No especificado.'}</div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>2. Alcance</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.scope || 'No especificado.'}</div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>3. Lineamientos</h2>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.guidelines?.filter(Boolean).length > 0 ? selectedPolicy.guidelines.map((g: string, i: number) => (
+                       <li key={i}>{g}</li>
+                     )) : <li>No hay lineamientos especificados.</li>}
+                  </ul>
+                </div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>4. Controles Asociados</h2>
+                <div className={styles.printSectionContent}>
+                  <ul>
+                     {selectedPolicy.controls?.filter(Boolean).length > 0 ? selectedPolicy.controls.map((c: string, i: number) => (
+                       <li key={i}>{c}</li>
+                     )) : <li>No hay controles especificados.</li>}
+                  </ul>
+                </div>
+             </section>
+
+             <section>
+                <h2 className={styles.printSectionTitle}>5. Sanciones</h2>
+                <div className={styles.printSectionContent}>{selectedPolicy.sancions || 'No especificado.'}</div>
+             </section>
+
+             <div className={styles.printSignatureArea}>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>{selectedPolicy.owner}</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Responsable de la Política</div>
+                </div>
+                <div className={styles.signatureBox}>
+                   <div className={styles.sigLine}></div>
+                   <div style={{ fontWeight: 700 }}>Elena Gomez</div>
+                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Auditoría y Cumplimiento</div>
+                </div>
+             </div>
+          </div>
+          
+          <div className={styles.printFooter}>
+             Documento generado automáticamente por GovData Nexus - © 2024 - Todos los derechos reservados.
+          </div>
+        </div>
+      )}
