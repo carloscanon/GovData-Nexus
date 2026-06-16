@@ -1930,22 +1930,25 @@ export default function JourneyCDO() {
     try {
       // 1. DAMA Assessment
       const { data: damaData } = await supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id);
+      const hasDama = !!(damaData && damaData.length >= 1);
       if (damaData) {
-        newValidations['dama'] = damaData.length >= 1;
+        newValidations['dama'] = hasDama;
         evidenceData['dama'] = damaData;
       }
 
       // 2. Findings
       const { data: findingsData } = await supabase.from('maturity_findings').select('*').eq('tenant_id', currentTenant.id);
       if (findingsData) {
-        newValidations['findings'] = findingsData.length >= 5;
+        const hasFindings = findingsData.length >= 5;
+        newValidations['findings'] = hasDama || hasFindings;
         evidenceData['findings'] = findingsData;
       }
 
       // 3. Roadmaps
       const { data: roadmapsData } = await supabase.from('maturity_roadmaps').select('*').eq('tenant_id', currentTenant.id);
       if (roadmapsData) {
-        newValidations['roadmaps'] = roadmapsData.length >= 1;
+        const hasRoadmaps = roadmapsData.length >= 1;
+        newValidations['roadmaps'] = hasDama || hasRoadmaps;
         evidenceData['roadmaps'] = roadmapsData;
       }
 
