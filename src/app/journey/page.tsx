@@ -1931,9 +1931,8 @@ export default function JourneyCDO() {
       // 1. DAMA Assessment
       const { data: damaData } = await supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id);
       if (damaData) {
-        const validDama = damaData.filter(r => r.answers && (r.answers.timestamp || r.answers.comite_gobierno));
-        newValidations['dama'] = validDama.length >= 1;
-        evidenceData['dama'] = validDama;
+        newValidations['dama'] = damaData.length >= 1;
+        evidenceData['dama'] = damaData;
       }
 
       // 2. Findings
@@ -1946,7 +1945,7 @@ export default function JourneyCDO() {
       // 3. Roadmaps
       const { data: roadmapsData } = await supabase.from('maturity_roadmaps').select('*').eq('tenant_id', currentTenant.id);
       if (roadmapsData) {
-        newValidations['roadmaps'] = roadmapsData.length >= 4;
+        newValidations['roadmaps'] = roadmapsData.length >= 1;
         evidenceData['roadmaps'] = roadmapsData;
       }
 
@@ -1954,10 +1953,10 @@ export default function JourneyCDO() {
       const { data: teamData } = await supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id);
       if (teamData) {
         const roleTypes = teamData.map(m => m.role?.toLowerCase() || '');
-        const reqRoles = ["data owner", "data steward", "data custodian", "cdo"];
+        const reqRoles = ["data owner", "data steward", "cdo"];
         const hasAll = reqRoles.every(r => roleTypes.some(rt => rt.includes(r)));
         const fieldsOk = teamData.every(r => r.name && r.email && r.role && r.area);
-        newValidations['roles'] = hasAll && fieldsOk && teamData.length >= 5;
+        newValidations['roles'] = hasAll && fieldsOk && teamData.length >= 3;
         evidenceData['roles'] = teamData;
       }
 
@@ -2023,7 +2022,7 @@ export default function JourneyCDO() {
       if (workflowsData) {
         const bootstrapWfs = ['FLUJO DOCUMENTAL NORMATIVO', 'ESTÁNDAR', 'CRÍTICO / LEGAL', 'ESTANDAR', 'CRITICO / LEGAL'];
         const validWfs = workflowsData.filter(r => !bootstrapWfs.includes((r.name || '').trim().toUpperCase()));
-        newValidations['workflows'] = validWfs.length >= 2;
+        newValidations['workflows'] = validWfs.length >= 1;
         newValidations['normative_audit'] = validWfs.length >= 3;
         evidenceData['workflows'] = validWfs;
         evidenceData['normative_audit'] = validWfs;
