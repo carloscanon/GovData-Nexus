@@ -1614,7 +1614,17 @@ export default function Team() {
                               value={row[role]} 
                               onChange={(e) => {
                                 const newMatrix = [...raciMatrix];
-                                newMatrix[i][role] = e.target.value;
+                                const newValue = e.target.value;
+                                
+                                if (newValue === 'A') {
+                                  ['owner', 'steward', 'custodian', 'analyst'].forEach(r => {
+                                    if (r !== role && newMatrix[i][r] === 'A') {
+                                      newMatrix[i][r] = '-';
+                                    }
+                                  });
+                                }
+                                
+                                newMatrix[i][role] = newValue;
                                 setRaciMatrix(newMatrix);
                               }}
                               style={{ padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', fontWeight: 600, color: '#1e293b' }}
