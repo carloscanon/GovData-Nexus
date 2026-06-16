@@ -1931,24 +1931,28 @@ export default function JourneyCDO() {
       // 1. DAMA Assessment
       const { data: damaData } = await supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id);
       const hasDama = !!(damaData && damaData.length >= 1);
-      if (damaData) {
-        newValidations['dama'] = hasDama;
-        evidenceData['dama'] = damaData;
-      }
-
+      
       // 2. Findings
       const { data: findingsData } = await supabase.from('maturity_findings').select('*').eq('tenant_id', currentTenant.id);
-      if (findingsData) {
-        const hasFindings = findingsData.length >= 5;
-        newValidations['findings'] = hasDama || hasFindings;
-        evidenceData['findings'] = findingsData;
-      }
-
+      const hasFindings = !!(findingsData && findingsData.length >= 5);
+      
       // 3. Roadmaps
       const { data: roadmapsData } = await supabase.from('maturity_roadmaps').select('*').eq('tenant_id', currentTenant.id);
+      const hasRoadmaps = !!(roadmapsData && roadmapsData.length >= 1);
+
+      // Union rule: if any of the three is completed, all three are marked as true
+      const diagnosticCompleted = hasDama || hasFindings || hasRoadmaps;
+
+      if (damaData) {
+        newValidations['dama'] = diagnosticCompleted;
+        evidenceData['dama'] = damaData;
+      }
+      if (findingsData) {
+        newValidations['findings'] = diagnosticCompleted;
+        evidenceData['findings'] = findingsData;
+      }
       if (roadmapsData) {
-        const hasRoadmaps = roadmapsData.length >= 1;
-        newValidations['roadmaps'] = hasDama || hasRoadmaps;
+        newValidations['roadmaps'] = diagnosticCompleted;
         evidenceData['roadmaps'] = roadmapsData;
       }
 
