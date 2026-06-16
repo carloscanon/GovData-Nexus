@@ -20,6 +20,7 @@ import {
 } from './data/normativas-data';
 import KnowledgeGraph from './components/KnowledgeGraph';
 import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 type ViewMode = 'shelf' | 'cards' | 'list';
@@ -230,11 +231,60 @@ function ListItem({ norma, onClick, s }: { norma: Normativa; onClick: () => void
 }
 
 // ─── COMPLIANCE CHECKLIST ─────────────────────────────────────────────────────
-function ComplianceTab({ norma, s, tenantId }: { norma: Normativa; s: Record<string, string>; tenantId: string }) {
+function ComplianceTab({ norma, s, tenantId, connectionId, onUpdateCompliance }: { norma: Normativa; s: Record<string, string>; tenantId: string; connectionId: string | null; onUpdateCompliance?: (pct: number) => void }) {
   const [items, setItems] = useState<ChecklistItem[]>(norma.checklist.map(c => ({ ...c })));
+  const [loading, setLoading] = useState(true);
 
-  const setEstado = (id: string, estado: ChecklistItem['estado']) => {
+  useEffect(() => {
+    const loadEvaluations = async () => {
+      if (!tenantId) return;
+      setLoading(true);
+      let query = supabase.from('normativas_evaluations').select('checklist_state').eq('tenant_id', tenantId).eq('normativa_id', norma.id);
+      if (connectionId) {
+        query = query.eq('connection_id', connectionId);
+      } else {
+        query = query.is('connection_id', null);
+      }
+
+      const { data } = await query.maybeSingle();
+      if (data && data.checklist_state) {
+        setItems(prev => prev.map(it => ({ ...it, estado: data.checklist_state[it.id] || null })));
+      } else {
+        setItems(norma.checklist.map(c => ({ ...c, estado: null })));
+      }
+      setLoading(false);
+    };
+    loadEvaluations();
+  }, [tenantId, connectionId, norma.id]);
+
+  const setEstado = async (id: string, estado: ChecklistItem['estado']) => {
     setItems(prev => prev.map(it => it.id === id ? { ...it, estado } : it));
+    
+    const newItems = items.map(it => it.id === id ? { ...it, estado } : it);
+    const stateObj: Record<string, string | null> = {};
+    let cCumple = 0, cParcial = 0, cTotal = 0;
+    
+    newItems.forEach(it => { 
+      if(it.estado) stateObj[it.id] = it.estado; 
+      if(it.estado && it.estado !== 'no_aplica') {
+         cTotal++;
+         if (it.estado === 'cumple') cCumple++;
+         if (it.estado === 'parcial') cParcial++;
+      }
+    });
+
+    const newPct = cTotal === 0 ? 0 : Math.round((cCumple * 100 + cParcial * 50) / (cTotal * 100) * 100);
+
+    const payload = {
+      tenant_id: tenantId,
+      connection_id: connectionId,
+      normativa_id: norma.id,
+      checklist_state: stateObj,
+      cumplimiento_pct: newPct
+    };
+
+    await supabase.from('normativas_evaluations').upsert(payload, { onConflict: 'tenant_id, connection_id, normativa_id' });
+    if (onUpdateCompliance) onUpdateCompliance(newPct);
   };
 
   const counts = useMemo(() => {
@@ -491,7 +541,7 @@ function AIChatTab({ norma, s }: { norma: Normativa; s: Record<string, string> }
 }
 
 // ─── DETAIL PANEL ─────────────────────────────────────────────────────────────
-function DetailPanel({ norma, onClose, styles: s }: { norma: Normativa; onClose: () => void; styles: Record<string, string> }) {
+function DetailPanel({ norma, onClose, styles: s, connectionId, onUpdateCompliance }: { norma: Normativa; onClose: () => void; styles: Record<string, string>; connectionId: string | null; onUpdateCompliance?: (pct: number) => void }) {
   const { currentTenant } = usePlatform();
   const [tab, setTab] = useState<DetailTab>('info');
   const cc = getComplianceColor(norma.cumplimientoPct);
@@ -718,7 +768,7 @@ function DetailPanel({ norma, onClose, styles: s }: { norma: Normativa; onClose:
               )}
 
               {/* COMPLIANCE TAB */}
-              {tab === 'compliance' && <ComplianceTab norma={norma} s={s} tenantId={currentTenant?.id || ''} />}
+              {tab === 'compliance' && <ComplianceTab norma={norma} s={s} tenantId={currentTenant?.id || ''} connectionId={connectionId} onUpdateCompliance={onUpdateCompliance} />}
 
               {/* RISKS TAB */}
               {tab === 'risks' && (
@@ -953,6 +1003,9 @@ function ShelfView({ normativas, onSelect, s }: { normativas: Normativa[]; onSel
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function NormativasPage() {
   const { currentTenant } = usePlatform();
+  const [connections, setConnections] = useState<any[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [evaluationsMap, setEvaluationsMap] = useState<Record<string, number>>({});
   const [view, setView] = useState<ViewMode>('shelf');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<NormaCategoria | 'all'>('all');
@@ -961,11 +1014,49 @@ export default function NormativasPage() {
   const [selectedNorma, setSelectedNorma] = useState<Normativa | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const tipos = useMemo(() => [...new Set(NORMATIVAS.map(n => n.tipo))], []);
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const fetchConnections = async () => {
+      const { data } = await supabase.from('data_connections').select('id, name').eq('tenant_id', currentTenant.id);
+      if (data) {
+        setConnections(data);
+        if (data.length > 0) setSelectedConnectionId(data[0].id);
+      }
+    };
+    fetchConnections();
+  }, [currentTenant?.id]);
+
+  useEffect(() => {
+    if (!currentTenant?.id) return;
+    const loadStats = async () => {
+      let q = supabase.from('normativas_evaluations').select('normativa_id, cumplimiento_pct').eq('tenant_id', currentTenant.id);
+      if (selectedConnectionId) q = q.eq('connection_id', selectedConnectionId);
+      else q = q.is('connection_id', null);
+
+      const { data } = await q;
+      if (data) {
+        const map: Record<string, number> = {};
+        data.forEach(d => { map[d.normativa_id] = d.cumplimiento_pct; });
+        setEvaluationsMap(map);
+      } else {
+        setEvaluationsMap({});
+      }
+    };
+    loadStats();
+  }, [currentTenant?.id, selectedConnectionId]);
+
+  const dynamicNormativas = useMemo(() => {
+    return NORMATIVAS.map(n => ({
+      ...n,
+      cumplimientoPct: evaluationsMap[n.id] || 0
+    }));
+  }, [evaluationsMap]);
+
+  const tipos = useMemo(() => [...new Set(dynamicNormativas.map(n => n.tipo))], [dynamicNormativas]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return NORMATIVAS.filter(n => {
+    return dynamicNormativas.filter(n => {
       if (catFilter !== 'all' && !n.categorias.includes(catFilter)) return false;
       if (tipoFilter !== 'all' && n.tipo !== tipoFilter) return false;
       if (estadoFilter !== 'all' && n.estado !== estadoFilter) return false;
@@ -976,15 +1067,15 @@ export default function NormativasPage() {
           !n.palabrasClave.some(kw => kw.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [search, catFilter, tipoFilter, estadoFilter]);
+  }, [search, catFilter, tipoFilter, estadoFilter, dynamicNormativas]);
 
   // Aggregate stats
   const stats = useMemo(() => ({
-    total: NORMATIVAS.length,
-    vigentes: NORMATIVAS.filter(n => n.estado === 'vigente').length,
-    cumplimientoPromedio: Math.round(NORMATIVAS.reduce((acc, n) => acc + n.cumplimientoPct, 0) / NORMATIVAS.length),
+    total: dynamicNormativas.length,
+    vigentes: dynamicNormativas.filter(n => n.estado === 'vigente').length,
+    cumplimientoPromedio: dynamicNormativas.length > 0 ? Math.round(dynamicNormativas.reduce((acc, n) => acc + n.cumplimientoPct, 0) / dynamicNormativas.length) : 0,
     categorias: Object.keys(CATEGORIAS_CONFIG).length,
-  }), []);
+  }), [dynamicNormativas]);
 
   return (
     <div className={styles.root}>
@@ -1004,6 +1095,17 @@ export default function NormativasPage() {
               </div>
             </div>
             <div className={styles.headerActions}>
+              {connections.length > 0 && (
+                <select 
+                  className={styles.filterSelect} 
+                  value={selectedConnectionId || ''} 
+                  onChange={e => setSelectedConnectionId(e.target.value)}
+                  style={{ marginRight: '0.5rem', padding: '0.4rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <option value="">Base de Datos (Global)</option>
+                  {connections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
               <button className={styles.btnSecondary} onClick={() => setShowForm(true)}>
                 <Plus size={14} /> Nueva Normativa
               </button>
@@ -1020,7 +1122,7 @@ export default function NormativasPage() {
               { label: 'Vigentes',            value: stats.vigentes,               icon: <CheckCircle2 size={18} />,color: '#10b981',  bg: 'rgba(16,185,129,0.12)'  },
               { label: 'Cumplimiento Prom.',  value: `${stats.cumplimientoPromedio}%`, icon: <TrendingUp size={18} />,  color: '#f59e0b',  bg: 'rgba(245,158,11,0.12)'  },
               { label: 'Categorías',          value: stats.categorias,             icon: <Layers size={18} />,      color: '#8b5cf6',  bg: 'rgba(139,92,246,0.12)'  },
-              { label: 'Países Cubiertos',    value: [...new Set(NORMATIVAS.map(n => n.pais))].length, icon: <Globe size={18} />, color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
+              { label: 'Países Cubiertos',    value: [...new Set(dynamicNormativas.map(n => n.pais))].length, icon: <Globe size={18} />, color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
             ].map(stat => (
               <div key={stat.label} className={styles.statCard} style={{ '--stat-color': stat.color, '--stat-bg': stat.bg } as React.CSSProperties}>
                 <div className={styles.statIcon}>{stat.icon}</div>
@@ -1163,9 +1265,13 @@ export default function NormativasPage() {
           {selectedNorma && (
             <DetailPanel
               key={selectedNorma.id}
-              norma={selectedNorma}
+              norma={dynamicNormativas.find(n => n.id === selectedNorma.id) || selectedNorma}
               onClose={() => setSelectedNorma(null)}
               styles={styles}
+              connectionId={selectedConnectionId}
+              onUpdateCompliance={(pct) => {
+                 setEvaluationsMap(prev => ({ ...prev, [selectedNorma.id]: pct }));
+              }}
             />
           )}
         </AnimatePresence>

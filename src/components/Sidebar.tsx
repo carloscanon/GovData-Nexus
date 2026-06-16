@@ -29,7 +29,8 @@ import {
   Rocket,
   GraduationCap,
   Award,
-  ShoppingBag
+  ShoppingBag,
+  BookMarked
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -37,21 +38,39 @@ import { usePlatform } from '@/contexts/PlatformContext';
 import { supabase } from '@/lib/supabase';
 import styles from './Sidebar.module.css';
 
+const DEFAULT_LABELS: Record<string, string> = {
+  normativas: 'Biblioteca Inteligente',
+  dashboard: 'Dashboard SaaS',
+  empresas: 'Empresas',
+  demos: 'Solicitud de Demos',
+  planes: 'Planes SaaS',
+  billing: 'Facturación',
+  consumo: 'Control de Consumo',
+  escaneos: 'Escaneos Automáticos',
+  tickets: 'Soporte Tickets',
+  security: 'Seguridad y RLS',
+  logs: 'Logs de Auditoría',
+  loginConfig: 'Portal de Login',
+  config: 'Configuración',
+  moduleNames: 'Nombres de Módulos',
+};
+
 const menuItems = [
-  { icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
-  { icon: GraduationCap, label: 'Journey CDO', href: '/journey', module: 'journey' },
-  { icon: ShoppingBag, label: 'App Store', href: '/appstore' },
-  { icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
-  { icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
-  { icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
-  { icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
-  { icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
-  { icon: FileText, label: 'Políticas', href: '/policies', module: 'policies' },
-  { icon: Users, label: 'Roles y Equipo', href: '/team', module: 'team' },
-  { icon: Users, label: 'Comités de Gobierno', href: '/data-governance/committees', module: 'team' },
-  { icon: Zap, label: 'Gestión de Workflows', href: '/workflows', module: 'quality' },
-  { icon: BarChart3, label: 'Madurez DAMA', href: '/maturity', module: 'maturity' },
-  { icon: GraduationCap, label: 'Simulador CDO', href: '/simulator' },
+  { key: 'launchpad', icon: Rocket, label: 'GovData Launchpad', href: '/launchpad' },
+  { key: 'journey', icon: GraduationCap, label: 'Journey CDO', href: '/journey', module: 'journey' },
+  { key: 'appstore', icon: ShoppingBag, label: 'App Store', href: '/appstore' },
+  { key: 'command-center', icon: LayoutGrid, label: 'Command Center 360°', href: '/command-center' },
+  { key: 'normativas', icon: BookMarked, label: 'Biblioteca Inteligente', href: '/normativas' },
+  { key: 'metadata', icon: Brain, label: 'Metadata Intelligence', href: '/metadata', module: 'metadata' },
+  { key: 'catalog', icon: Database, label: 'Catálogo de Datos', href: '/catalog', module: 'catalog' },
+  { key: 'quality', icon: Activity, label: 'Calidad de Datos', href: '/quality', module: 'quality' },
+  { key: 'security', icon: ShieldCheck, label: 'Seguridad y Riesgos', href: '/security', module: 'security' },
+  { key: 'policies', icon: FileText, label: 'Políticas', href: '/policies', module: 'policies' },
+  { key: 'team', icon: Users, label: 'Roles y Equipo', href: '/team', module: 'team' },
+  { key: 'committees', icon: Users, label: 'Comités de Gobierno', href: '/data-governance/committees', module: 'team' },
+  { key: 'workflows', icon: Zap, label: 'Gestión de Workflows', href: '/workflows', module: 'quality' },
+  { key: 'maturity', icon: BarChart3, label: 'Madurez DAMA', href: '/maturity', module: 'maturity' },
+  { key: 'simulator', icon: GraduationCap, label: 'Simulador CDO', href: '/simulator' },
 ];
 
 interface SidebarProps {
@@ -63,6 +82,8 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+const [moduleNames, setModuleNames] = React.useState<Record<string, string>>({});
+// Duplicate moduleNames state removed
   
   const handleLinkClick = () => {
     if (onCloseMobile) onCloseMobile();
@@ -80,6 +101,21 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
     setIsMounted(true);
     const role = typeof window !== 'undefined' ? localStorage.getItem('govdata_role') : null;
     const email = typeof window !== 'undefined' ? localStorage.getItem('govdata_user_email') : null;
+    // Load custom module names for normal users from tenant_config table
+    const GLOBAL_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    const fetchModules = async () => {
+      const { data, error } = await supabase
+        .from('tenant_config')
+        .select('config_value')
+        .eq('tenant_id', GLOBAL_TENANT_ID)
+        .eq('config_key', 'module_config')
+        .single();
+        
+      if (!error && data && data.config_value) {
+        setModuleNames(data.config_value as Record<string, string>);
+      }
+    };
+    fetchModules();
     
     setUserRole(role);
     if (typeof window !== 'undefined') {
@@ -305,7 +341,7 @@ export default function Sidebar({ isMobileOpen = false, onCloseMobile }: Sidebar
               onClick={handleLinkClick}
             >
               <item.icon size={22} className={styles.navIcon} />
-              {!isCollapsed && <span className={styles.navLabel}>{item.label}</span>}
+              {!isCollapsed && <span className={styles.navLabel}>{moduleNames[item.key] ?? item.label ?? DEFAULT_LABELS[item.key] ?? item.key}</span>}
               {isActive && !isCollapsed && <div className={styles.activeIndicator} />}
             </Link>
           );

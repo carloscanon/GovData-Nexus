@@ -20,6 +20,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { usePlatform } from '@/contexts/PlatformContext';
+import { supabase } from '@/lib/supabase';
 import styles from './appstore.module.css';
 
 // Target Apps inside GovData Nexus Store
@@ -301,6 +302,19 @@ export default function AppStorePage() {
                       localStorage.setItem(`daily_challenge_played_${currentTenant?.id || 'demo'}`, 'true');
                       localStorage.setItem(`daily_challenge_score_${currentTenant?.id || 'demo'}`, finalScore.toString());
                       localStorage.setItem(`daily_challenge_precision_${currentTenant?.id || 'demo'}`, precision.toString());
+                      
+                      // Save to tenant_config for persistence on Cloud/Vercel DB
+                      if (currentTenant?.id) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        supabase.from('tenant_config').upsert({
+                          tenant_id: currentTenant.id,
+                          config_key: `challenge_score_${todayStr}`,
+                          config_value: { score: finalScore, precision, date: todayStr },
+                          updated_at: new Date().toISOString()
+                        }, { onConflict: 'tenant_id, config_key' }).then(({ error }) => {
+                          if (error) console.error('Error persisting game score to Cloud DB:', error);
+                        });
+                      }
                     }}
                   />
 

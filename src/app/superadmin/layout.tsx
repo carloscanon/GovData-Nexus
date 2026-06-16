@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -24,20 +24,22 @@ import {
 } from 'lucide-react';
 import './superadmin.css';
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: 'Dashboard SaaS', href: '/superadmin' },
-  { icon: Building2, label: 'Empresas', href: '/superadmin/empresas' },
-  { icon: ClipboardList, label: 'Solicitud de Demos', href: '/superadmin/demos' },
-  { icon: Layers, label: 'Planes SaaS', href: '/superadmin/planes' },
-  { icon: CreditCard, label: 'Facturación', href: '/superadmin/billing' },
-  { icon: Gauge, label: 'Control de Consumo', href: '/superadmin/consumo' },
-  { icon: Zap, label: 'Escaneos Automáticos', href: '/superadmin/escaneos' },
-  { icon: Ticket, label: 'Soporte Tickets', href: '/superadmin/tickets' },
-  { icon: ShieldCheck, label: 'Seguridad y RLS', href: '/superadmin/security' },
-  { icon: ClipboardList, label: 'Logs de Auditoría', href: '/superadmin/logs' },
-  { icon: LogIn, label: 'Portal de Login', href: '/superadmin/login-config' },
-  { icon: Settings, label: 'Configuración', href: '/superadmin/config' },
-];
+// Default labels (fallback) keyed by module identifier
+const DEFAULT_LABELS: Record<string, string> = {
+  moduleNames: 'Nombres de Módulos',
+  dashboard: 'Dashboard SaaS',
+  empresas: 'Empresas',
+  demos: 'Solicitud de Demos',
+  planes: 'Planes SaaS',
+  billing: 'Facturación',
+  consumo: 'Control de Consumo',
+  escaneos: 'Escaneos Automáticos',
+  tickets: 'Soporte Tickets',
+  security: 'Seguridad y RLS',
+  logs: 'Logs de Auditoría',
+  loginConfig: 'Portal de Login',
+  config: 'Configuración',
+};
 
 export default function SuperAdminLayout({
   children,
@@ -48,15 +50,48 @@ export default function SuperAdminLayout({
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    // Check cookie (set on login) instead of only localStorage
-    // This ensures direct URL access after logout is blocked
-    const roleCookie = document.cookie
-      .split(';')
-      .find(c => c.trim().startsWith('govdata_role='))
-      ?.split('=')[1]
-      ?.trim();
+  // Sidebar navigation items (key, icon, href)
+  const sidebarItems = [
+    { key: 'dashboard', icon: LayoutDashboard, href: '/superadmin' },
+    { key: 'empresas', icon: Building2, href: '/superadmin/empresas' },
+    { key: 'demos', icon: ClipboardList, href: '/superadmin/demos' },
+    { key: 'planes', icon: Layers, href: '/superadmin/planes' },
+    { key: 'billing', icon: CreditCard, href: '/superadmin/billing' },
+    { key: 'consumo', icon: Gauge, href: '/superadmin/consumo' },
+    { key: 'escaneos', icon: Zap, href: '/superadmin/escaneos' },
+    { key: 'tickets', icon: Ticket, href: '/superadmin/tickets' },
+    { key: 'security', icon: ShieldCheck, href: '/superadmin/security' },
+    { key: 'logs', icon: ClipboardList, href: '/superadmin/logs' },
+    { key: 'loginConfig', icon: LogIn, href: '/superadmin/login-config' },
+    { key: 'config', icon: Settings, href: '/superadmin/config' },
+    { key: 'moduleNames', icon: Settings, href: '/superadmin/module-names' },
+  ];
+  // Load module display names from DB (if any) – allow superadmin to customise
+  const [moduleNames, setModuleNames] = useState<Record<string, string>>({});
+  const GLOBAL_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+  useEffect(() => {
+    const fetchModules = async () => {
+      const { data, error } = await supabase
+        .from('tenant_config')
+        .select('config_value')
+        .eq('tenant_id', GLOBAL_TENANT_ID)
+        .eq('config_key', 'module_config')
+        .single();
+        
+      if (!error && data && data.config_value) {
+        setModuleNames(data.config_value as Record<string, string>);
+      }
+    };
+    fetchModules();
+  }, []);
 
+  const roleCookie = typeof document !== 'undefined' ? document.cookie
+    .split(';')
+    .find(c => c.trim().startsWith('govdata_role='))
+    ?.split('=')[1]
+    ?.trim() : null;
+
+  useEffect(() => {
     if (!roleCookie) {
       router.replace('/login?reason=unauthorized');
       return;
@@ -133,6 +168,7 @@ export default function SuperAdminLayout({
         <nav className="sa-nav">
           {sidebarItems.map((item) => {
             const isActive = pathname === item.href;
+const label = moduleNames[item.key] ?? DEFAULT_LABELS[item.key] ?? item.key;
             return (
               <Link
                 key={item.href}
@@ -142,7 +178,7 @@ export default function SuperAdminLayout({
               >
                 <div className="sa-nav-link-content">
                   <item.icon className="w-5 h-5" style={{ color: isActive ? '#ffffff' : '#64748b' }} />
-                  <span>{item.label}</span>
+                  <span>{label}</span>
                 </div>
                 {isActive && <ChevronRight className="w-4 h-4 text-white" />}
               </Link>
@@ -152,8 +188,22 @@ export default function SuperAdminLayout({
 
         {/* Footer info */}
         <div className="sa-sidebar-footer">
+          {/* Volver a UI normal (no logout) */}
           <button
-            onClick={() => handleLogout('/login')}
+            onClick={() => {
+              // Simply navigate back to the main application UI.
+              // Do NOT clear the auth cookie or session.
+              setIsMobileSidebarOpen(false);
+              router.push('/');
+            }}
+            className="sa-btn-back"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Volver a la UI Normal</span>
+          </button>
+          {/* Cerrar sesión */}
+          <button
+            onClick={() => handleLogout('/')}
             className="sa-btn-back"
           >
             <LogOut className="w-4 h-4" />

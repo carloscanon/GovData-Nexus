@@ -107,6 +107,24 @@ export default function Settings() {
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isTestingInteractive, setIsTestingInteractive] = useState(false);
 
+  // Load custom module names for editability by normal admins
+  const [moduleNames, setModuleNames] = useState<Record<string, string>>({});
+  const [isSavingModules, setIsSavingModules] = useState(false);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      const { data, error } = await supabase.from('module_config').select('*');
+      if (!error && data) {
+        const map: Record<string, string> = {};
+        (data as any[]).forEach(row => {
+          map[row.module_key] = row.display_name;
+        });
+        setModuleNames(map);
+      }
+    };
+    fetchModules();
+  }, []);
+
   useEffect(() => {
     if (modalConfig) {
       setLocalModalConfig(modalConfig);

@@ -39,7 +39,7 @@ import {
 import * as XLSX from 'xlsx';
 
 export default function CentralizedAuditPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'connections' | 'activity' | 'alerts' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'connections' | 'activity' | 'alerts' | 'settings'>('connections');
   const [loading, setLoading] = useState(true);
   const [tenantFilter, setTenantFilter] = useState('all');
   
