@@ -248,70 +248,43 @@ export default function Simulator() {
           continue;
         }
 
-        // Excluir políticas y elementos creados automáticamente desde el diagnóstico/lanzador (Launchpad)
+        // Apply exclusions from DB (check_excluded_values) - no hardcoded values
         let filteredRecords = records;
-        if (step.check_table === 'data_policies') {
-          const bootstrapFrameworks = ['DAMA', 'DCAM', 'HEALTH', 'PUBLIC', 'GDPR', 'STANDARD'];
-          filteredRecords = records.filter(r => {
-            const origin = (r.framework_origin || '').trim().toUpperCase();
-            return !bootstrapFrameworks.includes(origin);
-          });
-        } else if (step.check_table === 'policy_workflows') {
-          const bootstrapWorkflows = ['FLUJO DOCUMENTAL NORMATIVO', 'ESTÁNDAR', 'CRÍTICO / LEGAL', 'ESTANDAR', 'CRITICO / LEGAL'];
-          filteredRecords = records.filter(r => {
-            const name = (r.name || '').trim().toUpperCase();
-            return !bootstrapWorkflows.includes(name);
-          });
-        } else if (step.check_table === 'policy_standards') {
-          const bootstrapCodes = ['STD-DAMA', 'STD-DCAM', 'STD-HIPAA', 'STD-GOV', 'STD-GDPR', 'STD-001', 'STD-002'];
-          filteredRecords = records.filter(r => {
-            const code = (r.code || '').trim().toUpperCase();
-            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
-          });
-        } else if (step.check_table === 'policy_procedures') {
-          const bootstrapCodes = ['PR-DAMA', 'PR-DCAM', 'PR-HIPAA', 'PR-GOV', 'PR-GDPR', 'PR-01', 'PR-02', 'PRC-01'];
-          filteredRecords = records.filter(r => {
-            const code = (r.code || '').trim().toUpperCase();
-            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
-          });
-        } else if (step.check_table === 'policy_controls') {
-          const bootstrapCodes = ['CTRL-DAMA', 'CTRL-DCAM', 'CTRL-HIPAA', 'CTRL-GOV', 'CTRL-GDPR', 'CTRL-01', 'CTRL-02'];
-          filteredRecords = records.filter(r => {
-            const code = (r.code || '').trim().toUpperCase();
-            return !bootstrapCodes.some(prefix => code.startsWith(prefix));
-          });
-        } else if (step.check_table === 'maturity_assessments') {
-          // Excluir la evaluación inicial/bootstrap del launchpad que no tiene timestamp en answers
-          filteredRecords = records.filter(r => {
-            const hasTimestamp = r.answers && (r.answers.timestamp || r.answers.comite_gobierno);
-            return !!hasTimestamp;
-          });
-        } else if (step.check_table === 'team_raci_matrix') {
-          // Excluir procesos RACI que coincidan exactamente con la configuración inicial y no hayan sido editados/personalizados
-          const defaultRaci = [
-            { process: 'Definición de Glosario', owner_role: 'A', steward_role: 'R', custodian_role: 'C', analyst_role: 'C' },
-            { process: 'Validación de Calidad', owner_role: 'A', steward_role: 'R', custodian_role: 'I', analyst_role: 'C' },
-            { process: 'Aprobación de Acceso', owner_role: 'A', steward_role: 'C', custodian_role: 'R', analyst_role: 'I' },
-            { process: 'Modelado de Datos', owner_role: 'C', steward_role: 'C', custodian_role: 'R', analyst_role: 'A' },
-            { process: 'Gestión de Incidentes', owner_role: 'I', steward_role: 'R', custodian_role: 'A', analyst_role: 'C' },
-          ];
-          filteredRecords = records.filter(r => {
-            return !defaultRaci.some(d => 
-              d.process.toLowerCase() === (r.process || '').trim().toLowerCase() &&
-              d.owner_role === r.owner_role &&
-              d.steward_role === r.steward_role &&
-              d.custodian_role === r.custodian_role &&
-              d.analyst_role === r.analyst_role
-            );
-          });
-        } else if (step.check_table === 'team_domains') {
-          // Excluir los dominios sembrados en el bootstrap/launchpad
-          const bootstrapDomains = ['CLIENTES & CRM', 'FINANZAS', 'TALENTO HUMANO', 'PROVEEDORES'];
-          filteredRecords = records.filter(r => {
-            const name = (r.name || '').trim().toUpperCase();
-            return !bootstrapDomains.includes(name);
-          });
+        const excl = step.check_excluded_values;
+        if (excl) {
+          if (excl.check_answers_timestamp) {
+            // maturity_assessments: exclude bootstrap entries without a real timestamp
+            filteredRecords = records.filter(r => {
+              const hasTimestamp = r.answers && (r.answers.timestamp || r.answers.comite_gobierno);
+              return !!hasTimestamp;
+            });
+          } else if (excl.default_raci) {
+            // team_raci_matrix: exclude default RACI rows from DB
+            const defaultRaci = excl.default_raci as any[];
+            filteredRecords = records.filter(r => {
+              return !defaultRaci.some(d =>
+                d.process.toLowerCase() === (r.process || '').trim().toLowerCase() &&
+                d.owner_role === r.owner_role &&
+                d.steward_role === r.steward_role &&
+                d.custodian_role === r.custodian_role &&
+                d.analyst_role === r.analyst_role
+              );
+            });
+          } else if (excl.prefixes && excl.field) {
+            // Code-prefix exclusion (policy_standards, policy_procedures, policy_controls)
+            filteredRecords = records.filter(r => {
+              const val = (r[excl.field] || '').trim().toUpperCase();
+              return !excl.prefixes.some((p: string) => val.startsWith(p.toUpperCase()));
+            });
+          } else if (excl.values && excl.field) {
+            // Exact-value exclusion (data_policies, policy_workflows, team_domains)
+            filteredRecords = records.filter(r => {
+              const val = (r[excl.field] || '').trim().toUpperCase();
+              return !excl.values.map((v: string) => v.toUpperCase()).includes(val);
+            });
+          }
         }
+
 
         // Special logic for "roles" aggregation
         if (step.check_condition?.requires_roles) {
