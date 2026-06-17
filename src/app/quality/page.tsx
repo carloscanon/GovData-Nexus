@@ -118,7 +118,8 @@ export default function QualityModule() {
   // Perfilamiento Automático
   const [isProfiling, setIsProfiling] = useState(false);
   const [profileResult, setProfileResult] = useState<any>(null);
-  const [profileTab, setProfileTab] = useState('general'); // general, distribution, anomalies, recommendations
+  const [profileTab, setProfileTab] = useState('general'); // general, distribution, anomalies, recommendations, historial
+  const [profilingHistory, setProfilingHistory] = useState<any[]>([]);
 
   // Tabla completa
   const [isAnalyzingTable, setIsAnalyzingTable] = useState(false);
@@ -205,6 +206,7 @@ export default function QualityModule() {
       fetchRules(selectedAssetId);
       fetchIncidents(selectedAssetId);
       fetchAssetFields(selectedAssetId);
+      fetchProfilingHistory(selectedAssetId);
     } else {
       fetchIncidents();
       setAssetFields([]);
@@ -403,6 +405,22 @@ export default function QualityModule() {
     }
   };
 
+  const fetchProfilingHistory = async (assetId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('quality_profiling_history')
+        .select('*')
+        .eq('asset_id', assetId)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setProfilingHistory(data);
+      }
+    } catch (err) {
+      console.warn('Error fetching profiling history:', err);
+    }
+  };
+
   const handleDeleteRule = async (ruleId: string) => {
     if (!confirm('¿Está seguro de que desea eliminar esta regla de calidad?')) return;
     try {
@@ -427,10 +445,12 @@ export default function QualityModule() {
       let query = supabase.from('quality_incidents').select(`
         *,
         rule:quality_rules(name),
-        asset:data_assets(name, source)
+        asset:data_assets!inner(name, source, tenant_id)
       `);
       if (assetId) {
         query = query.eq('asset_id', assetId);
+      } else if (currentTenant?.id) {
+        query = query.eq('asset.tenant_id', currentTenant.id);
       }
       const { data } = await query.order('detected_at', { ascending: false });
       if (data) {
@@ -685,6 +705,23 @@ export default function QualityModule() {
       if (!data.success) throw new Error(data.error);
 
       setProfileResult(data);
+      
+      // Save profiling history
+      try {
+        const { error: insertErr } = await supabase.from('quality_profiling_history').insert([{
+          tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
+          asset_id: selectedAssetId,
+          asset_name: asset?.name || 'Desconocido',
+          profile_data: data
+        }]);
+        if (insertErr) {
+          console.error('Supabase insert error:', insertErr);
+        } else {
+          fetchProfilingHistory(selectedAssetId); // Refresh history
+        }
+      } catch (saveErr) {
+        console.warn('Error saving profiling history:', saveErr);
+      }
     } catch (err: any) {
       alert('Error en perfilamiento: ' + err.message);
     } finally {
@@ -1313,7 +1350,7 @@ export default function QualityModule() {
               ) : (
                 <div>
                   <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                    {['general', 'distribution', 'anomalies', 'recommendations'].map(t => (
+                    {['general', 'distribution', 'anomalies', 'recommendations', 'historial'].map(t => (
                       <button
                         key={t}
                         onClick={() => setProfileTab(t)}
@@ -1327,7 +1364,11 @@ export default function QualityModule() {
                           cursor: 'pointer'
                         }}
                       >
-                        {t === 'general' ? 'Resumen General e Indicadores' : t === 'distribution' ? 'Distribución' : t === 'anomalies' ? 'Anomalías' : 'Recomendaciones IA'}
+                        {t === 'general' ? 'Resumen General' : 
+                         t === 'distribution' ? 'Distribución' : 
+                         t === 'anomalies' ? 'Anomalías' : 
+                         t === 'historial' ? 'Historial de Perfilamiento' :
+                         'Recomendaciones AI'}
                       </button>
                     ))}
                   </div>
@@ -1464,6 +1505,37 @@ export default function QualityModule() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {profileTab === 'historial' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <h4 style={{ margin: 0, color: '#0f172a' }}>Historial de Perfilamientos Anteriores</h4>
+                      {profilingHistory.length === 0 ? (
+                        <div style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic', padding: '16px', background: '#f8fafc', borderRadius: '8px' }}>
+                          No hay historial de perfilamiento para este activo.
+                        </div>
+                      ) : (
+                        profilingHistory.map((h: any) => (
+                          <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                            <div>
+                              <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                                {new Date(h.created_at).toLocaleString()}
+                              </div>
+                              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                Registros: {h.profile_data?.records?.toLocaleString() || 'N/A'} | Columnas: {h.profile_data?.columns || 'N/A'}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => { setProfileResult(h.profile_data); setProfileTab('general'); }}
+                              className={styles.secondaryBtnSmall}
+                              style={{ padding: '6px 12px' }}
+                            >
+                              Ver Detalle
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>

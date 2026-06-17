@@ -246,3 +246,25 @@
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@media (max-width: 768px) {
+  .resultItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .resultMetrics {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .resultPct {
+    align-self: flex-end;
+    margin-top: -30px;
+  }
+  .footer {
+    flex-direction: column;
+  }
+  .btnDownload, .btnPrimary {
+    width: 100%;
+    justify-content: center;
+  }
+}

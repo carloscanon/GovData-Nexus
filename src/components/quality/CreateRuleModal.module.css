@@ -341,7 +341,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 850px) {
   .modal {
     max-width: 95%;
     border-radius: 16px;

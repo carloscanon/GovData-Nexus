@@ -726,7 +726,7 @@ export default function Workflows() {
                 <button 
                   key={domain.id}
                   className={`${styles.sideTab} ${activeDomain === domain.name ? styles.activeSideTab : ''}`} 
-                  onClick={() => setActiveDomain(domain.name)}
+                  onClick={() => { setActiveDomain(domain.name); setActiveTab(''); }}
                 >
                    <Layers size={16} /> {domain.name}
                 </button>
