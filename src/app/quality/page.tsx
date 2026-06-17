@@ -426,7 +426,7 @@ export default function QualityModule() {
     try {
       let query = supabase.from('quality_incidents').select(`
         *,
-        rule:quality_rules(rule_name),
+        rule:quality_rules(name),
         asset:data_assets(name, source)
       `);
       if (assetId) {
@@ -437,7 +437,7 @@ export default function QualityModule() {
         setIncidents(data.map(d => ({
           id: d.id.slice(0, 8),
           dbId: d.id,
-          name: d.rule?.rule_name || d.description || 'Validación de Calidad',
+          name: d.rule?.name || d.description || 'Validación de Calidad',
           system: d.asset?.source || 'Base de Datos',
           assetName: d.asset?.name || 'Activo',
           assetId: d.asset_id,
@@ -1835,6 +1835,24 @@ export default function QualityModule() {
                           <span className={`${styles.sevBadgeSmall} ${rule.severity === 'Crítica' ? styles.sevCritical : styles.sevLow}`}>{rule.severity || 'Media'}</span>
                         </div>
                       </div>
+                      <button
+                        onClick={() => {
+                          setEditingRule({
+                            id: rule.id,
+                            asset_id: rule.asset_id || selectedAssetId,
+                            field_id: rule.field_id || '',
+                            name: rule.rule_name || rule.name,
+                            type: rule.rule_type || rule.type,
+                            severity: rule.severity || 'Media',
+                            config: rule.config || {}
+                          });
+                          setIsRuleModalOpen(true);
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#6366f1', cursor: 'pointer', padding: '8px' }}
+                        title="Editar Regla"
+                      >
+                        <Edit2 size={18} />
+                      </button>
                       <button
                         onClick={() => handleDeleteRule(rule.id)}
                         style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}

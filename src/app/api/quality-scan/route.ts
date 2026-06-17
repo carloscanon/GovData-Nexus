@@ -471,7 +471,10 @@ export async function POST(req: Request) {
             let uniqueness = 100;
             try {
               const dupResult = await pool.query(`
-                SELECT (COUNT("${col}") - COUNT(DISTINCT "${col}")) as cnt FROM ${tableRef} WHERE "${col}" IS NOT NULL
+                SELECT (
+                  COUNT(translate(LOWER("${col}"::text), 'áéíóúüÁÉÍÓÚÜ', 'aeiouuaeiouu')) - 
+                  COUNT(DISTINCT translate(LOWER("${col}"::text), 'áéíóúüÁÉÍÓÚÜ', 'aeiouuaeiouu'))
+                ) as cnt FROM ${tableRef} WHERE "${col}" IS NOT NULL
               `);
               const dups = parseInt(dupResult.rows[0].cnt, 10) || 0;
               uniqueness = Math.round(((totalRecords - dups) / totalRecords) * 100);
@@ -657,7 +660,10 @@ export async function POST(req: Request) {
               affected = parseInt(r.rows[0].cnt, 10);
             } else if (rule.type === 'Duplicados') {
               const r = await pool.query(`
-                SELECT (COUNT("${fieldName}") - COUNT(DISTINCT "${fieldName}")) as cnt FROM ${tableRef} WHERE "${fieldName}" IS NOT NULL
+                SELECT (
+                  COUNT(translate(LOWER("${fieldName}"::text), 'áéíóúüÁÉÍÓÚÜ', 'aeiouuaeiouu')) - 
+                  COUNT(DISTINCT translate(LOWER("${fieldName}"::text), 'áéíóúüÁÉÍÓÚÜ', 'aeiouuaeiouu'))
+                ) as cnt FROM ${tableRef} WHERE "${fieldName}" IS NOT NULL
               `);
               affected = parseInt(r.rows[0].cnt, 10);
             } else if (rule.type === 'Formato') {
