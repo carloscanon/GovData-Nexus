@@ -38,6 +38,7 @@ export default function Simulator() {
   const [userEmail, setUserEmail] = useState('');
   
   const [validations, setValidations] = useState<Record<string, any>>({});
+  const [missingInfo, setMissingInfo] = useState<Record<string, string>>({});
   const [isValidating, setIsValidating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -158,55 +159,66 @@ export default function Simulator() {
   }, [activeTab, currentTenant]);
 
   const validateCondition = (records: any[], condition: any) => {
-    if (!condition || Object.keys(condition).length === 0) return records.length;
+    if (!condition || Object.keys(condition).length === 0) return { validCount: records.length, issues: [] };
     
     let validCount = 0;
+    const issues: string[] = [];
+    
     records.forEach(r => {
       let isOk = true;
-      
-      // Roles logic
-      if (condition.requires_roles) {
-        // Handled specially below since it checks aggregated rows, not individual rows
-      }
+      let missingFields: string[] = [];
       
       // Fields exist
       if (condition.requires_fields) {
         condition.requires_fields.forEach((f: string) => {
-          if (!r[f] || String(r[f]).trim() === '') isOk = false;
+          if (!r[f] || (typeof r[f] === 'string' && r[f].trim() === '') || (Array.isArray(r[f]) && r[f].length === 0)) {
+            isOk = false;
+            missingFields.push(f);
+          }
         });
       }
       
       // Exact Match
       if (condition.status) {
-        if (!condition.status.includes(r.status)) isOk = false;
+        if (!condition.status.includes(r.status)) {
+          isOk = false;
+          missingFields.push(`estado inválido`);
+        }
       }
 
-      if (isOk) validCount++;
+      if (isOk) {
+        validCount++;
+      } else if (missingFields.length > 0) {
+        issues.push(`Faltan campos: ${missingFields.join(', ')}`);
+      }
     });
     
-    return validCount;
+    return { validCount, issues };
   };
 
   const checkProgress = useCallback(async () => {
-    if (!currentTenant?.id || !activeSession || !userEmail) return;
+    if (!currentTenant?.id || !activeSession) return;
+    const simulatedEmail = `empresa@${currentTenant.id}.govdatanexus.com`;
     setIsValidating(true);
     try {
-      // Check if this session is already certified for THIS USER
+      // Check if this session is already certified for THIS USER (Company scope)
       const { data: certData } = await supabase
         .from('simulator_user_progress')
         .select('id')
         .eq('tenant_id', currentTenant.id)
-        .eq('user_email', userEmail)
+        .eq('user_email', simulatedEmail)
         .eq('module_id', activeSession)
         .limit(1);
 
       const sessionSteps = steps.filter(s => s.module_id === activeSession);
       const v: Record<string, any> = {};
+      const m: Record<string, string> = {};
 
       if (certData && certData.length > 0) {
         setHasCertificate(true);
         sessionSteps.forEach(s => v[s.key_name] = true);
         setValidations(v);
+        setMissingInfo({});
         setIsValidating(false);
         return;
       } else {
@@ -219,6 +231,7 @@ export default function Simulator() {
       for (const step of sessionSteps) {
         if (!step.check_table) {
           v[step.key_name] = false;
+          m[step.key_name] = 'Sin tabla configurada';
           allStepsValid = false;
           continue;
         }
@@ -230,6 +243,7 @@ export default function Simulator() {
 
         if (!records) {
           v[step.key_name] = false;
+          m[step.key_name] = 'Error leyendo registros';
           allStepsValid = false;
           continue;
         }
@@ -303,25 +317,53 @@ export default function Simulator() {
         if (step.check_condition?.requires_roles) {
           const roleTypes = filteredRecords.map(m => m.role?.toLowerCase() || '');
           let hasAll = true;
+          const missingRoles: string[] = [];
           step.check_condition.requires_roles.forEach((reqR: string) => {
-            if (!roleTypes.some(rt => rt.includes(reqR.toLowerCase()))) hasAll = false;
+            if (!roleTypes.some(rt => rt.includes(reqR.toLowerCase()))) {
+              hasAll = false;
+              missingRoles.push(reqR);
+            }
           });
 
           // También validar que los campos requeridos estén completos
           let fieldsOk = true;
+          let emptyFieldsCount = 0;
           if (step.check_condition?.requires_fields) {
             filteredRecords.forEach(r => {
               step.check_condition.requires_fields.forEach((f: string) => {
-                if (!r[f] || String(r[f]).trim() === '') fieldsOk = false;
+                if (!r[f] || String(r[f]).trim() === '') {
+                  fieldsOk = false;
+                  emptyFieldsCount++;
+                }
               });
             });
           }
 
-          v[step.key_name] = hasAll && fieldsOk && filteredRecords.length >= step.min_count;
+          const ok = hasAll && fieldsOk && filteredRecords.length >= step.min_count;
+          v[step.key_name] = ok;
+          
+          if (!ok) {
+            const msgs = [];
+            if (filteredRecords.length < step.min_count) msgs.push(`Registros: ${filteredRecords.length}/${step.min_count}`);
+            if (!hasAll) msgs.push(`Falta rol: ${missingRoles.join(', ')}`);
+            if (!fieldsOk) msgs.push(`Existen campos vacíos en roles`);
+            m[step.key_name] = msgs.join('. ');
+          }
         } else {
           // Standard validation
-          const validRecords = validateCondition(filteredRecords, step.check_condition);
-          v[step.key_name] = validRecords >= step.min_count;
+          const { validCount, issues } = validateCondition(filteredRecords, step.check_condition);
+          const ok = validCount >= step.min_count;
+          v[step.key_name] = ok;
+          
+          if (!ok) {
+            const msgs = [];
+            msgs.push(`Válidos: ${validCount}/${step.min_count}`);
+            if (issues.length > 0) {
+              const uniqueIssues = Array.from(new Set(issues)).slice(0, 1);
+              msgs.push(uniqueIssues.join(', '));
+            }
+            m[step.key_name] = msgs.join(' | ');
+          }
         }
 
         if (!v[step.key_name]) {
@@ -330,12 +372,13 @@ export default function Simulator() {
       }
 
       setValidations(v);
+      setMissingInfo(m);
 
       // Upsert each step's completion status to DB
       for (const step of sessionSteps) {
         await supabase.from('simulator_user_step_progress').upsert({
           tenant_id: currentTenant.id,
-          user_email: userEmail,
+          user_email: simulatedEmail,
           step_key: step.key_name,
           module_id: activeSession,
           completed: !!v[step.key_name]
@@ -345,7 +388,7 @@ export default function Simulator() {
       if (allStepsValid && sessionSteps.length > 0) {
         await supabase.from('simulator_user_progress').insert([{ 
           tenant_id: currentTenant.id, 
-          user_email: userEmail,
+          user_email: simulatedEmail,
           module_id: activeSession 
         }]);
         setHasCertificate(true);
@@ -356,7 +399,7 @@ export default function Simulator() {
     } finally {
       setIsValidating(false);
     }
-  }, [currentTenant?.id, activeSession, steps, userEmail]);
+  }, [currentTenant?.id, activeSession, steps]);
 
   const exportCertificate = async () => {
     if (!currentTenant) return;
@@ -420,8 +463,10 @@ export default function Simulator() {
   };
 
   useEffect(() => {
-    checkProgress();
-  }, [checkProgress]);
+    if (activeTab === 'participant') {
+      checkProgress();
+    }
+  }, [checkProgress, activeTab]);
 
   const activeS = modules.find(s => s.id === activeSession);
   const sessionSteps = steps.filter(s => s.module_id === activeSession);
@@ -606,7 +651,7 @@ export default function Simulator() {
                       <h4 className={styles.checkTitle}>{chk.title}</h4>
                       <p className={styles.checkDesc}>{chk.description}</p>
                       <span className={`${styles.checkStatus} ${isOk ? styles.statusCompleted : styles.statusPending}`}>
-                        {isOk ? 'Requisito Cumplido' : 'Pendiente de Configuración'}
+                        {isOk ? 'Requisito Cumplido' : (missingInfo[chk.key_name] || 'Pendiente de Configuración')}
                       </span>
                     </div>
                   </div>
