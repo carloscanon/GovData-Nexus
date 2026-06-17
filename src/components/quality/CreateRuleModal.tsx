@@ -230,6 +230,7 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
           }).eq('id', ruleToEdit.id).select()
         : supabase.from('quality_rules').insert([{
             ...ruleData,
+            tenant_id: currentTenant?.id,
             field_id: ruleData.field_id || null,
             status: 'Activa'
           }]).select();
