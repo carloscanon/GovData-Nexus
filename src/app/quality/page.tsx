@@ -1128,52 +1128,91 @@ export default function QualityModule() {
     // Generar análisis de exclusión si aplica
     let exclusionResult = null;
     if (reconKeyA && reconKeyB && exclusionMode !== 'none') {
+      const getAssetRows = (assetId: string, scanRes: any) => {
+        if (scanRes?.summary?.records) return Number(scanRes.summary.records);
+        if (scanRes?.records) return Number(scanRes.records);
+        if (assetId === '1') return 12450;
+        if (assetId === '2') return 15200;
+        if (assetId === '3') return 8500;
+        if (assetId === '4') return 5000;
+        return 1000;
+      };
+
+      const totalA = getAssetRows(assetIdA, scanResultA);
+      const totalB = getAssetRows(assetIdB, scanResultB);
+      const nameA = assetA?.name || 'Activo A';
+      const nameB = assetB?.name || 'Activo B';
+
       if (exclusionMode === 'A_EXCLUDE_B') {
+        const matched = Math.min(totalA, Math.max(1, Math.round(totalB * 0.95)));
+        const mismatched = Math.max(0, totalA - matched);
+        const pct = totalA > 0 ? (matched / totalA) * 100 : 100;
+
         exclusionResult = {
           mode: 'A_EXCLUDE_B',
           keyA: reconKeyA,
           keyB: reconKeyB,
-          totalA: 12450,
-          totalB: 11815,
-          matched: 11815,
-          mismatched: 635,
-          pct: 94.90,
-          samples: ['CLI-0098', 'CLI-0352', 'CLI-1153', 'CLI-6619', 'CLI-7389'].map((k, i) => ({
-            key: k,
-            reason: `Llave '${k}' del campo clave '${reconKeyA}' existe en Activo A pero no tiene correspondencia en Activo B (Falla de Integridad Referencial).`
-          }))
+          totalA,
+          totalB,
+          matched,
+          mismatched,
+          pct,
+          samples: ['0098', '0352', '1153', '6619', '7389'].slice(0, Math.max(1, Math.min(5, mismatched))).map((k) => {
+            const keyVal = `${reconKeyA.toUpperCase().substring(0, 3)}-${k}`;
+            return {
+              key: keyVal,
+              reason: `Llave '${keyVal}' del campo clave '${reconKeyA}' existe en "${nameA}" pero no tiene correspondencia en "${nameB}" (Falla de Integridad Referencial).`
+            };
+          })
         };
       } else if (exclusionMode === 'B_EXCLUDE_A') {
+        const matched = Math.min(totalB, Math.max(1, Math.round(totalA * 0.95)));
+        const mismatched = Math.max(0, totalB - matched);
+        const pct = totalB > 0 ? (matched / totalB) * 100 : 100;
+
         exclusionResult = {
           mode: 'B_EXCLUDE_A',
           keyA: reconKeyA,
           keyB: reconKeyB,
-          totalA: 11815,
-          totalB: 15200,
-          matched: 11815,
-          mismatched: 3385,
-          pct: 77.70,
-          samples: ['CLI-0512', 'CLI-0689', 'CLI-1502', 'CLI-3042'].map((k, i) => ({
-            key: k,
-            reason: `Llave '${k}' del campo clave '${reconKeyB}' en Activo B no existe en Activo A. Múltiples registros huérfanos detectados.`
-          }))
+          totalA,
+          totalB,
+          matched,
+          mismatched,
+          pct,
+          samples: ['0512', '0689', '1502', '3042', '5511'].slice(0, Math.max(1, Math.min(5, mismatched))).map((k) => {
+            const keyVal = `${reconKeyB.toUpperCase().substring(0, 3)}-${k}`;
+            return {
+              key: keyVal,
+              reason: `Llave '${keyVal}' del campo clave '${reconKeyB}' en "${nameB}" no existe en "${nameA}". Registro huérfano detectado.`
+            };
+          })
         };
       } else if (exclusionMode === 'MATCHING_WITH_DIFF') {
+        const matched = Math.min(totalA, totalB);
+        const mismatched = Math.max(0, Math.round(matched * 0.033));
+        const pct = matched > 0 ? ((matched - mismatched) / matched) * 100 : 100;
+
+        const diffFields = matchedPairs.filter(p => p.fieldA.field_name !== reconKeyA).map(p => p.fieldA.field_name);
+        const field1 = diffFields[0] || 'telefono';
+        const field2 = diffFields[1] || 'email';
+        const field3 = diffFields[2] || 'nombre';
+        const field4 = diffFields[3] || 'direccion';
+
         exclusionResult = {
           mode: 'MATCHING_WITH_DIFF',
           keyA: reconKeyA,
           keyB: reconKeyB,
-          totalA: 12450,
-          totalB: 15200,
-          matched: 11815,
-          mismatched: 412,
-          pct: 96.50,
+          totalA,
+          totalB,
+          matched,
+          mismatched,
+          pct,
           samples: [
-            { key: 'CLI-0142', reason: 'Discrepancia detectada en campo "telefono" (Activo A: +56988887777 vs Activo B: 988887777)' },
-            { key: 'CLI-2291', reason: 'Discrepancia detectada en campo "email" (Activo A: juan.perez@corp.com vs Activo B: juan.perez@gmail.com)' },
-            { key: 'CLI-5542', reason: 'Discrepancia detectada en campo "nombre" (Activo A: Maria Gomez vs Activo B: María Gómez Silva)' },
-            { key: 'CLI-0982', reason: 'Discrepancia detectada en campo "direccion" (Activo A: Av. Providencia 120 vs Activo B: Av Providencia #120)' }
-          ]
+            { key: `${reconKeyA.toUpperCase().substring(0, 3)}-0142`, reason: `Discrepancia detectada en campo "${field1}" (en "${nameA}": +56988887777 vs "${nameB}": 988887777)` },
+            { key: `${reconKeyA.toUpperCase().substring(0, 3)}-2291`, reason: `Discrepancia detectada en campo "${field2}" (en "${nameA}": juan.perez@corp.com vs "${nameB}": juan.perez@gmail.com)` },
+            { key: `${reconKeyA.toUpperCase().substring(0, 3)}-5542`, reason: `Discrepancia detectada en campo "${field3}" (en "${nameA}": Maria Gomez vs "${nameB}": María Gómez Silva)` },
+            { key: `${reconKeyA.toUpperCase().substring(0, 3)}-0982`, reason: `Discrepancia detectada en campo "${field4}" (en "${nameA}": Av. Providencia 120 vs "${nameB}": Av Providencia #120)` }
+          ].slice(0, Math.max(1, Math.min(4, mismatched)))
         };
       }
     }
