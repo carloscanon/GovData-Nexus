@@ -34,7 +34,8 @@ import {
   UserCheck,
   FileSpreadsheet,
   Grid,
-  Check
+  Check,
+  Key
 } from 'lucide-react';
 import {
   AreaChart,
@@ -174,6 +175,7 @@ export default function QualityModule() {
   const [fieldsB, setFieldsB] = useState<any[]>([]);
   const [activeReconTab, setActiveReconTab] = useState<'schema'|'quality'|'detail'|'exclusion'>('schema');
   const [showReconModal, setShowReconModal] = useState(false);
+  const [reconciliationHistory, setReconciliationHistory] = useState<any[]>([]);
 
   // Detalle de incidente & workflow de remediación
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -291,6 +293,18 @@ export default function QualityModule() {
             .eq('tenant_id', currentTenant.id);
           if (teamData && teamData.length > 0) {
             setStewards(teamData);
+          }
+          // Cargar historial de conciliaciones
+          try {
+            const reconHistKey = `govdata_recon_history_${currentTenant.id}`;
+            const stored = localStorage.getItem(reconHistKey);
+            if (stored) {
+              setReconciliationHistory(JSON.parse(stored));
+            } else {
+              setReconciliationHistory([]);
+            }
+          } catch (e) {
+            console.warn('Error loading reconciliation history:', e);
           }
         } catch (err) {
           console.error('[Quality] Error fetching history/stewards:', err);
@@ -1250,7 +1264,7 @@ export default function QualityModule() {
       }
     }
 
-    setReconciliationResult({
+    const resultObj = {
       assetA, assetB,
       matchedPairs,
       onlyA, onlyB,
@@ -1292,7 +1306,33 @@ export default function QualityModule() {
         [assetA?.name?.slice(0,10) || 'A']: p.qualityA,
         [assetB?.name?.slice(0,10) || 'B']: p.qualityB
       }))
-    });
+    };
+
+    setReconciliationResult(resultObj);
+
+    // Guardar en el histórico
+    try {
+      const historyItem = {
+        id: Date.now().toString(),
+        date: new Date().toLocaleString('es-CO'),
+        assetAName: assetA?.name || 'Activo A',
+        assetBName: assetB?.name || 'Activo B',
+        keyA: reconKeyA || 'N/A',
+        keyB: reconKeyB || 'N/A',
+        exclusionMode: exclusionMode,
+        score: consolidatedScore,
+        result: resultObj
+      };
+
+      const updatedHistory = [historyItem, ...reconciliationHistory];
+      setReconciliationHistory(updatedHistory);
+
+      const reconHistKey = `govdata_recon_history_${currentTenant?.id || '00000000-0000-0000-0000-000000000001'}`;
+      localStorage.setItem(reconHistKey, JSON.stringify(updatedHistory));
+    } catch (e) {
+      console.warn('Error saving reconciliation to history:', e);
+    }
+
     setIsReconciling(false);
   };
 
@@ -2383,57 +2423,59 @@ export default function QualityModule() {
               {assetIdA && assetIdB && (
                 <div style={{
                   marginTop: '20px',
-                  padding: '20px',
-                  background: '#f8fafc',
-                  borderRadius: '16px',
-                  border: '1px solid #cbd5e1',
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr 1.2fr',
                   gap: '20px'
                 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>
-                      🔑 Campo Clave en Activo A
-                    </label>
+                  {/* Card 1: Key A */}
+                  <div style={{ padding: '16px', background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderRadius: '16px', border: '2px solid #c7d2fe' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Key size={16} /></div>
+                      <span style={{ fontWeight: 700, color: '#4338ca', fontSize: '0.9rem' }}>Campo Clave A</span>
+                    </div>
                     <select
                       value={reconKeyA}
                       onChange={e => setReconKeyA(e.target.value)}
                       className={styles.select}
-                      style={{ background: 'white' }}
+                      style={{ border: '1px solid #c7d2fe', background: 'white' }}
                     >
                       <option value="">Seleccionar llave A...</option>
                       {fieldsA.map(f => (
-                        <option key={f.id} value={f.field_name}>{f.field_name} ({f.field_type || 'text'})</option>
+                        <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
                       ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>
-                      🔑 Campo Clave en Activo B
-                    </label>
+                  {/* Card 2: Key B */}
+                  <div style={{ padding: '16px', background: 'linear-gradient(135deg,#fdf4ff,#fce7f3)', borderRadius: '16px', border: '2px solid #e9d5ff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Key size={16} /></div>
+                      <span style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.9rem' }}>Campo Clave B</span>
+                    </div>
                     <select
                       value={reconKeyB}
                       onChange={e => setReconKeyB(e.target.value)}
                       className={styles.select}
-                      style={{ background: 'white' }}
+                      style={{ border: '1px solid #e9d5ff', background: 'white' }}
                     >
                       <option value="">Seleccionar llave B...</option>
                       {fieldsB.map(f => (
-                        <option key={f.id} value={f.field_name}>{f.field_name} ({f.field_type || 'text'})</option>
+                        <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
                       ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>
-                      ⚙ Criterio de Análisis Excluyente
-                    </label>
+                  {/* Card 3: Criterio */}
+                  <div style={{ padding: '16px', background: 'linear-gradient(135deg,#f8fafc,#f1f5f9)', borderRadius: '16px', border: '2px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Settings size={16} /></div>
+                      <span style={{ fontWeight: 700, color: '#334155', fontSize: '0.9rem' }}>Criterio de Exclusión</span>
+                    </div>
                     <select
                       value={exclusionMode}
                       onChange={e => setExclusionMode(e.target.value)}
                       className={styles.select}
-                      style={{ background: 'white' }}
+                      style={{ border: '1px solid #cbd5e1', background: 'white' }}
                     >
                       <option value="none">Ninguno (Sólo Comparar Esquema)</option>
                       <option value="A_EXCLUDE_B">Registros de A que NO existen en B (Integridad A-B)</option>
@@ -2793,9 +2835,76 @@ export default function QualityModule() {
                       </div>
                     );
                   })()}
-                </>
-              );
-            })()}
+                  </>
+                );
+              })()}
+            {/* Historial de Conciliaciones */}
+            <div style={{ background: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0', marginTop: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#1e293b' }}>Historial de Conciliaciones</h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.78rem' }}>Registro de las comparaciones y análisis de exclusión ejecutados anteriormente.</p>
+                </div>
+              </div>
+
+              {reconciliationHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
+                  Aún no se han registrado conciliaciones en este proyecto.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: '#64748b', fontWeight: 700 }}>Fecha</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: '#64748b', fontWeight: 700 }}>Activo A (Clave)</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: '#64748b', fontWeight: 700 }}>Activo B (Clave)</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: '#64748b', fontWeight: 700 }}>Criterio</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b', fontWeight: 700 }}>Calidad</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right', color: '#64748b', fontWeight: 700 }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reconciliationHistory.map((h, i) => (
+                        <tr key={h.id || i} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? 'white' : '#f8fafc' }}>
+                          <td style={{ padding: '12px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>{h.date}</td>
+                          <td style={{ padding: '12px 16px', color: '#1e293b', fontWeight: 600 }}>{h.assetAName} <span style={{ fontSize: '0.75rem', background: '#eef2ff', color: '#4338ca', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px' }}>{h.keyA}</span></td>
+                          <td style={{ padding: '12px 16px', color: '#1e293b', fontWeight: 600 }}>{h.assetBName} <span style={{ fontSize: '0.75rem', background: '#fdf4ff', color: '#7c3aed', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px' }}>{h.keyB}</span></td>
+                          <td style={{ padding: '12px 16px', color: '#475569' }}>
+                            {h.exclusionMode === 'none' ? 'Sólo Esquema' : 
+                             h.exclusionMode === 'A_EXCLUDE_B' ? 'Exclusividad A-B' :
+                             h.exclusionMode === 'B_EXCLUDE_A' ? 'Exclusividad B-A' : 'Discrepancia Atribs.'}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <span style={{ 
+                              background: h.score >= 90 ? '#ecfdf5' : h.score >= 70 ? '#fffbeb' : '#fef2f2', 
+                              color: h.score >= 90 ? '#047857' : h.score >= 70 ? '#b45309' : '#b91c1c', 
+                              padding: '2px 8px', 
+                              borderRadius: '6px', 
+                              fontWeight: 700 
+                            }}>
+                              {h.score}%
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => { setReconciliationResult(h.result); setAssetIdA(assets.find(a => a.name === h.assetAName)?.id || ''); setAssetIdB(assets.find(a => a.name === h.assetBName)?.id || ''); setReconKeyA(h.keyA); setReconKeyB(h.keyB); setExclusionMode(h.exclusionMode); }}
+                              className={styles.secondaryBtnSmall}
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              Cargar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
