@@ -1128,34 +1128,38 @@ export default function QualityModule() {
     // Generar análisis de exclusión si aplica
     let exclusionResult = null;
     if (reconKeyA && reconKeyB && exclusionMode !== 'none') {
-      if (resolvedA && resolvedB) {
-        try {
-          console.log('[Reconciliation] Ejecutando análisis de exclusión real en bases de datos independientes...');
-          const resExclude = await fetch('/api/quality-exclude', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              connA: resolvedA.conn,
-              connB: resolvedB.conn,
-              tableNameA: resolvedA.tableName,
-              tableNameB: resolvedB.tableName,
-              keyA: reconKeyA,
-              keyB: reconKeyB,
-              exclusionMode
-            })
-          });
-          const excludeData = await resExclude.json();
-          if (excludeData.success) {
-            exclusionResult = excludeData.exclusionResult;
-          } else {
-            console.warn('[Reconciliation] Error en API de exclusión:', excludeData.error);
+      if (mode !== 'DEMO') {
+        if (resolvedA && resolvedB) {
+          try {
+            console.log('[Reconciliation] Ejecutando análisis de exclusión real en bases de datos independientes...');
+            const resExclude = await fetch('/api/quality-exclude', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                connA: resolvedA.conn,
+                connB: resolvedB.conn,
+                tableNameA: resolvedA.tableName,
+                tableNameB: resolvedB.tableName,
+                keyA: reconKeyA,
+                keyB: reconKeyB,
+                exclusionMode
+              })
+            });
+            const excludeData = await resExclude.json();
+            if (excludeData.success) {
+              exclusionResult = excludeData.exclusionResult;
+            } else {
+              alert(`Error al ejecutar análisis de exclusión real: ${excludeData.error}`);
+            }
+          } catch (e: any) {
+            alert(`Error de red al conectar con el API de exclusión: ${e.message}`);
           }
-        } catch (e) {
-          console.warn('[Reconciliation] Excepción en llamado a API de exclusión:', e);
+        } else {
+          alert('No se pudieron resolver las credenciales de conexión para los activos seleccionados. Verifique la configuración de origen de datos.');
         }
       }
 
-      if (!exclusionResult) {
+      if (mode === 'DEMO' && !exclusionResult) {
         const getAssetRows = (assetId: string, scanRes: any) => {
           if (scanRes?.summary?.records) return Number(scanRes.summary.records);
           if (scanRes?.records) return Number(scanRes.records);

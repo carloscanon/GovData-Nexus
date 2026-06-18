@@ -15,19 +15,78 @@ function buildPgConfig(params: any) {
   };
 }
 
+async function resolvePgTable(
+  pool: PgPool,
+  tableName: string
+): Promise<{ schema: string; table: string } | null> {
+  let schemaHint: string | null = null;
+  let tableHint = tableName;
+
+  if (tableName.includes('.')) {
+    const parts = tableName.split('.');
+    schemaHint = parts[0].replace(/"/g, '');
+    tableHint = parts[1].replace(/"/g, '');
+  }
+
+  try {
+    let query: string;
+    let params: string[];
+
+    if (schemaHint) {
+      query = `
+        SELECT table_schema, table_name 
+        FROM information_schema.tables 
+        WHERE LOWER(table_schema) = LOWER($1) AND LOWER(table_name) = LOWER($2)
+        LIMIT 1
+      `;
+      params = [schemaHint, tableHint];
+    } else {
+      query = `
+        SELECT table_schema, table_name 
+        FROM information_schema.tables 
+        WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+          AND LOWER(table_name) = LOWER($1)
+        ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END
+        LIMIT 1
+      `;
+      params = [tableHint];
+    }
+
+    const result = await pool.query(query, params);
+    if (result.rows.length > 0) {
+      return { schema: result.rows[0].table_schema, table: result.rows[0].table_name };
+    }
+  } catch (err) {
+    console.warn('[Quality Scan] Error en resolvePgTable:', err);
+  }
+  return null;
+}
+
+async function resolvePgColumn(pool: PgPool, schema: string, table: string, colName: string): Promise<string> {
+  try {
+    const res = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE LOWER(table_schema) = LOWER($1) AND LOWER(table_name) = LOWER($2)
+    `, [schema, table]);
+    const found = res.rows.find(r => r.column_name.toLowerCase() === colName.toLowerCase());
+    return found ? found.column_name : colName;
+  } catch {
+    return colName;
+  }
+}
+
 async function fetchKeysFromPg(config: any, tableName: string, keyColumn: string): Promise<any[]> {
   const pool = new PgPool({ ...config, ssl: { rejectUnauthorized: false } });
   try {
-    let resolvedSchema = 'public';
-    let resolvedTable = tableName;
-    if (tableName.includes('.')) {
-      const parts = tableName.split('.');
-      resolvedSchema = parts[0].replace(/"/g, '');
-      resolvedTable = parts[1].replace(/"/g, '');
+    const resolved = await resolvePgTable(pool, tableName);
+    if (!resolved) {
+      throw new Error(`La tabla "${tableName}" no se encontró en la base de datos.`);
     }
 
-    const tableRef = `"${resolvedSchema}"."${resolvedTable}"`;
-    const colRef = `"${keyColumn}"`;
+    const resolvedCol = await resolvePgColumn(pool, resolved.schema, resolved.table, keyColumn);
+    const tableRef = `"${resolved.schema}"."${resolved.table}"`;
+    const colRef = `"${resolvedCol}"`;
 
     const query = `SELECT ${colRef}::text as keyval FROM ${tableRef} WHERE ${colRef} IS NOT NULL`;
     const res = await pool.query(query);
@@ -45,9 +104,14 @@ async function fetchKeysFromMysql(config: any, tableName: string, keyColumn: str
     database: config.database_name
   });
   try {
+    // Resolver columnas del mysql para asegurar case
+    const [cols]: any = await connection.query(`DESCRIBE ??`, [tableName]);
+    const colNames = cols.map((c: any) => c.Field);
+    const resolvedCol = colNames.find((c: any) => c.toLowerCase() === keyColumn.toLowerCase()) || keyColumn;
+
     const [rows]: any = await connection.query(
       `SELECT CAST(?? AS CHAR) as keyval FROM ?? WHERE ?? IS NOT NULL`,
-      [keyColumn, tableName, keyColumn]
+      [resolvedCol, tableName, resolvedCol]
     );
     return rows.map((r: any) => r.keyval);
   } finally {
@@ -70,16 +134,11 @@ async function getKeys(conn: any, tableName: string, keyColumn: string): Promise
 async function getTableColumnsPg(config: any, tableName: string): Promise<string[]> {
   const pool = new PgPool({ ...config, ssl: { rejectUnauthorized: false } });
   try {
-    let resolvedSchema = 'public';
-    let resolvedTable = tableName;
-    if (tableName.includes('.')) {
-      const parts = tableName.split('.');
-      resolvedSchema = parts[0].replace(/"/g, '');
-      resolvedTable = parts[1].replace(/"/g, '');
-    }
+    const resolved = await resolvePgTable(pool, tableName);
+    if (!resolved) return [];
     const res = await pool.query(
       `SELECT column_name FROM information_schema.columns WHERE LOWER(table_schema) = LOWER($1) AND LOWER(table_name) = LOWER($2)`,
-      [resolvedSchema, resolvedTable]
+      [resolved.schema, resolved.table]
     );
     return res.rows.map(r => r.column_name);
   } finally {
@@ -117,18 +176,16 @@ async function fetchRowsByKeysPg(config: any, tableName: string, keyColumn: stri
   if (keys.length === 0) return [];
   const pool = new PgPool({ ...config, ssl: { rejectUnauthorized: false } });
   try {
-    let resolvedSchema = 'public';
-    let resolvedTable = tableName;
-    if (tableName.includes('.')) {
-      const parts = tableName.split('.');
-      resolvedSchema = parts[0].replace(/"/g, '');
-      resolvedTable = parts[1].replace(/"/g, '');
-    }
-    const tableRef = `"${resolvedSchema}"."${resolvedTable}"`;
-    const colEscaped = columns.map(c => `"${c}"`).join(', ');
-    const keyEscaped = `"${keyColumn}"`;
+    const resolved = await resolvePgTable(pool, tableName);
+    if (!resolved) return [];
+
+    const resolvedKeyCol = await resolvePgColumn(pool, resolved.schema, resolved.table, keyColumn);
+    const resolvedCols = await Promise.all(columns.map(c => resolvePgColumn(pool, resolved.schema, resolved.table, c)));
+
+    const tableRef = `"${resolved.schema}"."${resolved.table}"`;
+    const colEscaped = resolvedCols.map(c => `"${c}"`).join(', ');
+    const keyEscaped = `"${resolvedKeyCol}"`;
     
-    // Postgres placeholder parameters
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
     const query = `SELECT ${keyEscaped}::text as keyval, ${colEscaped} FROM ${tableRef} WHERE ${keyEscaped}::text IN (${placeholders})`;
     
@@ -148,8 +205,14 @@ async function fetchRowsByKeysMysql(config: any, tableName: string, keyColumn: s
     database: config.database_name
   });
   try {
-    const colEscaped = columns.map(c => `??`).join(', ');
-    const queryParams = [keyColumn, ...columns, tableName, keyColumn, ...keys];
+    const [cols]: any = await connection.query(`DESCRIBE ??`, [tableName]);
+    const colNames = cols.map((c: any) => c.Field);
+
+    const resolvedKeyCol = colNames.find((c: any) => c.toLowerCase() === keyColumn.toLowerCase()) || keyColumn;
+    const resolvedCols = columns.map(col => colNames.find((c: any) => c.toLowerCase() === col.toLowerCase()) || col);
+
+    const colEscaped = resolvedCols.map(() => `??`).join(', ');
+    const queryParams = [resolvedKeyCol, ...resolvedCols, tableName, resolvedKeyCol, ...keys];
     
     const placeholders = keys.map(() => '?').join(', ');
     const query = `SELECT CAST(?? AS CHAR) as keyval, ${colEscaped} FROM ?? WHERE ?? IN (${placeholders})`;
@@ -236,18 +299,15 @@ export async function POST(req: Request) {
         reason: `Llave '${k}' de la columna '${keyB}' existe en ${tableNameB} pero no tiene correspondencia en ${tableNameA}.`
       }));
     } else if (exclusionMode === 'MATCHING_WITH_DIFF') {
-      // 1. Obtener columnas de ambas tablas
       const colsA = await getTableColumns(connA, tableNameA);
       const colsB = await getTableColumns(connB, tableNameB);
 
-      // 2. Encontrar columnas comunes (excluyendo llaves)
       const commonCols = colsA.filter(c => colsB.includes(c) && c.toLowerCase() !== keyA.toLowerCase() && c.toLowerCase() !== keyB.toLowerCase());
 
       const commonKeys = keysA.filter(k => setB.has(String(k)));
       matched = commonKeys.length;
 
       if (commonCols.length > 0 && commonKeys.length > 0) {
-        // Consultar valores de filas para las primeras 100 llaves comunes para comparar
         const batchKeys = commonKeys.slice(0, 150);
         const rowsA = await fetchRowsByKeys(connA, tableNameA, keyA, commonCols, batchKeys);
         const rowsB = await fetchRowsByKeys(connB, tableNameB, keyB, commonCols, batchKeys);
@@ -262,7 +322,6 @@ export async function POST(req: Request) {
           const rA = mapRowsA.get(String(k));
           const rB = mapRowsB.get(String(k));
           if (rA && rB) {
-            // Comparar columna por columna
             for (const col of commonCols) {
               const valA = rA[col];
               const valB = rB[col];
@@ -274,13 +333,12 @@ export async function POST(req: Request) {
                     reason: `Discrepancia detectada en la columna "${col}" (en "${tableNameA}": "${valA ?? 'NULL'}" vs "${tableNameB}": "${valB ?? 'NULL'}").`
                   });
                 }
-                break; // Detener chequeo de esta llave al encontrar la primera diferencia
+                break;
               }
             }
           }
         }
 
-        // Estrapolar discrepancia si el lote es una muestra
         const diffRatio = batchKeys.length > 0 ? checkedDiffCount / batchKeys.length : 0;
         mismatched = Math.round(matched * diffRatio);
         samples = diffSamples;
