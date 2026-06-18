@@ -843,7 +843,8 @@ export default function QualityModule() {
           key: conn.password_encrypted,
           connection_string: conn.connection_string,
           table_name: tableName,
-          mode: 'profiling'
+          mode: 'profiling',
+          allowed_columns: assetFields.map(f => f.field_name)
         })
       });
 
@@ -902,7 +903,8 @@ export default function QualityModule() {
           key: conn.password_encrypted,
           connection_string: conn.connection_string,
           table_name: tableName,
-          mode: 'table_quality'
+          mode: 'table_quality',
+          allowed_columns: assetFields.map(f => f.field_name)
         })
       });
 
@@ -1006,7 +1008,8 @@ export default function QualityModule() {
             key: resolvedA.conn.password_encrypted,
             connection_string: resolvedA.conn.connection_string,
             table_name: resolvedA.tableName,
-            mode: 'table_quality'
+            mode: 'table_quality',
+            allowed_columns: fieldsA.map(f => f.field_name)
           })
         });
         const dataA = await resA.json();
@@ -1036,7 +1039,8 @@ export default function QualityModule() {
             key: resolvedB.conn.password_encrypted,
             connection_string: resolvedB.conn.connection_string,
             table_name: resolvedB.tableName,
-            mode: 'table_quality'
+            mode: 'table_quality',
+            allowed_columns: fieldsB.map(f => f.field_name)
           })
         });
         const dataB = await resB.json();

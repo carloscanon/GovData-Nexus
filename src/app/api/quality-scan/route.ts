@@ -145,7 +145,8 @@ export async function POST(req: Request) {
       database_name,
       table_name,
       rules,
-      mode
+      mode,
+      allowed_columns
     } = body;
 
     if (!database_type || !table_name) {
@@ -229,7 +230,13 @@ export async function POST(req: Request) {
             WHERE LOWER(table_schema) = LOWER($1) AND LOWER(table_name) = LOWER($2)
             ORDER BY ordinal_position
           `, [resolvedSchema, resolvedTable]);
-          columnsCount = colsQuery.rows.length;
+          
+          let rows = colsQuery.rows;
+          if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
+            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
+            rows = rows.filter(r => allowedSet.has(r.column_name.toLowerCase()));
+          }
+          columnsCount = rows.length;
 
           let totalNulls = 0;
           let totalValidezErrors = 0;
@@ -237,7 +244,7 @@ export async function POST(req: Request) {
           let totalDuplicates = 0;
           let totalAccuracyErrors = 0;
 
-          for (const row of colsQuery.rows) {
+          for (const row of rows) {
             const col = row.column_name;
             const type = row.data_type;
             columnsList.push({ name: col, type });
@@ -364,10 +371,16 @@ export async function POST(req: Request) {
           const [countResult]: any = await connection.query(`SELECT COUNT(*) as cnt FROM ??`, [resolvedTable]);
           totalRecords = countResult[0].cnt || 0;
           const [columnsResult]: any = await connection.query(`SHOW COLUMNS FROM ??`, [resolvedTable]);
-          columnsCount = columnsResult.length;
+          
+          let rows = columnsResult;
+          if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
+            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
+            rows = rows.filter((r: any) => allowedSet.has((r.Field || r.column_name || '').toLowerCase()));
+          }
+          columnsCount = rows.length;
 
           let totalNulls = 0;
-          for (const row of columnsResult) {
+          for (const row of rows) {
             const col = row.Field;
             columnsList.push({ name: col, type: row.Type });
             const [nullResult]: any = await connection.query(`SELECT COUNT(*) as cnt FROM ?? WHERE ?? IS NULL`, [resolvedTable, col]);
@@ -450,10 +463,16 @@ export async function POST(req: Request) {
             ORDER BY ordinal_position
           `, [resolvedSchema, resolvedTable]);
 
+          let rows = colsQuery.rows;
+          if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
+            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
+            rows = rows.filter(r => allowedSet.has(r.column_name.toLowerCase()));
+          }
+
           const countResult = await pool.query(`SELECT COUNT(*) as cnt FROM ${tableRef}`);
           const totalRecords = parseInt(countResult.rows[0].cnt, 10) || 1;
 
-          for (const row of colsQuery.rows) {
+          for (const row of rows) {
             const col = row.column_name;
             const type = row.data_type;
 
@@ -584,7 +603,14 @@ export async function POST(req: Request) {
           const [countResult]: any = await connection.query(`SELECT COUNT(*) as cnt FROM ??`, [resolvedTable]);
           const totalRecords = countResult[0].cnt || 1;
           const [columnsResult]: any = await connection.query(`SHOW COLUMNS FROM ??`, [resolvedTable]);
-          for (const row of columnsResult) {
+          
+          let rows = columnsResult;
+          if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
+            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
+            rows = rows.filter((r: any) => allowedSet.has((r.Field || r.column_name || '').toLowerCase()));
+          }
+
+          for (const row of rows) {
             const col = row.Field;
             const [nullResult]: any = await connection.query(`SELECT COUNT(*) as cnt FROM ?? WHERE ?? IS NULL`, [resolvedTable, col]);
             const completeness = Math.round(((totalRecords - (nullResult[0].cnt || 0)) / totalRecords) * 100);
