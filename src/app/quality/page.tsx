@@ -3245,7 +3245,7 @@ export default function QualityModule() {
           if (selectedAssetId) fetchRules(selectedAssetId);
         }}
         assetId={selectedAssetId}
-        fields={[]}
+        fields={assetFields || []}
       />
 
       <SourceDetailModal
