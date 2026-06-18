@@ -173,10 +173,16 @@ export default function MetadataPage() {
         ]);
       }
     } catch (err: any) {
-      console.error('Error fetching metadata (Tables might not exist in Supabase):', err);
+      console.error('Error fetching metadata (Tables might not exist in Supabase):', err?.message || err);
+      console.error('Detailed metadata fetch error:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint
+      });
       // Fallback a demo si falla la conexión o las tablas
       loadDemoData();
-      if (err.code === '42P01') {
+      if (err?.code === '42P01') {
         alert("Las tablas de metadata no existen en la base de datos Supabase. Se cargaron los datos de muestra.");
       }
     } finally {
@@ -243,7 +249,13 @@ export default function MetadataPage() {
         }
       }
     } catch (err: any) {
-      console.error('Error saving glossary term to database:', err);
+      console.error('Error saving glossary term to database:', err?.message || err);
+      console.error('Detailed glossary save error:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint
+      });
       alert('Error guardando en la base de datos. ' + (err.message || ''));
     }
   };
@@ -255,7 +267,13 @@ export default function MetadataPage() {
       if (error) throw error;
       setGlossary(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {
-      console.error('Error deleting glossary term:', err);
+      console.error('Error deleting glossary term:', err?.message || err);
+      console.error('Detailed glossary delete error:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint
+      });
       alert('Error al eliminar de la base de datos: ' + err.message);
     }
   };
@@ -269,8 +287,14 @@ export default function MetadataPage() {
       await supabase.from('data_assets').delete().eq('tenant_id', currentTenant.id);
       // Refresh UI
       fetchMetadata();
-    } catch (err) {
-      console.error('Error resetting metadata in database:', err);
+    } catch (err: any) {
+      console.error('Error resetting metadata in database:', err?.message || err);
+      console.error('Detailed metadata reset error:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint
+      });
     }
   };
 
