@@ -8,8 +8,8 @@ function buildPgConfig(params: any) {
   }
   return {
     host: params.host,
-    user: params.user,
-    password: params.key,
+    user: params.username || params.user,
+    password: params.key || params.password_encrypted || params.password,
     port: params.port || 5432,
     database: params.database_name || 'postgres'
   };
@@ -99,12 +99,11 @@ async function fetchKeysFromPg(config: any, tableName: string, keyColumn: string
 async function fetchKeysFromMysql(config: any, tableName: string, keyColumn: string): Promise<any[]> {
   const connection = await mysql.createConnection({
     host: config.host,
-    user: config.user,
-    password: config.key,
-    database: config.database_name
+    user: config.username || config.user,
+    password: config.key || config.password_encrypted || config.password,
+    database: config.database_name || config.database
   });
   try {
-    // Resolver columnas del mysql para asegurar case
     const [cols]: any = await connection.query(`DESCRIBE ??`, [tableName]);
     const colNames = cols.map((c: any) => c.Field);
     const resolvedCol = colNames.find((c: any) => c.toLowerCase() === keyColumn.toLowerCase()) || keyColumn;
@@ -149,9 +148,9 @@ async function getTableColumnsPg(config: any, tableName: string): Promise<string
 async function getTableColumnsMysql(config: any, tableName: string): Promise<string[]> {
   const connection = await mysql.createConnection({
     host: config.host,
-    user: config.user,
-    password: config.key,
-    database: config.database_name
+    user: config.username || config.user,
+    password: config.key || config.password_encrypted || config.password,
+    database: config.database_name || config.database
   });
   try {
     const [rows]: any = await connection.query(`DESCRIBE ??`, [tableName]);
@@ -200,9 +199,9 @@ async function fetchRowsByKeysMysql(config: any, tableName: string, keyColumn: s
   if (keys.length === 0) return [];
   const connection = await mysql.createConnection({
     host: config.host,
-    user: config.user,
-    password: config.key,
-    database: config.database_name
+    user: config.username || config.user,
+    password: config.key || config.password_encrypted || config.password,
+    database: config.database_name || config.database
   });
   try {
     const [cols]: any = await connection.query(`DESCRIBE ??`, [tableName]);
