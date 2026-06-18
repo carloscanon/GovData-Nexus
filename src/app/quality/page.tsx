@@ -2385,15 +2385,16 @@ export default function QualityModule() {
                     <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Database size={16} /></div>
                     <span style={{ fontWeight: 700, color: '#4338ca', fontSize: '0.9rem' }}>Activo A</span>
                   </div>
-                  <select
-                    value={assetIdA}
-                    onChange={e => { setAssetIdA(e.target.value); loadFieldsForAsset(e.target.value, 'A'); setReconciliationResult(null); }}
-                    className={styles.select}
-                    style={{ border: '1px solid #c7d2fe', background: 'white' }}
-                  >
-                    <option value="">Seleccionar activo A…</option>
-                    {assets.filter(a => a.id !== assetIdB).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
-                  </select>
+                  <div className={styles.assetSelector} style={{ maxWidth: '100%', borderColor: '#c7d2fe', backgroundColor: 'white' }}>
+                    <Database size={18} className={styles.selectorIcon} style={{ color: '#6366f1' }} />
+                    <select
+                      value={assetIdA}
+                      onChange={e => { setAssetIdA(e.target.value); loadFieldsForAsset(e.target.value, 'A'); setReconciliationResult(null); }}
+                    >
+                      <option value="">Seleccionar activo A…</option>
+                      {assets.filter(a => a.id !== assetIdB).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
+                    </select>
+                  </div>
                   {assetIdA && <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{fieldsA.length} campos detectados</div>}
                 </div>
 
@@ -2406,15 +2407,16 @@ export default function QualityModule() {
                     <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Database size={16} /></div>
                     <span style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.9rem' }}>Activo B</span>
                   </div>
-                  <select
-                    value={assetIdB}
-                    onChange={e => { setAssetIdB(e.target.value); loadFieldsForAsset(e.target.value, 'B'); setReconciliationResult(null); }}
-                    className={styles.select}
-                    style={{ border: '1px solid #e9d5ff', background: 'white' }}
-                  >
-                    <option value="">Seleccionar activo B…</option>
-                    {assets.filter(a => a.id !== assetIdA).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
-                  </select>
+                  <div className={styles.assetSelector} style={{ maxWidth: '100%', borderColor: '#e9d5ff', backgroundColor: 'white' }}>
+                    <Database size={18} className={styles.selectorIcon} style={{ color: '#a855f7' }} />
+                    <select
+                      value={assetIdB}
+                      onChange={e => { setAssetIdB(e.target.value); loadFieldsForAsset(e.target.value, 'B'); setReconciliationResult(null); }}
+                    >
+                      <option value="">Seleccionar activo B…</option>
+                      {assets.filter(a => a.id !== assetIdA).map(a => <option key={a.id} value={a.id}>{a.name} ({a.source})</option>)}
+                    </select>
+                  </div>
                   {assetIdB && <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#a855f7', fontWeight: 600 }}>{fieldsB.length} campos detectados</div>}
                 </div>
               </div>
@@ -2433,17 +2435,18 @@ export default function QualityModule() {
                       <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Key size={16} /></div>
                       <span style={{ fontWeight: 700, color: '#4338ca', fontSize: '0.9rem' }}>Campo Clave A</span>
                     </div>
-                    <select
-                      value={reconKeyA}
-                      onChange={e => setReconKeyA(e.target.value)}
-                      className={styles.select}
-                      style={{ border: '1px solid #c7d2fe', background: 'white' }}
-                    >
-                      <option value="">Seleccionar llave A...</option>
-                      {fieldsA.map(f => (
-                        <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
-                      ))}
-                    </select>
+                    <div className={styles.assetSelector} style={{ maxWidth: '100%', borderColor: '#c7d2fe', backgroundColor: 'white' }}>
+                      <Key size={18} className={styles.selectorIcon} style={{ color: '#6366f1' }} />
+                      <select
+                        value={reconKeyA}
+                        onChange={e => setReconKeyA(e.target.value)}
+                      >
+                        <option value="">Seleccionar llave A...</option>
+                        {fieldsA.map(f => (
+                          <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Card 2: Key B */}
@@ -2452,17 +2455,18 @@ export default function QualityModule() {
                       <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Key size={16} /></div>
                       <span style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.9rem' }}>Campo Clave B</span>
                     </div>
-                    <select
-                      value={reconKeyB}
-                      onChange={e => setReconKeyB(e.target.value)}
-                      className={styles.select}
-                      style={{ border: '1px solid #e9d5ff', background: 'white' }}
-                    >
-                      <option value="">Seleccionar llave B...</option>
-                      {fieldsB.map(f => (
-                        <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
-                      ))}
-                    </select>
+                    <div className={styles.assetSelector} style={{ maxWidth: '100%', borderColor: '#e9d5ff', backgroundColor: 'white' }}>
+                      <Key size={18} className={styles.selectorIcon} style={{ color: '#a855f7' }} />
+                      <select
+                        value={reconKeyB}
+                        onChange={e => setReconKeyB(e.target.value)}
+                      >
+                        <option value="">Seleccionar llave B...</option>
+                        {fieldsB.map(f => (
+                          <option key={f.field_name} value={f.field_name}>{f.field_name} ({f.field_type || f.data_type || 'text'})</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Card 3: Criterio */}
@@ -2471,17 +2475,18 @@ export default function QualityModule() {
                       <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Settings size={16} /></div>
                       <span style={{ fontWeight: 700, color: '#334155', fontSize: '0.9rem' }}>Criterio de Exclusión</span>
                     </div>
-                    <select
-                      value={exclusionMode}
-                      onChange={e => setExclusionMode(e.target.value)}
-                      className={styles.select}
-                      style={{ border: '1px solid #cbd5e1', background: 'white' }}
-                    >
-                      <option value="none">Ninguno (Sólo Comparar Esquema)</option>
-                      <option value="A_EXCLUDE_B">Registros de A que NO existen en B (Integridad A-B)</option>
-                      <option value="B_EXCLUDE_A">Registros de B que NO existen en A (Integridad B-A)</option>
-                      <option value="MATCHING_WITH_DIFF">Registros comunes con discrepancia en atributos</option>
-                    </select>
+                    <div className={styles.assetSelector} style={{ maxWidth: '100%', borderColor: '#cbd5e1', backgroundColor: 'white' }}>
+                      <Settings size={18} className={styles.selectorIcon} style={{ color: '#475569' }} />
+                      <select
+                        value={exclusionMode}
+                        onChange={e => setExclusionMode(e.target.value)}
+                      >
+                        <option value="none">Ninguno (Sólo Comparar Esquema)</option>
+                        <option value="A_EXCLUDE_B">Registros de A que NO existen en B (Integridad A-B)</option>
+                        <option value="B_EXCLUDE_A">Registros de B que NO existen en A (Integridad B-A)</option>
+                        <option value="MATCHING_WITH_DIFF">Registros comunes con discrepancia en atributos</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
