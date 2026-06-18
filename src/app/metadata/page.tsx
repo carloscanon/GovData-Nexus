@@ -49,6 +49,59 @@ export default function MetadataPage() {
   const fetchMetadata = async () => {
     if (!currentTenant?.id) return;
     setLoading(true);
+
+    const loadDemoData = () => {
+      const demoAssets = [
+        { id: '1', name: 'Maestro de Clientes', source: 'SAP ERP', data_owner: 'Carlos Ruiz', records_count: '12450', status: 'Sincronizado', created_at: new Date().toISOString() },
+        { id: '2', name: 'Transacciones Q2', source: 'Oracle DB', data_owner: 'Maria Silva', records_count: '15200', status: 'Sincronizado', created_at: new Date().toISOString() },
+        { id: '3', name: 'Leads Marketing', source: 'Salesforce', data_owner: 'Juan Perez', records_count: '8500', status: 'Sincronizado', created_at: new Date().toISOString() },
+        { id: '4', name: 'Reporte Consolidado', source: 'Data Lake', data_owner: 'Andres Gomez', records_count: '5000', status: 'Sincronizado', created_at: new Date().toISOString() }
+      ];
+      setAssets(demoAssets);
+      setSelectedLineageAsset(demoAssets[0]);
+
+      const demoFields = [
+        { id: 'f1', asset_id: '1', field_name: 'id', data_type: 'INTEGER', is_sensitive: false, sensitivity: 'Público', quality_rule: 'Unicidad', asset: { name: 'Maestro de Clientes' } },
+        { id: 'f2', asset_id: '1', field_name: 'nombre', data_type: 'VARCHAR', is_sensitive: false, sensitivity: 'Público', quality_rule: 'No Nulo', asset: { name: 'Maestro de Clientes' } },
+        { id: 'f3', asset_id: '1', field_name: 'email', data_type: 'VARCHAR', is_sensitive: true, sensitivity: 'Confidencial', quality_rule: 'Formato Correo', asset: { name: 'Maestro de Clientes' } },
+        { id: 'f4', asset_id: '1', field_name: 'telefono', data_type: 'VARCHAR', is_sensitive: true, sensitivity: 'Confidencial', quality_rule: 'Formato Celular', asset: { name: 'Maestro de Clientes' } },
+        { id: 'f5', asset_id: '1', field_name: 'rut', data_type: 'VARCHAR', is_sensitive: true, sensitivity: 'Restringido', quality_rule: 'Algoritmo Rut', asset: { name: 'Maestro de Clientes' } },
+        { id: 'f6', asset_id: '2', field_name: 'id_transaccion', data_type: 'INTEGER', is_sensitive: false, sensitivity: 'Público', quality_rule: 'Unicidad', asset: { name: 'Transacciones Q2' } },
+        { id: 'f7', asset_id: '2', field_name: 'cliente_id', data_type: 'INTEGER', is_sensitive: false, sensitivity: 'Público', quality_rule: 'Clave Foránea', asset: { name: 'Transacciones Q2' } },
+        { id: 'f8', asset_id: '2', field_name: 'monto', data_type: 'NUMERIC', is_sensitive: false, sensitivity: 'Público', quality_rule: 'Rango Positivo', asset: { name: 'Transacciones Q2' } },
+        { id: 'f9', asset_id: '2', field_name: 'estado', data_type: 'VARCHAR', is_sensitive: false, sensitivity: 'Público', quality_rule: 'Valores Permitidos', asset: { name: 'Transacciones Q2' } }
+      ];
+      setFields(demoFields);
+
+      const demoGlossary = [
+        { id: 'g1', term: 'Cliente', definition: 'Persona natural o jurídica que adquiere productos o servicios de la compañía.', domain: 'Ventas', status: 'Publicado' },
+        { id: 'g2', term: 'Transacción', definition: 'Registro de una operación financiera o comercial realizada por un cliente.', domain: 'Finanzas', status: 'Publicado' },
+        { id: 'g3', term: 'Leads', definition: 'Contacto comercial potencial registrado a través de campañas de marketing.', domain: 'Marketing', status: 'Publicado' },
+        { id: 'g4', term: 'DQI', definition: 'Data Quality Index, métrica unificada de la calidad de un activo de datos.', domain: 'Gobernanza', status: 'Publicado' }
+      ];
+      setGlossary(demoGlossary);
+
+      const demoSemantic = [
+        { id: 's1', term: 'id', synonyms: ['id_cliente', 'client_id', 'cliente_id'] },
+        { id: 's2', term: 'nombre', synonyms: ['nombre_cliente', 'name', 'full_name'] },
+        { id: 's3', term: 'email', synonyms: ['correo', 'mail', 'email_contacto'] },
+        { id: 's4', term: 'telefono', synonyms: ['phone', 'celular', 'tel'] }
+      ];
+      setSemanticDict(demoSemantic);
+
+      setDomains([
+        { id: 'DOM-01', name: 'Finanzas' },
+        { id: 'DOM-02', name: 'Ventas' },
+        { id: 'DOM-03', name: 'Recursos Humanos' },
+        { id: 'DOM-04', name: 'Logística' }
+      ]);
+    };
+
+    if (mode === 'DEMO') {
+      loadDemoData();
+      setLoading(false);
+      return;
+    }
     
     try {
       // Fetch Assets (Scanner)
@@ -120,16 +173,11 @@ export default function MetadataPage() {
         ]);
       }
     } catch (err: any) {
-      console.error('Error fetching metadata (Tables might not exist in Supabase):', {
-        message: err.message,
-        code: err.code,
-        details: err.details,
-        hint: err.hint,
-        stack: err.stack,
-        error: err
-      });
+      console.error('Error fetching metadata (Tables might not exist in Supabase):', err);
+      // Fallback a demo si falla la conexión o las tablas
+      loadDemoData();
       if (err.code === '42P01') {
-        alert("Las tablas de metadata no existen en la base de datos Supabase. Ejecuta el script SQL de creación.");
+        alert("Las tablas de metadata no existen en la base de datos Supabase. Se cargaron los datos de muestra.");
       }
     } finally {
       setLoading(false);
