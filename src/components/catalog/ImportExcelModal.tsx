@@ -277,7 +277,7 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
         if (assetFields.length > 0) {
           const fieldsToInsert = assetFields.map((f: any) => ({
             asset_id: newAssetId,
-            field_name: f.Nombre_Campo,
+            field_name: f.Nombre_Campo ? String(f.Nombre_Campo).trim() : '',
             data_type: f.Tipo_Dato || 'text',
             description: f.Descripcion_Campo || '',
             is_sensitive: f.Es_Sensible === 'Sí',

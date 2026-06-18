@@ -233,8 +233,8 @@ export async function POST(req: Request) {
           
           let rows = colsQuery.rows;
           if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
-            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
-            rows = rows.filter(r => allowedSet.has(r.column_name.toLowerCase()));
+            const allowedSet = new Set(allowed_columns.map(c => String(c).trim().toLowerCase()));
+            rows = rows.filter(r => allowedSet.has(String(r.column_name).trim().toLowerCase()));
           }
           columnsCount = rows.length;
 
@@ -374,8 +374,8 @@ export async function POST(req: Request) {
           
           let rows = columnsResult;
           if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
-            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
-            rows = rows.filter((r: any) => allowedSet.has((r.Field || r.column_name || '').toLowerCase()));
+            const allowedSet = new Set(allowed_columns.map(c => String(c).trim().toLowerCase()));
+            rows = rows.filter((r: any) => allowedSet.has(String(r.Field || r.column_name || '').trim().toLowerCase()));
           }
           columnsCount = rows.length;
 
@@ -465,8 +465,8 @@ export async function POST(req: Request) {
 
           let rows = colsQuery.rows;
           if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
-            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
-            rows = rows.filter(r => allowedSet.has(r.column_name.toLowerCase()));
+            const allowedSet = new Set(allowed_columns.map(c => String(c).trim().toLowerCase()));
+            rows = rows.filter(r => allowedSet.has(String(r.column_name).trim().toLowerCase()));
           }
 
           const countResult = await pool.query(`SELECT COUNT(*) as cnt FROM ${tableRef}`);
@@ -606,8 +606,8 @@ export async function POST(req: Request) {
           
           let rows = columnsResult;
           if (allowed_columns && Array.isArray(allowed_columns) && allowed_columns.length > 0) {
-            const allowedSet = new Set(allowed_columns.map(c => c.toLowerCase()));
-            rows = rows.filter((r: any) => allowedSet.has((r.Field || r.column_name || '').toLowerCase()));
+            const allowedSet = new Set(allowed_columns.map(c => String(c).trim().toLowerCase()));
+            rows = rows.filter((r: any) => allowedSet.has(String(r.Field || r.column_name || '').trim().toLowerCase()));
           }
 
           for (const row of rows) {

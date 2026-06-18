@@ -13,11 +13,19 @@ interface AddAssetModalProps {
   assetToEdit?: any;
 }
 
+const demoMembers = [
+  { id: 'm1', name: 'Juan Pérez', role: 'Data Owner' },
+  { id: 'm2', name: 'María García', role: 'Data Steward' },
+  { id: 'm3', name: 'Carlos Canon', role: 'Data Administrator' },
+  { id: 'm4', name: 'Ana Gómez', role: 'Data Steward' },
+];
+
 export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit }: AddAssetModalProps) {
   const { mode, currentTenant } = usePlatform();
   const [loading, setLoading] = useState(false);
   const [connections, setConnections] = useState<any[]>([]);
   const [loadingConns, setLoadingConns] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,6 +36,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
     schema_name: 'public',
     owner: '',
     data_owner: '',
+    data_steward: '',
     sensitivity: 'Interno',
     quality_score: 100,
     status: 'Vigente',
@@ -37,7 +46,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
     tags: [] as string[]
   });
 
-  // Cargar conexiones disponibles del catálogo
+  // Cargar conexiones y miembros disponibles del catálogo
   useEffect(() => {
     if (!isOpen) return;
     setLoadingConns(true);
@@ -49,7 +58,17 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
         setConnections(data || []);
         setLoadingConns(false);
       });
-  }, [isOpen]);
+
+    const tenantIdVal = currentTenant?.id || '00000000-0000-0000-0000-000000000001';
+    supabase
+      .from('team_members')
+      .select('id, name, role')
+      .eq('tenant_id', tenantIdVal)
+      .order('name')
+      .then(({ data }) => {
+        setMembers(data && data.length > 0 ? data : demoMembers);
+      });
+  }, [isOpen, currentTenant?.id]);
 
   // Cargar datos si estamos editando
   useEffect(() => {
@@ -63,6 +82,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
         schema_name: assetToEdit.schema_name || 'public',
         owner: assetToEdit.owner || '',
         data_owner: assetToEdit.data_owner || '',
+        data_steward: assetToEdit.data_steward || '',
         sensitivity: assetToEdit.sensitivity || 'Interno',
         quality_score: assetToEdit.quality_score || 100,
         status: assetToEdit.status || 'Vigente',
@@ -81,6 +101,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
         schema_name: 'public',
         owner: '',
         data_owner: '',
+        data_steward: '',
         sensitivity: 'Interno',
         quality_score: 100,
         status: 'Vigente',
@@ -116,6 +137,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
         schema_name: formData.schema_name || 'public',
         owner: formData.owner,
         data_owner: formData.data_owner,
+        data_steward: formData.data_steward || null,
         sensitivity: formData.sensitivity,
         quality_score: formData.quality_score,
         status: formData.status,
@@ -295,15 +317,60 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, assetToEdit 
                 required
               />
             </div>
+          </div>
+
+          <div className={styles.row}>
             <div className={styles.formSection}>
               <label>Responsable (Data Owner)</label>
-              <input
-                type="text"
-                placeholder="Ej: Juan Perez"
-                value={formData.data_owner}
+              <select 
+                value={formData.data_owner} 
                 onChange={(e) => setFormData({ ...formData, data_owner: e.target.value })}
                 required
-              />
+              >
+                <option value="">— Seleccionar Data Owner —</option>
+                {members.map(m => (
+                  <option key={m.id} value={m.name}>{m.name} ({m.role || 'Miembro'})</option>
+                ))}
+                {formData.data_owner && !members.some(m => m.name === formData.data_owner) && (
+                  <option value={formData.data_owner}>{formData.data_owner} (Actual)</option>
+                )}
+                <option value="custom_input">✍️ Ingresar nombre manual...</option>
+              </select>
+              {formData.data_owner === 'custom_input' && (
+                <input
+                  type="text"
+                  placeholder="Ej: Juan Perez"
+                  onChange={(e) => setFormData({ ...formData, data_owner: e.target.value })}
+                  required
+                  style={{ marginTop: '8px' }}
+                />
+              )}
+            </div>
+            <div className={styles.formSection}>
+              <label>Custodio (Data Steward)</label>
+              <select 
+                value={formData.data_steward} 
+                onChange={(e) => setFormData({ ...formData, data_steward: e.target.value })}
+                required
+              >
+                <option value="">— Seleccionar Data Steward —</option>
+                {members.map(m => (
+                  <option key={m.id} value={m.name}>{m.name} ({m.role || 'Miembro'})</option>
+                ))}
+                {formData.data_steward && !members.some(m => m.name === formData.data_steward) && (
+                  <option value={formData.data_steward}>{formData.data_steward} (Actual)</option>
+                )}
+                <option value="custom_input">✍️ Ingresar nombre manual...</option>
+              </select>
+              {formData.data_steward === 'custom_input' && (
+                <input
+                  type="text"
+                  placeholder="Ej: María García"
+                  onChange={(e) => setFormData({ ...formData, data_steward: e.target.value })}
+                  required
+                  style={{ marginTop: '8px' }}
+                />
+              )}
             </div>
           </div>
 

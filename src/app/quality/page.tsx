@@ -443,6 +443,27 @@ export default function QualityModule() {
 
   const fetchRules = async (assetId: string) => {
     try {
+      if (mode === 'DEMO') {
+        const localKey = `govdata_rules_${currentTenant?.id || 'demo'}_${assetId}`;
+        const saved = localStorage.getItem(localKey);
+        if (saved) {
+          setRules(JSON.parse(saved));
+          return;
+        }
+        // Fallback default mock rules for demo assets
+        const demoRulesMap: any = {
+          '1': [
+            { id: 'r1', asset_id: '1', field_id: 'f1-3', name: 'Email con formato válido', type: 'Formato', severity: 'Alta', status: 'Activa', config: { formatType: 'email', regex: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' } },
+            { id: 'r2', asset_id: '1', field_id: 'f1-4', name: 'RUT no nulo', type: 'Nulos', severity: 'Crítica', status: 'Activa', config: {} }
+          ],
+          '2': [
+            { id: 'r3', asset_id: '2', field_id: 'f2-3', name: 'Monto mayor a cero', type: 'Rango', severity: 'Media', status: 'Activa', config: { min: 1, max: 9999999 } }
+          ]
+        };
+        setRules(demoRulesMap[assetId] || []);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('quality_rules')
         .select('*')
@@ -451,6 +472,13 @@ export default function QualityModule() {
       setRules(data || []);
     } catch (err) {
       console.warn('Error fetching rules:', err);
+      const localKey = `govdata_rules_${currentTenant?.id || 'demo'}_${assetId}`;
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        setRules(JSON.parse(saved));
+      } else {
+        setRules([]);
+      }
     }
   };
 

@@ -10,9 +10,16 @@ import { usePlatform } from '@/contexts/PlatformContext';
 export function useTenantStorage() {
   const { currentTenant } = usePlatform();
   const tenantId = currentTenant?.id ?? '';
+  
+  const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+  const isValidTenantUuid = isUuid(tenantId);
 
   const getItem = async (key: string): Promise<any | null> => {
     if (!tenantId) return null;
+    if (!isValidTenantUuid) {
+      const local = localStorage.getItem(`govdata_${tenantId}_${key}`);
+      return local ? JSON.parse(local) : null;
+    }
     try {
       const { data, error } = await supabase
         .from('tenant_config')
@@ -39,6 +46,8 @@ export function useTenantStorage() {
     
     // Always save to localStorage as fallback
     localStorage.setItem(`govdata_${tenantId}_${key}`, JSON.stringify(value));
+
+    if (!isValidTenantUuid) return;
 
     try {
       const { error } = await supabase

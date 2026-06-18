@@ -209,6 +209,19 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
     };
 
     if (mode === 'DEMO') {
+      const localKey = `govdata_rules_${currentTenant?.id || 'demo'}_${ruleData.asset_id}`;
+      try {
+        const saved = localStorage.getItem(localKey);
+        let rulesList = saved ? JSON.parse(saved) : [];
+        if (ruleToEdit) {
+          rulesList = rulesList.map((r: any) => r.id === ruleToEdit.id ? fullRuleData : r);
+        } else {
+          rulesList.push(fullRuleData);
+        }
+        localStorage.setItem(localKey, JSON.stringify(rulesList));
+      } catch (e) {
+        console.warn('Error saving rule to localStorage:', e);
+      }
       alert('Regla de calidad configurada y activada exitosamente (Modo DEMO).');
       onSuccess(fullRuleData);
       onClose();
@@ -228,12 +241,16 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
             field_id: ruleData.field_id || null,
             config: ruleData.config
           }).eq('id', ruleToEdit.id).select()
-        : supabase.from('quality_rules').insert([{
-            ...ruleData,
-            tenant_id: currentTenant?.id,
-            field_id: ruleData.field_id || null,
-            status: 'Activa'
-          }]).select();
+        : (() => {
+            const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+            const tenantIdVal = currentTenant?.id && isUuid(currentTenant.id) ? currentTenant.id : null;
+            return supabase.from('quality_rules').insert([{
+              ...ruleData,
+              tenant_id: tenantIdVal,
+              field_id: ruleData.field_id || null,
+              status: 'Activa'
+            }]).select();
+          })();
       
       const { data, error } = await query;
       if (error) throw error;
@@ -243,6 +260,19 @@ export default function CreateRuleModal({ isOpen, onClose, onSuccess, ruleToEdit
       onClose();
     } catch (err: any) {
       console.warn('Error al guardar la regla en base de datos. Aplicando fallback local:', err);
+      const localKey = `govdata_rules_${currentTenant?.id || 'demo'}_${ruleData.asset_id}`;
+      try {
+        const saved = localStorage.getItem(localKey);
+        let rulesList = saved ? JSON.parse(saved) : [];
+        if (ruleToEdit) {
+          rulesList = rulesList.map((r: any) => r.id === ruleToEdit.id ? fullRuleData : r);
+        } else {
+          rulesList.push(fullRuleData);
+        }
+        localStorage.setItem(localKey, JSON.stringify(rulesList));
+      } catch (e) {
+        console.warn('Error saving rule to localStorage on fallback:', e);
+      }
       alert('Regla de calidad configurada y activada exitosamente (Modo local - Base de datos desconectada).');
       onSuccess(fullRuleData);
       onClose();
