@@ -252,6 +252,8 @@ export default function QualityModule() {
       fetchIncidents();
       setAssetFields([]);
     }
+    setTableAnalysisResult(null);
+    setProfileResult(null);
 
     if (currentTenant?.id) {
       const fetchHistoryAndStewards = async () => {
@@ -398,15 +400,25 @@ export default function QualityModule() {
 
     console.log(`[Quality] Buscando conexión para activo "${asset?.name}" (source="${asset?.source}"). Conexiones disponibles:`, allConns.map((c: any) => `${c.name} [${c.source_id}] host=${c.host || 'N/A'} conn_string=${c.connection_string ? 'SÍ' : 'NO'}`));
 
-    // 3. Match exacto por nombre
-    let conn = allConns.find((c: any) => c.name === asset?.source);
+    // 3. Match por database_name (de excel) o por nombre de conexión
+    let conn = allConns.find((c: any) => 
+      c.name === asset?.source || 
+      (asset?.database_name && c.database_name === asset.database_name) ||
+      (asset?.database_name && c.name === asset.database_name)
+    );
 
-    // 4. Match parcial case-insensitive
-    if (!conn && asset?.source) {
-      const srcLower = asset.source.toLowerCase();
+    // 4. Match parcial case-insensitive por source o database_name
+    if (!conn && (asset?.source || asset?.database_name)) {
+      const srcLower = (asset.source || '').toLowerCase();
+      const dbLower = (asset.database_name || '').toLowerCase();
       conn = allConns.find((c: any) => {
         const connName = (c.name || '').toLowerCase();
-        return connName.includes(srcLower) || srcLower.includes(connName);
+        const connDb = (c.database_name || '').toLowerCase();
+        return (
+          (srcLower && (connName.includes(srcLower) || srcLower.includes(connName))) ||
+          (dbLower && (connName.includes(dbLower) || dbLower.includes(connName))) ||
+          (dbLower && (connDb.includes(dbLower) || dbLower.includes(connDb)))
+        );
       });
     }
 
@@ -2052,7 +2064,6 @@ export default function QualityModule() {
                   <h3 style={{ margin: 0 }}>Análisis Granular por Campo (Columna)</h3>
                   <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Visualiza detalladamente los scores individuales para cada columna del activo en las 5 dimensiones.</p>
                 </div>
-                {!tableAnalysisResult && (
                   <button
                     onClick={handleAnalyzeTable}
                     disabled={isAnalyzingTable || !selectedAssetId}
@@ -2060,7 +2071,6 @@ export default function QualityModule() {
                   >
                     {isAnalyzingTable ? <RefreshCw className={styles.spin} /> : <Play />} Ejecutar Análisis
                   </button>
-                )}
               </div>
 
               {!tableAnalysisResult ? (

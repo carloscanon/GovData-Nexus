@@ -205,6 +205,9 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
             risk_level: clas.Nivel_Riesgo || 'Bajo',
             tenant_id: currentTenant?.id || '00000000-0000-0000-0000-000000000001',
             tags: importTags,
+            table_name: a.Tabla_Archivo || null,
+            schema_name: a.Esquema || 'public',
+            database_name: a.Base_Datos || null,
             updated_at: new Date().toISOString().split('T')[0]
           };
         });
@@ -255,7 +258,9 @@ export default function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportE
             status: a.Estado || 'Vigente',
             tags: importTags,
             code_id: a.Codigo_Activo,
-            quality_score: quality.Score_Global || 100
+            quality_score: quality.Score_Global || 100,
+            schema_name: a.Esquema || 'public',
+            database_name: a.Base_Datos || null
           };
 
         const { data: insertedAsset, error: assetError } = await supabase
