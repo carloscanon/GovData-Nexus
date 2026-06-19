@@ -155,7 +155,9 @@ export default function MetadataPage() {
       ]);
     };
 
-    if (mode === 'DEMO') {
+    const isValidUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    if (mode === 'DEMO' || !isValidUuid(currentTenant.id)) {
       loadDemoData();
       setLoading(false);
       return;
