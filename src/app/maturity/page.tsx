@@ -355,6 +355,50 @@ function getKpiExplanation(kpiName: string, globalScore: number, levelColor: str
       return null;
   }
 }
+const ROADMAP_RECOMMENDATIONS: Record<string, { id: string; title: string; description: string; impact: string }[]> = {
+  estrategia: [
+    { id: 'est_1', title: 'Definir visión a largo plazo para Gobierno de Datos', description: 'Crear el manifiesto y plan estratégico de la visión de datos para los próximos 3 años.', impact: '+5% score' },
+    { id: 'est_2', title: 'Establecer la política de Gobernanza de Datos', description: 'Redactar y formalizar la política que rige el uso, propiedad y responsabilidades sobre los datos corporativos.', impact: '+8% score' },
+    { id: 'est_3', title: 'Alinear metas de negocio con indicadores de datos', description: 'Vincular los objetivos del negocio con metas concretas de calidad y gobernanza de la información.', impact: '+6% score' },
+    { id: 'est_4', title: 'Definir presupuesto anual para iniciativas de datos', description: 'Asignar fondos específicos para herramientas de gobierno, capacitación y saneamiento de bases.', impact: '+4% score' },
+    { id: 'est_5', title: 'Implementar Comité Directivo de Datos', description: 'Establecer el órgano directivo interdepartamental para la toma de decisiones prioritarias de datos.', impact: '+7% score' }
+  ],
+  organizacion: [
+    { id: 'org_1', title: 'Asignar Data Owners para dominios críticos', description: 'Identificar y asignar responsables de negocio (Owners) para custodiar los principales activos de datos.', impact: '+8% score' },
+    { id: 'org_2', title: 'Asignar Data Stewards para la gestión de calidad', description: 'Nombrar perfiles técnicos y operativos para velar por la correcta ejecución de reglas de datos.', impact: '+7% score' },
+    { id: 'org_3', title: 'Establecer Comité de Gobierno interdepartamental', description: 'Formar la mesa técnica operativa con representantes de tecnología, riesgos y áreas funcionales.', impact: '+6% score' },
+    { id: 'org_4', title: 'Capacitar a líderes de negocio en Gobierno de Datos', description: 'Impartir talleres sobre la importancia del linaje, calidad y ciclo de vida de los datos.', impact: '+5% score' },
+    { id: 'org_5', title: 'Definir matriz RACI para activos clave', description: 'Crear la matriz de responsabilidades operativa para la ingesta y consumo de datos del negocio.', impact: '+6% score' }
+  ],
+  calidad: [
+    { id: 'cal_1', title: 'Definir reglas de calidad automáticas para bases críticas', description: 'Implementar reglas automáticas de formato, nulos y consistencia en tablas maestras del sistema.', impact: '+9% score' },
+    { id: 'cal_2', title: 'Configurar monitoreo continuo de anomalías', description: 'Habilitar el programador para realizar escaneos diarios y generar alertas sobre inconsistencias detectadas.', impact: '+8% score' },
+    { id: 'cal_3', title: 'Establecer SLA de atención para incidentes de calidad', description: 'Configurar tiempos límite para la mitigación y resolución de incidentes generados por el motor de calidad.', impact: '+7% score' },
+    { id: 'cal_4', title: 'Implementar flujos de remediación de datos incorrectos', description: 'Definir el proceso de corrección en origen ante fallos críticos detectados en el sistema.', impact: '+7% score' },
+    { id: 'cal_5', title: 'Realizar auditoría trimestral de calidad de datos', description: 'Ejecutar una revisión periódica de los scores de calidad corporativos e incidentes resueltos.', impact: '+6% score' }
+  ],
+  arquitectura: [
+    { id: 'arq_1', title: 'Documentar modelos lógicos y conceptuales de datos', description: 'Crear y disponibilizar los diagramas de entidad-relación de las bases clave para todas las áreas.', impact: '+6% score' },
+    { id: 'arq_2', title: 'Configurar linaje técnico de datos automatizado', description: 'Trazar el camino de los datos desde la ingesta hasta el reporte final en tableros de inteligencia.', impact: '+9% score' },
+    { id: 'arq_3', title: 'Definir arquitectura de integración de datos', description: 'Normalizar las APIs y servicios web para evitar duplicidades en el consumo de activos clave.', impact: '+6% score' },
+    { id: 'arq_4', title: 'Catalogar activos de datos críticos de la empresa', description: 'Registrar en el diccionario de datos las definiciones técnicas e impacto de negocio de cada entidad.', impact: '+8% score' },
+    { id: 'arq_5', title: 'Evaluar obsolescencia tecnológica de bases de datos', description: 'Verificar la compatibilidad y seguridad de las plataformas de bases de datos heredadas.', impact: '+5% score' }
+  ],
+  seguridad: [
+    { id: 'seg_1', title: 'Clasificar información confidencial y PII', description: 'Identificar campos que contengan datos personales o sensibles (ej. correos, teléfonos, finanzas).', impact: '+9% score' },
+    { id: 'seg_2', title: 'Implementar controles de acceso basados en roles', description: 'Restringir consultas a tablas sensibles basándose estrictamente en el rol de seguridad del usuario.', impact: '+8% score' },
+    { id: 'seg_3', title: 'Auditar accesos a bases de datos productivas', description: 'Habilitar registros de auditoría sobre quién y cuándo consulta información confidencial en caliente.', impact: '+7% score' },
+    { id: 'seg_4', title: 'Configurar alertas por fuga o anomalías de acceso', description: 'Establecer triggers de seguridad ante descargas masivas o accesos inusuales a activos de datos.', impact: '+8% score' },
+    { id: 'seg_5', title: 'Implementar enmascaramiento de datos sensibles en desarrollo', description: 'Ofuscar la información de PII al realizar réplicas hacia ambientes no productivos o de pruebas.', impact: '+7% score' }
+  ],
+  compliance: [
+    { id: 'com_1', title: 'Alinear políticas con marcos regulatorios locales', description: 'Adaptar las reglas de datos a las normativas de protección vigentes (ej. GDPR, Ley de Protección Local).', impact: '+7% score' },
+    { id: 'com_2', title: 'Establecer auditoría continua de cumplimiento de datos', description: 'Definir revisiones sistemáticas e informes ejecutivos del cumplimiento normativo de la organización.', impact: '+8% score' },
+    { id: 'com_3', title: 'Diseñar flujo de atención a requerimientos ARCO', description: 'Estructurar el canal de atención para responder de manera expedita ante solicitudes de acceso y cancelación de datos.', impact: '+7% score' },
+    { id: 'com_4', title: 'Definir plan de retención y purga de datos históricos', description: 'Establecer políticas claras de depuración o archivado de datos antiguos sin uso operativo.', impact: '+6% score' },
+    { id: 'com_5', title: 'Realizar evaluación de impacto de protección de datos (PIA)', description: 'Evaluar los riesgos de privacidad implicados en nuevos proyectos o cambios en sistemas de datos.', impact: '+6% score' }
+  ]
+};
 
 export default function Maturity() {
   const { currentTenant } = usePlatform();
@@ -765,37 +809,39 @@ export default function Maturity() {
     },
   ];
 
-  const [isAssigningTask, setIsAssigningTask] = React.useState(false);
+  const [assigningTaskIds, setAssigningTaskIds] = React.useState<Record<string, boolean>>({});
+  const [assignedTasks, setAssignedTasks] = React.useState<Record<string, boolean>>({});
 
-  const handleAssignWorkflowTask = async (dimensionName: string) => {
+  const handleAssignWorkflowTask = async (task: { title: string; description: string; impact: string }, dimensionName: string, taskId: string) => {
     if (!currentTenant?.id) return;
-    setIsAssigningTask(true);
+    setAssigningTaskIds(prev => ({ ...prev, [taskId]: true }));
     try {
-      const title = `[Madurez] Mejorar dimensión de ${dimensionName}`;
-      const description = `Tarea estratégica recomendada desde el Centro de Madurez para solventar brechas identificadas en la dimensión de ${dimensionName}. Se requiere automatizar validaciones, asignar custodios de datos y documentar activos.`;
+      const title = `[Madurez] ${task.title}`;
+      const description = `${task.description}\n\nRecomendado desde el Centro de Madurez para la dimensión de ${dimensionName}. Impacto esperado: ${task.impact}`;
       
       const { data, error } = await supabase.from('workflow_requests').insert([{
         tenant_id: currentTenant.id,
         title,
         description,
         status: 'Pendiente',
-        category: 'Gobernanza',
+        category: dimensionName === 'Seguridad' ? 'Seguridad' : dimensionName === 'Calidad' ? 'Calidad' : 'Gobernanza',
         priority: 'Media',
         sla: '72h',
         sla_status: 'Ok',
-        current_step: 'Definición de Brecha de Madurez',
+        current_step: 'Plan de Mejora de Madurez',
         timeline: [
           { step: 'Identificado en Auditoría de Madurez', user: 'Sistema de Madurez GMF', date: new Date().toISOString().split('T')[0], status: 'done' }
         ]
       }]).select();
 
       if (error) throw error;
-      alert(`¡Tarea de mejora para la dimensión "${dimensionName}" asignada exitosamente al Workflow de Gobernanza!`);
+      setAssignedTasks(prev => ({ ...prev, [taskId]: true }));
+      alert(`¡La recomendación "${task.title}" ha sido asignada exitosamente al Workflow de Gobernanza!`);
     } catch (e: any) {
       console.error('Error assigning workflow task:', e);
       alert('Error al crear la solicitud en el workflow: ' + e.message);
     } finally {
-      setIsAssigningTask(false);
+      setAssigningTaskIds(prev => ({ ...prev, [taskId]: false }));
     }
   };
 
@@ -1182,22 +1228,65 @@ export default function Maturity() {
                 </div>
 
                 <div className={styles.roadmapBox}>
-                  <h3>🚀 Roadmap Recomendado</h3>
-                  <div className={styles.roadmapAction}>
-                    <div className={styles.actionIcon}><Zap size={14} /></div>
-                    <div className={styles.actionContent}>
-                      <strong>Automatizar validaciones de {selectedDim.name}</strong>
-                      <span>Impacto esperado: +7% en score global</span>
-                    </div>
+                  <h3>🚀 Roadmap Recomendado ({ROADMAP_RECOMMENDATIONS[selectedDim.id]?.length || 0} Iniciativas)</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '16px' }}>
+                    Selecciona y asigna de manera independiente las iniciativas estratégicas que tu organización decida priorizar para avanzar en el nivel de madurez.
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(ROADMAP_RECOMMENDATIONS[selectedDim.id] || []).map((task) => {
+                      const isAssigning = !!assigningTaskIds[task.id];
+                      const isAssigned = !!assignedTasks[task.id];
+                      return (
+                        <div 
+                          key={task.id} 
+                          style={{ 
+                            padding: '16px', 
+                            background: '#f8fafc', 
+                            border: '1px solid #e2e8f0', 
+                            borderRadius: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            position: 'relative'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{task.title}</strong>
+                            <span style={{ 
+                              fontSize: '0.72rem', 
+                              fontWeight: 800, 
+                              color: '#6366f1', 
+                              background: '#f5f3ff', 
+                              padding: '2px 8px', 
+                              borderRadius: '20px',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {task.impact}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>{task.description}</p>
+                          
+                          <button
+                            className={isAssigned ? styles.secondaryBtn : styles.primaryBtn}
+                            style={{ 
+                              alignSelf: 'flex-start', 
+                              padding: '6px 12px', 
+                              fontSize: '0.78rem', 
+                              marginTop: '4px',
+                              background: isAssigned ? '#ecfdf5' : undefined,
+                              color: isAssigned ? '#10b981' : undefined,
+                              borderColor: isAssigned ? '#10b981' : undefined
+                            }}
+                            onClick={() => handleAssignWorkflowTask(task, selectedDim.name, task.id)}
+                            disabled={isAssigning || isAssigned}
+                          >
+                            {isAssigning ? 'Asignando...' : isAssigned ? '✓ Asignada a Workflow' : 'Asignar a Workflow'}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <button 
-                    className={styles.primaryBtn} 
-                    style={{ width: '100%', marginTop: '16px' }}
-                    onClick={() => handleAssignWorkflowTask(selectedDim.name)}
-                    disabled={isAssigningTask}
-                  >
-                    {isAssigningTask ? 'Asignando...' : 'Asignar Tarea a Workflow'}
-                  </button>
                 </div>
               </motion.div>
             ) : (
