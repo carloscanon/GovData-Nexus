@@ -740,7 +740,10 @@ export default function QualityModule() {
         };
       });
 
-      // Crear incidentes reales para fallas y crear tickets en workflows
+      // Crear incidentes reales para fallas y crear tickets en workflows asignados al dueño del activo
+      const activeAsset = assets.find(a => a.id === selectedAssetId);
+      const dataOwner = activeAsset?.data_owner || 'Carlos Ruiz';
+
       for (const res of results) {
         if (parseFloat(res.pct) < 95) {
           const { data: newInc } = await supabase.from('quality_incidents').insert([{
@@ -753,7 +756,8 @@ export default function QualityModule() {
             compliance_pct: parseFloat(res.pct),
             description: `Fallo de validación en regla ${res.name}`,
             priority: res.severity,
-            status: 'Nuevo'
+            status: 'Nuevo',
+            assigned_to: dataOwner
           }]).select();
 
           if (newInc && newInc.length > 0) {
@@ -768,6 +772,7 @@ export default function QualityModule() {
               sla: '24h',
               sla_status: 'Ok',
               current_step: 'Nuevo Incidente Detectado',
+              assigned_to: dataOwner,
               timeline: [
                 { step: 'Alerta Generada por Nexus AI', user: 'Nexus Motor Calidad', date: new Date().toISOString().split('T')[0], status: 'done' }
               ]
