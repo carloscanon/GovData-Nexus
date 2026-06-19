@@ -410,7 +410,7 @@ export default function Team() {
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
         supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).neq('status', 'Cerrado'),
         supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
-        supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id),
+        supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status, title, category, description, priority').eq('tenant_id', currentTenant.id),
         supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }),
         supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true })
       ]);
@@ -472,22 +472,16 @@ export default function Team() {
           
           const openIncidentsList = freshIncidents
             .filter(i => {
-              // 1. If member owns the asset of the incident, it is under their management
-              if (assetIds.includes(i.asset_id)) return true;
-              
-              // 2. Match by explicit assignee name
+              // 1. Match if assigned directly to member name or generic role
               if (i.assigned_to) {
                 const assignedLower = i.assigned_to.toLowerCase().trim();
-                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) {
-                  return true;
-                }
+                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
                 
-                // 3. Match by role (e.g. if incident is assigned to 'Data Steward' and the member is a Data Steward)
                 const mRoleLower = (m.role || '').toLowerCase().trim();
-                if (assignedLower === mRoleLower) {
-                  return true;
-                }
+                if (assignedLower === mRoleLower) return true;
               }
+              // 2. If member owns the asset under incident, it's also theirs
+              if (assetIds.includes(i.asset_id)) return true;
               return false;
             })
             .map(i => {
@@ -499,6 +493,38 @@ export default function Team() {
                 asset_name: asset ? asset.name : 'Activo'
               };
             });
+
+          // Match Quality Workflows (workflow_requests) that are open as incidents too
+          const qualityWorkflows = freshWorkflows
+            .filter(w => {
+              if (w.status === 'Cerrado' || w.status === 'Aprobado') return false;
+              if (w.category !== 'Calidad') return false;
+              if (w.assigned_to) {
+                const assignedLower = w.assigned_to.toLowerCase().trim();
+                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                
+                const mRoleLower = (m.role || '').toLowerCase().trim();
+                if (assignedLower === mRoleLower) return true;
+              }
+              return false;
+            });
+
+          // Merge actual quality incidents and Quality workflows to ensure they show up in both places
+          qualityWorkflows.forEach(w => {
+            const descriptionStr = w.description || '';
+            const incidentIdMatch = descriptionStr.match(/ID Incidente:\s*([a-f0-9-]+)/i);
+            const incId = incidentIdMatch ? incidentIdMatch[1] : w.id;
+            
+            // If not already in the incidents list, add it
+            if (!openIncidentsList.some(inc => inc.id === incId || inc.id === incId.substring(0, 8))) {
+              openIncidentsList.push({
+                id: incId.substring(0, 8),
+                issue_type: w.title.replace('[Incidente Calidad] ', ''),
+                severity: w.priority || 'media',
+                asset_name: 'Activo'
+              });
+            }
+          });
           
           const openIncidents = openIncidentsList.length;
 
