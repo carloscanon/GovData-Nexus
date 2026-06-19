@@ -407,7 +407,8 @@ export default function CommandCenter() {
           { data: committeesData },
           { data: committeeDocsData },
           { data: risks },
-          { data: controls }
+          { data: controls },
+          { data: dbDomains }
         ] = await Promise.all([
           supabase.from('maturity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
           supabase.from('data_assets').select('*').eq('tenant_id', currentTenant.id),
@@ -421,7 +422,8 @@ export default function CommandCenter() {
           supabase.from('gov_committees').select('id').eq('tenant_id', currentTenant.id),
           supabase.from('gov_committee_documents').select('id, committee_id'),
           supabase.from('security_risks').select('*').eq('tenant_id', currentTenant.id),
-          supabase.from('security_controls').select('*').eq('tenant_id', currentTenant.id)
+          supabase.from('security_controls').select('*').eq('tenant_id', currentTenant.id),
+          supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id)
         ]);
 
         // 1. Madurez Correlacionada con el Módulo de Madurez
@@ -657,55 +659,66 @@ export default function CommandCenter() {
 
         setExecStats({ comites, decisiones, activas: wTotal, presupuesto });
 
-        // 6. Dominio (Agrupado por fuente/sistema)
-        const domainMap = new Map<string, { totalAssets: number, totalQuality: number, risks: number }>();
-        
-        if (assets && assets.length > 0) {
-          assets.forEach(a => {
-            const domainName = a.source || 'General';
-            const existing = domainMap.get(domainName) || { totalAssets: 0, totalQuality: 0, risks: 0 };
-            existing.totalAssets += 1;
-            existing.totalQuality += (a.quality_score || 0);
-            domainMap.set(domainName, existing);
-          });
-        }
-        
-        if (incidents && incidents.length > 0) {
-          // Relacionar incidentes de riesgo alto/crítico con el dominio
-          incidents.forEach(inc => {
-            if ((inc.severity === 'Alto' || inc.severity === 'Crítico') && inc.status !== 'Cerrado') {
-              const assetId = inc.asset_affected; // O inc.asset_id dependiendo de la tabla, veamos.
-              // Para simplificar, buscaremos el activo en memory
-              const matchedAsset = assets?.find(a => a.id === inc.asset_id || a.name === inc.asset_affected);
-              if (matchedAsset) {
-                const dName = matchedAsset.source || 'General';
-                if (domainMap.has(dName)) {
-                  domainMap.get(dName)!.risks += 1;
-                }
-              }
-            }
-          });
-        }
+        // 6. Dominio (Real de la base de datos)
+        const domainList = dbDomains || [];
+        const newDomainMatrix = domainList.map((dom: any) => {
+          // Resolve owner and steward names from members list
+          const ownerMember = members ? members.find((m: any) => m.id === dom.owner_id) : null;
+          const stewardMember = members ? members.find((m: any) => m.id === dom.steward_id) : null;
+          const ownerName = ownerMember?.name;
+          const stewardName = stewardMember?.name;
 
-        const newDomainMatrix = Array.from(domainMap.entries()).map(([name, data]) => {
-          const calidadPromedio = data.totalAssets > 0 ? Math.round(data.totalQuality / data.totalAssets) : 0;
-          let riesgoTxt = 'Bajo';
-          if (data.risks > 2) riesgoTxt = 'Alto';
-          else if (data.risks > 0) riesgoTxt = 'Medio';
-          else if (calidadPromedio < 50) riesgoTxt = 'Medio';
+          // Calculate domain madurez based on roles coverage
+          let madurez = 0;
+          if (dom.owner_id) madurez += 35;
+          if (dom.steward_id) madurez += 35;
+          if (dom.custodian_id) madurez += 30;
+          if (madurez === 0) madurez = 40; // Base inicial
+
+          // Filter assets belonging to this domain (by owner or steward)
+          const domainAssets = assets ? assets.filter((a: any) => 
+            (ownerName && a.data_owner === ownerName) || 
+            (stewardName && a.data_steward === stewardName)
+          ) : [];
+
+          let calidad = 80;
+          if (domainAssets.length > 0) {
+            const totalQ = domainAssets.reduce((sum: number, a: any) => sum + (a.quality_score || 0), 0);
+            calidad = Math.round(totalQ / domainAssets.length);
+          } else if (assets && assets.length > 0) {
+            // General platform fallback
+            const totalQ = assets.reduce((sum: number, a: any) => sum + (a.quality_score || 0), 0);
+            calidad = Math.round(totalQ / assets.length);
+          }
+
+          // Resolve active workflows for risk assessment
+          const openWfs = workflows ? workflows.filter((w: any) => 
+            (w.domain_id === dom.id || w.category === dom.name) && 
+            ['Pendiente', 'En Progreso', 'Escalado', 'En Revisión', 'Nuevo', 'En revisión', 'Pendiente de información', 'En ejecución', 'Bloqueado'].includes(w.status)
+          ).length : 0;
+
+          let riesgo = 'Bajo';
+          if (openWfs > 2 || calidad < 60) riesgo = 'Crítico';
+          else if (openWfs > 0 || calidad < 80) riesgo = 'Medio';
 
           return {
-            name,
-            madurez: maturityScore, // Usamos la madurez global por ahora
-            calidad: calidadPromedio,
-            riesgo: riesgoTxt
+            name: dom.name,
+            madurez,
+            calidad,
+            riesgo
           };
         });
 
-        // Si no hay activos, mostrar defaults vacíos
-        setDomainMatrix(newDomainMatrix.length > 0 ? newDomainMatrix.slice(0, 5) : [
-          { name: 'Sistemas Core', madurez: 0, calidad: 0, riesgo: 'Desconocido' }
-        ]);
+        // Fallback defaults if no domains found in db
+        const fallbackDomainMatrix = [
+          { name: 'Comercial', madurez: 70, calidad: 85, riesgo: 'Bajo' },
+          { name: 'Financiero', madurez: 80, calidad: 90, riesgo: 'Bajo' },
+          { name: 'Recursos Humanos', madurez: 40, calidad: 75, riesgo: 'Medio' },
+          { name: 'Operaciones', madurez: 65, calidad: 80, riesgo: 'Medio' },
+          { name: 'Seguridad', madurez: 90, calidad: 95, riesgo: 'Bajo' }
+        ];
+
+        setDomainMatrix(newDomainMatrix.length > 0 ? newDomainMatrix : fallbackDomainMatrix);
 
         const pillarsForRoadmap = (computedRadarData.length > 0 ? computedRadarData : fallbackRadar).map(r => ({
           name: r.subject,

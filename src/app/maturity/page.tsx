@@ -299,11 +299,12 @@ function getKpiExplanation(kpiName: string, globalScore: number, levelColor: str
         ]
       };
     case 'Benchmark Sector':
+      const diff = globalScore - 62;
       return {
         name: 'Benchmark del Sector',
-        value: `+${Math.max(0, globalScore - 62)}%`,
+        value: diff >= 0 ? `+${diff}%` : `${diff}%`,
         subtitle: 'Vs promedio sectorial del 62%',
-        color: '#3b82f6',
+        color: diff >= 0 ? '#10b981' : '#ef4444',
         desc: 'Muestra la posición de madurez de tu organización en comparación con el promedio de referencia nacional e institucional del sector público y gubernamental (fijado en 62% de madurez promedio).',
         origin: 'Calcula la diferencia aritmética simple entre tu Score Global de madurez y la constante del benchmark del sector gubernamental (62%). Un valor positivo indica liderazgo frente a las regulaciones nacionales.',
         actionPlan: [
@@ -1031,11 +1032,13 @@ export default function Maturity() {
           className={styles.kpiCard}
           onClick={() => setSelectedKpiDetails(getKpiExplanation('Benchmark Sector', globalScore, levelColor, maturityLevel, dbStats))}
           style={{ cursor: 'pointer', transition: 'all 0.2s', border: '1px solid transparent' }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = (globalScore - 62) >= 0 ? '#10b981' : '#ef4444'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.transform = 'none'; }}
         >
           <div className={styles.kpiHeader}><ArrowUpRight size={20} /><span>Benchmark Sector</span></div>
-          <div className={styles.kpiValue}>+{Math.max(0, globalScore - 62)}%</div>
+          <div className={styles.kpiValue} style={{ color: (globalScore - 62) >= 0 ? '#10b981' : '#ef4444' }}>
+            {(globalScore - 62) >= 0 ? `+${globalScore - 62}%` : `${globalScore - 62}%`}
+          </div>
           <div className={styles.kpiSub}>Vs Sector Gubernamental (Ver detalle 🔍)</div>
         </div>
         <div 
