@@ -486,7 +486,7 @@ export default function Maturity() {
           });
           setEvolutionData(history);
         } else {
-          setAnswers({ q1: 3, q2: 4, q3: 3, q4: 3 });
+          setAnswers({ comite_gobierno: 3, modelado_datos: 3, alineacion_negocio: 3, auditoria_seguridad: 3, marcos_normativos: 3 });
           setEvolutionData([]);
         }
 
@@ -655,26 +655,32 @@ export default function Maturity() {
   React.useEffect(() => {
     const calidad = Math.max(0, dbStats.averageQuality - (dbStats.openQualityIncidents * 5));
 
+    const comite_gobierno = answers.comite_gobierno ?? 3;
+    const modelado_datos = answers.modelado_datos ?? 3;
+    const alineacion_negocio = answers.alineacion_negocio ?? 3;
+    const auditoria_seguridad = answers.auditoria_seguridad ?? 3;
+    const marcos_normativos = answers.marcos_normativos ?? 3;
+
     const ownerRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithOwner / dbStats.totalAssets) * 60 : 30;
     const stewardRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithSteward / dbStats.totalAssets) * 40 : 20;
     const organizacionAuto = ownerRatio + stewardRatio;
-    const organizacion = Math.round(organizacionAuto * 0.5 + (answers.comite_gobierno * 20) * 0.5);
+    const organizacion = Math.round(organizacionAuto * 0.5 + (comite_gobierno * 20) * 0.5);
 
     const classRatio = dbStats.totalAssets > 0 ? (dbStats.assetsClassified / dbStats.totalAssets) * 60 : 30;
     const polRatio = dbStats.totalPolicies > 0 ? (dbStats.activePolicies / dbStats.totalPolicies) * 40 : 20;
     const seguridadAuto = classRatio + polRatio;
-    const seguridad = Math.round(seguridadAuto * 0.6 + (answers.auditoria_seguridad * 20) * 0.4);
+    const seguridad = Math.round(seguridadAuto * 0.6 + (auditoria_seguridad * 20) * 0.4);
 
     const linRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithLineage / dbStats.totalAssets) * 50 : 25;
     const critRatio = dbStats.totalAssets > 0 ? (dbStats.criticalAssets / dbStats.totalAssets) * 50 : 25;
     const arquitecturaAuto = linRatio + critRatio;
-    const arquitectura = Math.round(arquitecturaAuto * 0.6 + (answers.modelado_datos * 20) * 0.4);
+    const arquitectura = Math.round(arquitecturaAuto * 0.6 + (modelado_datos * 20) * 0.4);
 
     const wfRatio = dbStats.totalWorkflows > 0 ? (dbStats.approvedWorkflows / dbStats.totalWorkflows) * 100 : 50;
-    const estrategia = Math.round(wfRatio * 0.5 + (answers.alineacion_negocio * 20) * 0.5);
+    const estrategia = Math.round(wfRatio * 0.5 + (alineacion_negocio * 20) * 0.5);
 
     const incRatio = dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents) * 100 : 50;
-    const compliance = Math.round(incRatio * 0.5 + (answers.marcos_normativos * 20) * 0.5);
+    const compliance = Math.round(incRatio * 0.5 + (marcos_normativos * 20) * 0.5);
 
     setMaturityScores({ estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
     setItem('maturity_scores', { estrategia, organizacion, calidad, arquitectura, seguridad, compliance });
