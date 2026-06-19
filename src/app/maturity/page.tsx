@@ -299,14 +299,14 @@ function getKpiExplanation(kpiName: string, globalScore: number, levelColor: str
         ]
       };
     case 'Benchmark Sector':
-      const diff = globalScore - 62;
+      const compliancePercent = Math.round((globalScore / 62) * 100);
       return {
         name: 'Benchmark del Sector',
-        value: diff >= 0 ? `+${diff}%` : `${diff}%`,
-        subtitle: 'Vs promedio sectorial del 62%',
-        color: diff >= 0 ? '#10b981' : '#ef4444',
-        desc: 'Muestra la posición de madurez de tu organización en comparación con el promedio de referencia nacional e institucional del sector público y gubernamental (fijado en 62% de madurez promedio).',
-        origin: 'Calcula la diferencia aritmética simple entre tu Score Global de madurez y la constante del benchmark del sector gubernamental (62%). Un valor positivo indica liderazgo frente a las regulaciones nacionales.',
+        value: `${compliancePercent}%`,
+        subtitle: 'Cumplimiento del promedio sectorial (62%)',
+        color: compliancePercent >= 100 ? '#10b981' : '#f59e0b',
+        desc: 'Mide la madurez de tu organización como un porcentaje de cumplimiento respecto al promedio nacional de referencia sectorial (fijado en 62%).',
+        origin: 'Calcula la relación porcentual entre tu Score Global de madurez y el benchmark del sector gubernamental (62%). Un valor igual o superior a 100% indica que superas el promedio estándar del sector.',
         actionPlan: [
           'Mantén vigentes tus políticas de seguridad y retención de información.',
           'Consolida el Comité de Gobierno mediante la carga de actas periódicas.',
@@ -1032,14 +1032,14 @@ export default function Maturity() {
           className={styles.kpiCard}
           onClick={() => setSelectedKpiDetails(getKpiExplanation('Benchmark Sector', globalScore, levelColor, maturityLevel, dbStats))}
           style={{ cursor: 'pointer', transition: 'all 0.2s', border: '1px solid transparent' }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = (globalScore - 62) >= 0 ? '#10b981' : '#ef4444'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = Math.round((globalScore / 62) * 100) >= 100 ? '#10b981' : '#f59e0b'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.transform = 'none'; }}
         >
           <div className={styles.kpiHeader}><ArrowUpRight size={20} /><span>Benchmark Sector</span></div>
-          <div className={styles.kpiValue} style={{ color: (globalScore - 62) >= 0 ? '#10b981' : '#ef4444' }}>
-            {(globalScore - 62) >= 0 ? `+${globalScore - 62}%` : `${globalScore - 62}%`}
+          <div className={styles.kpiValue} style={{ color: Math.round((globalScore / 62) * 100) >= 100 ? '#10b981' : '#f59e0b' }}>
+            {Math.round((globalScore / 62) * 100)}%
           </div>
-          <div className={styles.kpiSub}>Vs Sector Gubernamental (Ver detalle 🔍)</div>
+          <div className={styles.kpiSub}>Cumplimiento del Sector (Ver detalle 🔍)</div>
         </div>
         <div 
           className={styles.kpiCard}
@@ -1364,23 +1364,46 @@ export default function Maturity() {
                 <div className={styles.nextSteps}>
                   <h3>Próximos Pasos Estratégicos</h3>
                   {dynamicDimensions
-                    .filter(d => d.score < 70)
+                    .filter(d => d.score < 80) // Se sugieren mejoras para dimensiones por debajo del 80% (nivel optimizado)
                     .sort((a, b) => a.score - b.score)
                     .slice(0, 3)
-                    .map((d, i) => (
-                      <div key={d.id} className={styles.stepCard}>
-                        <div className={styles.stepNum}>{i + 1}</div>
-                        <p>
-                          Mejorar <strong>{d.name}</strong> ({d.score}%) —
-                          {d.id === 'calidad' && ' ejecutar escaneo de calidad en activos críticos.'}
-                          {d.id === 'organizacion' && ' formalizar Comité de Gobierno y asignar Data Owners.'}
-                          {d.id === 'arquitectura' && ' mapear linaje de datos y clasificar activos huérfanos.'}
-                          {d.id === 'compliance' && ' resolver incidentes abiertos y actualizar marcos normativos.'}
-                          {d.id === 'seguridad' && ' clasificar datos PII y activar políticas de enmascaramiento.'}
-                          {d.id === 'estrategia' && ' aprobar workflows pendientes y revisar objetivos de gobierno.'}
-                        </p>
-                      </div>
-                    ))}
+                    .map((d, i) => {
+                      let recommendation = '';
+                      if (d.id === 'calidad') {
+                        if (d.score < 40) recommendation = 'crear las primeras reglas de calidad y ejecutar escaneos iniciales en tablas maestras.';
+                        else if (d.score < 70) recommendation = 'ejecutar escaneo de calidad en activos críticos y resolver los incidentes abiertos en estado Pendiente.';
+                        else recommendation = 'automatizar el monitoreo de calidad diario y configurar alertas en tiempo real vía webhook.';
+                      } else if (d.id === 'organizacion') {
+                        if (d.score < 40) recommendation = 'definir la estructura del programa de gobierno y asignar Data Owners iniciales.';
+                        else if (d.score < 70) recommendation = 'formalizar el Comité de Gobierno de datos, cargar actas fundacionales y asignar Data Stewards.';
+                        else recommendation = 'establecer métricas de desempeño (KPIs) de gobernabilidad por área y capacitar mandos medios.';
+                      } else if (d.id === 'arquitectura') {
+                        if (d.score < 40) recommendation = 'catalogar e identificar los activos de datos críticos de la empresa.';
+                        else if (d.score < 70) recommendation = 'mapear el linaje técnico de datos (trazabilidad origen-destino) y clasificar activos huérfanos.';
+                        else recommendation = 'integrar el catálogo de metadatos vía API y documentar la arquitectura lógica global.';
+                      } else if (d.id === 'compliance') {
+                        if (d.score < 40) recommendation = 'definir las primeras políticas de retención y alinearlas con los marcos regulatorios locales.';
+                        else if (d.score < 70) recommendation = 'resolver incidentes abiertos, auditar políticas vencidas y actualizar los marcos normativos vigentes.';
+                        else recommendation = 'implementar auditorías continuas automatizadas sobre cumplimiento de políticas corporativas.';
+                      } else if (d.id === 'seguridad') {
+                        if (d.score < 40) recommendation = 'realizar un inventario preliminar de activos y clasificar campos con información confidencial/PII.';
+                        else if (d.score < 70) recommendation = 'implementar controles de acceso basados en roles (RBAC) y activar políticas de enmascaramiento dinámico.';
+                        else recommendation = 'auditar accesos históricos de consulta de PII y establecer alertas tempranas ante descargas masivas.';
+                      } else if (d.id === 'estrategia') {
+                        if (d.score < 40) recommendation = 'definir la visión del programa de datos a 3 años y alinearla con la dirección general.';
+                        else if (d.score < 70) recommendation = 'aprobar workflows pendientes, revisar la ejecución del presupuesto e involucrar a líderes de negocio.';
+                        else recommendation = 'realizar benchmark competitivo de madurez del sector y proyectar metas del siguiente semestre.';
+                      }
+
+                      return (
+                        <div key={d.id} className={styles.stepCard}>
+                          <div className={styles.stepNum}>{i + 1}</div>
+                          <p>
+                            Mejorar <strong>{d.name}</strong> ({d.score}%) — {recommendation}
+                          </p>
+                        </div>
+                      );
+                    })}
                 </div>
               </motion.div>
             )}
