@@ -467,16 +467,31 @@ export default function Team() {
 
             // Calculate real assets and incidents managed by the member
             const mNameLower = (m.name || '').toLowerCase().trim();
-            const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
+            const mEmailLower = (m.email || '').toLowerCase().trim();
+            const memberAssets = freshAssets.filter(a => {
+              const oLower = (a.data_owner || '').toLowerCase().trim();
+              return oLower === mNameLower || (mEmailLower && oLower.includes(mEmailLower));
+            });
             const assetsManaged = memberAssets.length;
             const assetIds = memberAssets.map(a => a.id);
             
+            // Map team member to possible related database tenant user
+            const relatedTenantUser = freshUsers.find(u =>
+              (m.email && u.email && u.email.toLowerCase().trim() === m.email.toLowerCase().trim()) ||
+              (m.name && u.name && u.name.toLowerCase().trim() === m.name.toLowerCase().trim())
+            );
+            const rUserNameLower = (relatedTenantUser?.name || '').toLowerCase().trim();
+            const rUserEmailLower = (relatedTenantUser?.email || '').toLowerCase().trim();
+
             const openIncidentsList = freshIncidents
               .filter(i => {
-                // 1. Match if assigned directly to member name or generic role
+                // 1. Match if assigned directly to member name, email or their generic role
                 if (i.assigned_to) {
                   const assignedLower = i.assigned_to.toLowerCase().trim();
                   if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
+                  if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
+                  if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                   
                   const mRoleLower = (m.role || '').toLowerCase().trim();
                   if (assignedLower === mRoleLower) return true;
@@ -501,6 +516,9 @@ export default function Team() {
                 if (si.assigned_to) {
                   const assignedLower = si.assigned_to.toLowerCase().trim();
                   if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
+                  if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
+                  if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                   
                   const mRoleLower = (m.role || '').toLowerCase().trim();
                   if (assignedLower === mRoleLower) return true;
@@ -528,6 +546,9 @@ export default function Team() {
                 if (w.assigned_to) {
                   const assignedLower = w.assigned_to.toLowerCase().trim();
                   if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
+                  if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
+                  if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                   
                   const mRoleLower = (m.role || '').toLowerCase().trim();
                   if (assignedLower === mRoleLower) return true;
