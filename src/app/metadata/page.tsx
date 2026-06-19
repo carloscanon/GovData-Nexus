@@ -1047,27 +1047,164 @@ export default function MetadataPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Buscar por términos o sinónimos:</label>
+                  <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Buscar por términos, campos, tablas o sinónimos:</label>
                   <div style={{ position: 'relative' }}>
                     <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }} size={18} />
                     <input 
                       type="text" 
                       className={styles.input} 
                       style={{ width: '100%', paddingLeft: '40px' }}
-                      placeholder="Ej. 'correo' o 'datos de contacto'..."
+                      placeholder="Ej. 'correo', 'cliente_id', 'monto' o 'rut'..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  {searchQuery && (
-                    <div style={{ marginTop: '12px', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px', background: '#eff6ff' }}>
-                      <strong>Coincidencia semántica detectada:</strong>
-                      <ul style={{ margin: '8px 0 0 20px', fontSize: '0.9rem' }}>
-                        <li>Maestro de Clientes &rarr; campo <code>email</code> (correo_electronico)</li>
-                        <li>Transacciones Q2 &rarr; campo <code>cliente_id</code></li>
-                      </ul>
-                    </div>
-                  )}
+
+                  {/* Sugerencias de búsqueda rápida */}
+                  <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Sugerencias rápidas:</span>
+                    {['email', 'cliente_id', 'monto', 'rut', 'nombre'].map(term => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => setSearchQuery(term)}
+                        style={{
+                          background: '#f1f5f9',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '2px 8px',
+                          fontSize: '0.8rem',
+                          color: '#4f46e5',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+
+                  {searchQuery && (() => {
+                    const q = searchQuery.toLowerCase();
+                    const matched = fields.filter((f: any) => {
+                      const fieldName = (f.field_name || '').toLowerCase();
+                      const businessName = (f.business_name || '').toLowerCase();
+                      const assetName = (f.asset?.name || '').toLowerCase();
+                      const domain = (f.business_domain || '').toLowerCase();
+                      const sensitivity = (f.sensitivity || '').toLowerCase();
+                      const steward = (f.steward || '').toLowerCase();
+                      
+                      // Mapeo semántico de sinónimos comunes
+                      let isSynonym = false;
+                      if (q === 'correo' || q === 'email' || q === 'mail') {
+                        isSynonym = fieldName.includes('email') || businessName.includes('correo') || businessName.includes('email');
+                      } else if (q === 'telefono' || q === 'celular' || q === 'tel' || q === 'movil') {
+                        isSynonym = fieldName.includes('telefono') || businessName.includes('teléfono') || businessName.includes('celular');
+                      } else if (q === 'cliente' || q === 'cliente_id') {
+                        isSynonym = fieldName.includes('cliente') || fieldName.includes('id_transaccion') || businessName.includes('cliente');
+                      } else if (q === 'rut' || q === 'identificación' || q === 'documento' || q === 'dni') {
+                        isSynonym = fieldName.includes('rut') || businessName.includes('rut') || businessName.includes('identificacion') || businessName.includes('identificación');
+                      } else if (q === 'monto' || q === 'transacción' || q === 'monto_transaccion') {
+                        isSynonym = fieldName.includes('monto') || businessName.includes('monto') || businessName.includes('transaccion') || businessName.includes('transacción');
+                      }
+                      
+                      return (
+                        fieldName.includes(q) ||
+                        businessName.includes(q) ||
+                        assetName.includes(q) ||
+                        domain.includes(q) ||
+                        sensitivity.includes(q) ||
+                        steward.includes(q) ||
+                        isSynonym
+                      );
+                    });
+
+                    return (
+                      <div style={{ marginTop: '16px' }}>
+                        <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                            Se encontraron <strong>{matched.length}</strong> campos que coinciden con su búsqueda:
+                          </span>
+                          <span style={{ fontSize: '0.75rem', background: '#e0e7ff', color: '#4f46e5', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                            Motor Semántico Activo
+                          </span>
+                        </div>
+
+                        {matched.length === 0 ? (
+                          <div style={{ padding: '16px', textAlign: 'center', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', color: '#64748b' }}>
+                            No se encontraron campos que coincidan. Pruebe con términos alternativos como "email", "rut", "cliente" o "monto".
+                          </div>
+                        ) : (
+                          <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                            {matched.map((f: any) => (
+                              <div
+                                key={f.id}
+                                style={{
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '10px',
+                                  padding: '12px',
+                                  background: 'white',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '8px'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                  <div>
+                                    <span style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: 600, display: 'block' }}>
+                                      {f.asset?.name || 'Tabla Desconocida'}
+                                    </span>
+                                    <strong style={{ fontSize: '0.95rem', color: '#1e293b' }}>
+                                      {f.field_name}
+                                    </strong>
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      fontWeight: 600,
+                                      background: f.is_sensitive || f.sensitivity === 'Confidencial' || f.sensitivity === 'Restringido' ? '#fee2e2' : '#f1f5f9',
+                                      color: f.is_sensitive || f.sensitivity === 'Confidencial' || f.sensitivity === 'Restringido' ? '#ef4444' : '#64748b'
+                                    }}
+                                  >
+                                    {f.sensitivity || 'Público'}
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                                  <strong>Concepto de Negocio:</strong> {f.business_name || 'Sin definir'}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: 'auto' }}>
+                                  <span style={{ background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                    Tipo: <code>{f.data_type}</code>
+                                  </span>
+                                  {f.quality_rule && (
+                                    <span style={{ background: '#f0fdf4', color: '#16a34a', padding: '2px 6px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
+                                      {f.quality_rule}
+                                    </span>
+                                  )}
+                                  {f.business_domain && (
+                                    <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
+                                      {f.business_domain}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
+                                  <span>Owner: <strong>{f.owner || 'N/A'}</strong></span>
+                                  <span>Steward: <strong>{f.steward || 'N/A'}</strong></span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <form onSubmit={handleNlpSearch} style={{ borderTop: '1px solid #cbd5e1', paddingTop: '20px' }}>

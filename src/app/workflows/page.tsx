@@ -976,8 +976,26 @@ export default function Workflows() {
                       return (
                         <tr key={req.id} className={styles.tableRow} onClick={() => { setSelectedReq(req); setDetailTab('general'); }}>
                           <td>
-                            <strong style={{ color: '#1e293b', display: 'block' }}>{req.title}</strong>
-                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID: {req.id} • Solicitante: {req.requester}</span>
+                            <strong style={{ color: '#1e293b', display: 'block' }}>
+                              {req.title.replace(/^\[.*?\]\s*/, '')}
+                            </strong>
+                            {/^\[.*?\]/.test(req.title) && (
+                              <span style={{
+                                display: 'inline-block',
+                                marginTop: '3px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '1px 7px',
+                                borderRadius: '4px',
+                                background: req.type === 'Incidente Operativo' ? '#fef2f2' : '#f0f9ff',
+                                color: req.type === 'Incidente Operativo' ? '#dc2626' : '#0369a1',
+                                letterSpacing: '0.02em',
+                                textTransform: 'uppercase'
+                              }}>
+                                {req.title.match(/^\[(.*?)\]/)?.[1] || req.type}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '2px' }}>ID: {req.id.slice(0,8)} • {req.requester}</span>
                           </td>
                           <td>
                             <span className={styles.statusBadge} style={{ background: '#f0f9ff', color: '#0369a1' }}>{req.category}</span>
@@ -1428,8 +1446,29 @@ export default function Workflows() {
             >
               <div style={{ padding: '24px 32px', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.85 }}>{selectedReq.category} • {selectedReq.id}</span>
-                  <h3 style={{ margin: 0, color: 'white', fontSize: '1.25rem', fontWeight: 800 }}>{selectedReq.title}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.85 }}>
+                      {selectedReq.category} • {selectedReq.id.slice(0, 8)}
+                    </span>
+                    {/^\[.*?\]/.test(selectedReq.title) && (
+                      <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: selectedReq.type === 'Incidente Operativo' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        border: '1px solid rgba(255,255,255,0.3)'
+                      }}>
+                        {selectedReq.title.match(/^\[(.*?)\]/)?.[1] || selectedReq.type}
+                      </span>
+                    )}
+                  </div>
+                  <h3 style={{ margin: 0, color: 'white', fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.3 }}>
+                    {selectedReq.title.replace(/^\[.*?\]\s*/, '')}
+                  </h3>
                 </div>
                 <button onClick={() => setSelectedReq(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', padding: '8px', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>
                   <X size={20} />
