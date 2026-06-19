@@ -427,6 +427,7 @@ export default function CommandCenter() {
         // 1. Madurez Correlacionada con el Módulo de Madurez
         const matScore = maturity && maturity.length > 0 ? maturity[0].score : 0;
         let calculatedMaturityScore = 0;
+        let scores: any = null;
         try {
           const { data: configData } = await supabase
             .from('tenant_config')
@@ -436,48 +437,33 @@ export default function CommandCenter() {
             .maybeSingle();
             
           if (configData?.config_value) {
-            const scores = configData.config_value;
-            calculatedMaturityScore = Math.round(
-              ((scores.estrategia || 0) + 
-               (scores.organizacion || 0) + 
-               (scores.calidad || 0) + 
-               (scores.arquitectura || 0) + 
-               (scores.seguridad || 0) + 
-               (scores.compliance || 0)) / 6
-            );
+            scores = configData.config_value;
           } else {
             // Local fallback
             const local = localStorage.getItem(`govdata_${currentTenant.id}_maturity_scores`);
             if (local) {
-              const scores = JSON.parse(local);
-              calculatedMaturityScore = Math.round(
-                ((scores.estrategia || 0) + 
-                 (scores.organizacion || 0) + 
-                 (scores.calidad || 0) + 
-                 (scores.arquitectura || 0) + 
-                 (scores.seguridad || 0) + 
-                 (scores.compliance || 0)) / 6
-              );
-            } else {
-              calculatedMaturityScore = matScore;
+              scores = JSON.parse(local);
             }
           }
         } catch {
           // Local fallback on error
           const local = localStorage.getItem(`govdata_${currentTenant.id}_maturity_scores`);
           if (local) {
-            const scores = JSON.parse(local);
-            calculatedMaturityScore = Math.round(
-              ((scores.estrategia || 0) + 
-               (scores.organizacion || 0) + 
-               (scores.calidad || 0) + 
-               (scores.arquitectura || 0) + 
-               (scores.seguridad || 0) + 
-               (scores.compliance || 0)) / 6
-            );
-          } else {
-            calculatedMaturityScore = matScore;
+            scores = JSON.parse(local);
           }
+        }
+
+        if (scores) {
+          calculatedMaturityScore = Math.round(
+            ((scores.estrategia || 0) + 
+             (scores.organizacion || 0) + 
+             (scores.calidad || 0) + 
+             (scores.arquitectura || 0) + 
+             (scores.seguridad || 0) + 
+             (scores.compliance || 0)) / 6
+          );
+        } else {
+          calculatedMaturityScore = matScore;
         }
 
         setMaturityScore(calculatedMaturityScore || 50); // Fallback minimo
@@ -517,33 +503,45 @@ export default function CommandCenter() {
         // 7. Dynamic Radar & Roadmap based on real Assessment Answers
         const answers = maturity && maturity.length > 0 ? maturity[0].answers || {} : {};
         
-        // Agrupación dinámica por pilar real de la base de datos
-        const pillarStats: Record<string, { sum: number, count: number }> = {};
-        
-        if (diagnosticQuestions) {
-          diagnosticQuestions.forEach(q => {
-            const val = answers[q.code];
-            if (val !== undefined) {
-              if (!pillarStats[q.pillar]) pillarStats[q.pillar] = { sum: 0, count: 0 };
-              pillarStats[q.pillar].sum += val;
-              pillarStats[q.pillar].count++;
-            }
+        let computedRadarData: any[] = [];
+        if (scores) {
+          computedRadarData = [
+            { subject: 'Estrategia',   A: scores.estrategia || 0,   B: Math.min(100, (scores.estrategia || 0) + 15),   C: 62, fullMark: 100 },
+            { subject: 'Organización', A: scores.organizacion || 0, B: Math.min(100, (scores.organizacion || 0) + 15), C: 65, fullMark: 100 },
+            { subject: 'Calidad',      A: scores.calidad || 0,      B: Math.min(100, (scores.calidad || 0) + 20),      C: 80, fullMark: 100 },
+            { subject: 'Arquitectura', A: scores.arquitectura || 0, B: Math.min(100, (scores.arquitectura || 0) + 15), C: 75, fullMark: 100 },
+            { subject: 'Seguridad',    A: scores.seguridad || 0,    B: Math.min(100, (scores.seguridad || 0) + 15),    C: 85, fullMark: 100 },
+            { subject: 'Compliance',   A: scores.compliance || 0,   B: Math.min(100, (scores.compliance || 0) + 15),   C: 70, fullMark: 100 },
+          ];
+        } else {
+          // Agrupación dinámica por pilar real de la base de datos
+          const pillarStats: Record<string, { sum: number, count: number }> = {};
+          
+          if (diagnosticQuestions) {
+            diagnosticQuestions.forEach(q => {
+              const val = answers[q.code];
+              if (val !== undefined) {
+                if (!pillarStats[q.pillar]) pillarStats[q.pillar] = { sum: 0, count: 0 };
+                pillarStats[q.pillar].sum += val;
+                pillarStats[q.pillar].count++;
+              }
+            });
+          }
+
+          computedRadarData = Object.keys(pillarStats).map(pillar => {
+             const stat = pillarStats[pillar];
+             const normalizedSum = stat.sum - stat.count; 
+             const maxPossible = stat.count * 4;
+             const score = Math.round((normalizedSum / maxPossible) * 100);
+             return { 
+               subject: pillar === 'Compliance' ? 'Compliance' : pillar, 
+               A: score, 
+               B: Math.min(100, score + 25), 
+               C: 62, 
+               fullMark: 100 
+             };
           });
         }
-
-        const computedRadarData = Object.keys(pillarStats).map(pillar => {
-           const stat = pillarStats[pillar];
-           const normalizedSum = stat.sum - stat.count; 
-           const maxPossible = stat.count * 4;
-           const score = Math.round((normalizedSum / maxPossible) * 100);
-           return { 
-             subject: pillar, 
-             A: score, 
-             B: Math.min(100, score + 25), 
-             C: 62, 
-             fullMark: 100 
-           };
-        });
 
         // Valores seguros si no hay data
         const fallbackRadar = [
@@ -552,7 +550,7 @@ export default function CommandCenter() {
           { subject: 'Calidad', A: 0, B: 25, C: 62, fullMark: 100 },
           { subject: 'Arquitectura', A: 0, B: 25, C: 62, fullMark: 100 },
           { subject: 'Seguridad', A: 0, B: 25, C: 62, fullMark: 100 },
-          { subject: 'Cumplimiento', A: 0, B: 25, C: 62, fullMark: 100 }
+          { subject: 'Compliance', A: 0, B: 25, C: 62, fullMark: 100 }
         ];
 
         setRadarData(computedRadarData.length > 0 ? computedRadarData : fallbackRadar);
