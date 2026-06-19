@@ -49,6 +49,7 @@ export default function MetadataPage() {
 
   const [showFieldEditModal, setShowFieldEditModal] = useState(false);
   const [selectedFieldForEdit, setSelectedFieldForEdit] = useState<any>(null);
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
   const [showTaxonomyModal, setShowTaxonomyModal] = useState(false);
   const [newTaxonomy, setNewTaxonomy] = useState({ name: '', parent_id: '', description: '' });
@@ -153,6 +154,16 @@ export default function MetadataPage() {
         { id: 'dp1', name: 'Clientes 360', description: 'Vista consolidada omnicanal de los clientes.', sources: ['Maestro de Clientes', 'Leads Marketing'], consumers: ['Marketing', 'Ventas'] },
         { id: 'dp2', name: 'Ventas Diarias', description: 'Dashboard ejecutivo de facturación de transacciones.', sources: ['Transacciones Q2'], consumers: ['Finanzas', 'Analítica'] }
       ]);
+
+      const demoUsers = [
+        { id: 'u1', name: 'Carlos Ruiz' },
+        { id: 'u2', name: 'Maria Silva' },
+        { id: 'u3', name: 'Juan Perez' },
+        { id: 'u4', name: 'Andres Gomez' },
+        { id: 'u5', name: 'Alejandra Montes' },
+        { id: 'u6', name: 'Roberto Díaz' }
+      ];
+      setTenantUsers(demoUsers);
     };
 
     const isValidUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -252,6 +263,13 @@ export default function MetadataPage() {
       if (!prodError && prodData) {
         setDataProducts(prodData);
       }
+
+      // Fetch company users for Steward/Owner selectors
+      const { data: usersData } = await supabase
+        .from('tenant_users')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id);
+      setTenantUsers(usersData || []);
 
     } catch (err: any) {
       console.error('Error fetching metadata (Tables might not exist in Supabase):', err?.message || err);
@@ -649,7 +667,7 @@ export default function MetadataPage() {
       </div>
 
       {/* Horizontal Tab Layout */}
-      <div className={styles.tabs} style={{ display: 'flex', overflowX: 'auto', paddingBottom: '4px', gap: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '24px' }}>
+      <div className={styles.tabs}>
         {[
           { id: 'scanner', label: 'Fuentes Conectadas', icon: <Database size={16} /> },
           { id: 'classification', label: 'Clasificación de Campos', icon: <ShieldAlert size={16} /> },
@@ -1378,7 +1396,14 @@ export default function MetadataPage() {
                     <option value="Talento Humano">Talento Humano</option>
                   </select>
                 </div>
-                <div className={styles.formGroup}><label>Owner</label><input type="text" className={styles.input} value={newTerm.owner} onChange={e => setNewTerm({...newTerm, owner: e.target.value})} /></div>
+                <div className={styles.formGroup}><label>Owner</label>
+                  <select className={styles.input} value={newTerm.owner} onChange={e => setNewTerm({...newTerm, owner: e.target.value})}>
+                    <option value="">-- Sin asignar --</option>
+                    {tenantUsers.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button className={styles.secondaryBtn} onClick={() => setShowGlossaryModal(false)}>Cancelar</button>
@@ -1418,10 +1443,20 @@ export default function MetadataPage() {
                   </select>
                 </div>
                 <div className={styles.formGroup}><label>Owner</label>
-                  <input type="text" className={styles.input} defaultValue={selectedFieldForEdit.owner || ''} id="field_owner" />
+                  <select className={styles.input} defaultValue={selectedFieldForEdit.owner || ''} id="field_owner">
+                    <option value="">-- Sin asignar --</option>
+                    {tenantUsers.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}><label>Steward</label>
-                  <input type="text" className={styles.input} defaultValue={selectedFieldForEdit.steward || ''} id="field_steward" />
+                  <select className={styles.input} defaultValue={selectedFieldForEdit.steward || ''} id="field_steward">
+                    <option value="">-- Sin asignar --</option>
+                    {tenantUsers.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}><label>Estado del Flujo</label>
                   <select className={styles.input} defaultValue={selectedFieldForEdit.status || 'Borrador'} id="field_status">
@@ -1438,8 +1473,8 @@ export default function MetadataPage() {
                   const elName = document.getElementById('field_biz_name') as HTMLInputElement;
                   const elRule = document.getElementById('field_rule') as HTMLInputElement;
                   const elDomain = document.getElementById('field_domain') as HTMLSelectElement;
-                  const elOwner = document.getElementById('field_owner') as HTMLInputElement;
-                  const elSteward = document.getElementById('field_steward') as HTMLInputElement;
+                  const elOwner = document.getElementById('field_owner') as HTMLSelectElement;
+                  const elSteward = document.getElementById('field_steward') as HTMLSelectElement;
                   const elStatus = document.getElementById('field_status') as HTMLSelectElement;
                   
                   handleUpdateField({

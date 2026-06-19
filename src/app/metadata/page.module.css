@@ -119,7 +119,6 @@
   align-items: center;
   justify-content: center;
 }
-
 .kpiIcon.blue { background: #eff6ff; color: #3b82f6; }
 .kpiIcon.purple { background: #faf5ff; color: #a855f7; }
 .kpiIcon.red { background: #fef2f2; color: #ef4444; }
@@ -138,12 +137,31 @@
   color: #0f172a;
 }
 
-/* Tabs */
+/* Tabs scrollbar styling */
 .tabs {
   display: flex;
-  gap: 32px;
+  gap: 16px;
   border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.tabs::-webkit-scrollbar {
+  height: 6px;
+}
+.tabs::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+.tabs::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.tabs::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .tab {
@@ -170,7 +188,7 @@
   border-bottom-color: #3b82f6;
 }
 
-/* Main Content Grid */
+
 .contentGrid {
   display: grid;
   grid-template-columns: 2fr 1fr;
