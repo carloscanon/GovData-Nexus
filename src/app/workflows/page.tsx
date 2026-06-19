@@ -60,10 +60,11 @@ interface WorkflowReq {
   expirationDate?: string;
   currentStep: string;
   timeline: { step: string; user: string; date: string; status: string; ip?: string; justification?: string }[];
-  impactScore?: number; // 1 to 10
+  impactScore?: number;
   riskLevel?: 'Bajo' | 'Medio' | 'Alto' | 'Crítico';
   dependencies?: string;
-  slaRuleId?: string; // FK to sla_rules
+  slaRuleId?: string;   // FK to sla_rules
+  domainId?: string;    // FK to team_domains — source of truth for domain
 }
 
 interface SlaRule {
@@ -208,6 +209,7 @@ export default function Workflows() {
         ]);
 
         let loadedReqs: WorkflowReq[] = [];
+        const domainList = doms.data || [];
         if (reqs.data) {
           loadedReqs = reqs.data.map((r: any) => {
             const createdTime = new Date(r.created_at).getTime();
@@ -228,12 +230,16 @@ export default function Workflows() {
               }
             }
 
+            // Resolve category: prefer domain name from domain_id FK, fallback to stored category
+            const linkedDomain = r.domain_id ? domainList.find((d: any) => d.id === r.domain_id) : null;
+            const resolvedCategory = linkedDomain ? linkedDomain.name : (r.category || 'General');
+
             return {
               id: r.id,
               title: r.title,
               requester: r.requested_by || 'Sistema',
-              type: r.title.includes('Incidente') ? 'Incidente Operativo' : 'Solicitud',
-              category: r.category || 'General',
+              type: r.title?.includes('Incidente') ? 'Incidente Operativo' : 'Solicitud',
+              category: resolvedCategory,
               status: (r.status === 'Pendiente' ? 'Nuevo' : r.status === 'En Revisión' ? 'En revisión' : r.status) as any,
               priority: r.priority || 'Media',
               date: new Date(r.created_at).toISOString().split('T')[0],
@@ -244,10 +250,11 @@ export default function Workflows() {
               expirationDate: expirationDateStr,
               currentStep: r.current_step || 'Validación Inicial',
               timeline: r.timeline || [{ step: 'Solicitud Creada', user: 'Sistema', date: new Date(r.created_at).toISOString().split('T')[0], status: 'done' }],
-              impactScore: r.impact_score || (r.priority === 'Crítica' ? 10 : r.priority === 'Alta' ? 8 : r.priority === 'Media' ? 5 : 3),
+              impactScore: r.impact_score ?? (r.priority === 'Crítica' ? 10 : r.priority === 'Alta' ? 8 : r.priority === 'Media' ? 5 : 3),
               riskLevel: r.risk_level || (r.priority === 'Crítica' ? 'Crítico' : r.priority === 'Alta' ? 'Alto' : 'Medio'),
               dependencies: r.dependencies || 'Ninguna',
-              slaRuleId: r.sla_rule_id || undefined
+              slaRuleId: r.sla_rule_id || undefined,
+              domainId: r.domain_id || undefined
             };
           });
           setRequests(loadedReqs);
@@ -398,6 +405,10 @@ export default function Workflows() {
         slaStatus: recalcSlaStatus
       };
 
+      // Resolve domain_id from the selected category name
+      const selectedDomain = domains.find((d: any) => d.name === updatedReq.category);
+      const resolvedDomainId = selectedDomain?.id || updatedReq.domainId || null;
+
       await supabase.from('workflow_requests').update({
         status: updatedReq.status,
         sla_status: recalcSlaStatus,
@@ -407,16 +418,19 @@ export default function Workflows() {
         priority: updatedReq.priority,
         sla: updatedReq.sla,
         category: updatedReq.category,
+        domain_id: resolvedDomainId,
         impact_score: updatedReq.impactScore,
         risk_level: updatedReq.riskLevel,
         // sla_rule_id may not exist yet — guarded via try/catch
         ...(updatedReq.slaRuleId !== undefined ? { sla_rule_id: updatedReq.slaRuleId || null } : {})
       }).eq('id', updatedReq.id);
 
-      setRequests(requests.map(r => r.id === updatedReq.id ? updatedReq : r));
+      // Update local state with resolved domainId
+      const finalReq = { ...updatedReq, domainId: resolvedDomainId || undefined };
+      setRequests(requests.map(r => r.id === finalReq.id ? finalReq : r));
       setSelectedReq(null);
       setAuditJustification('');
-      alert('✅ Cambios aplicados y registrados en el log de auditoría inmutable.');
+      alert('✅ Cambios aplicados y persistidos en la base de datos.');
     } catch (e) {
       console.error(e);
     }
@@ -445,7 +459,7 @@ export default function Workflows() {
   const handleCreateRequest = async () => {
     if (!newReq.title || !currentTenant?.id) return;
 
-    // Find best matching SLA rule: exact match (priority + domain) > domain only > priority only > any
+    // Find best matching SLA rule
     let matchingRule = slaRules.find(r => r.priority === newReq.priority && r.domain === newReq.category);
     if (!matchingRule) matchingRule = slaRules.find(r => r.domain === newReq.category && r.priority === 'Cualquiera');
     if (!matchingRule) matchingRule = slaRules.find(r => r.priority === newReq.priority && r.domain === 'General');
@@ -453,6 +467,10 @@ export default function Workflows() {
     if (!matchingRule && slaRules.length > 0) matchingRule = slaRules[0];
 
     const assignedHours = matchingRule ? matchingRule.hours : 48;
+
+    // Resolve domain_id from category name
+    const selectedDomainObj = domains.find((d: any) => d.name === newReq.category);
+    const resolvedDomainId = selectedDomainObj?.id || null;
 
     const timeline = [
       { step: 'Creado y Priorizado', user: 'Usuario Operaciones', date: new Date().toISOString().split('T')[0], status: 'done' }
@@ -464,6 +482,7 @@ export default function Workflows() {
         title: newReq.title,
         description: newReq.description,
         category: newReq.category || 'General',
+        domain_id: resolvedDomainId,
         priority: newReq.priority,
         status: 'Nuevo',
         sla: `${assignedHours}h`,
@@ -474,7 +493,6 @@ export default function Workflows() {
         risk_level: newReq.riskLevel,
         dependencies: newReq.dependencies
       };
-      // persist sla_rule_id if column exists
       if (matchingRule) payload.sla_rule_id = matchingRule.id;
 
       const { data, error } = await supabase.from('workflow_requests').insert([payload]).select();
@@ -486,7 +504,7 @@ export default function Workflows() {
           const { data: d2, error: e2 } = await supabase.from('workflow_requests').insert([payload]).select();
           if (e2) { alert('❌ Error al crear caso: ' + e2.message); return; }
           if (d2 && d2.length > 0) {
-            setRequests([buildReq(d2[0], assignedHours, matchingRule, timeline, newReq), ...requests]);
+            setRequests([buildReq(d2[0], assignedHours, matchingRule, timeline, newReq, resolvedDomainId), ...requests]);
             setIsNewRequestModalOpen(false);
             setNewReq({ title: '', category: '', priority: 'Media', description: '', impactScore: 5, riskLevel: 'Medio', dependencies: '' });
           }
@@ -497,7 +515,7 @@ export default function Workflows() {
       }
 
       if (data && data.length > 0) {
-        setRequests([buildReq(data[0], assignedHours, matchingRule, timeline, newReq), ...requests]);
+        setRequests([buildReq(data[0], assignedHours, matchingRule, timeline, newReq, resolvedDomainId), ...requests]);
         setIsNewRequestModalOpen(false);
         setNewReq({ title: '', category: '', priority: 'Media', description: '', impactScore: 5, riskLevel: 'Medio', dependencies: '' });
       }
@@ -508,7 +526,7 @@ export default function Workflows() {
   };
 
   // Helper to map a DB row to WorkflowReq
-  const buildReq = (row: any, assignedHours: number, matchingRule: SlaRule | undefined, timeline: any[], form: any): WorkflowReq => ({
+  const buildReq = (row: any, assignedHours: number, matchingRule: SlaRule | undefined, timeline: any[], form: any, resolvedDomainId?: string | null): WorkflowReq => ({
     id: row.id,
     title: row.title,
     requester: 'Usuario Operaciones',
@@ -527,7 +545,8 @@ export default function Workflows() {
     impactScore: form.impactScore,
     riskLevel: form.riskLevel,
     dependencies: form.dependencies,
-    slaRuleId: matchingRule?.id
+    slaRuleId: matchingRule?.id,
+    domainId: resolvedDomainId || undefined
   });
 
   // 7. Config SLA Rule
@@ -688,9 +707,14 @@ export default function Workflows() {
     document.body.removeChild(link);
   };
 
-  // Filter requests
+  // Filter requests — use domainId (UUID) when available, fallback to category name
   const filteredRequests = requests.filter(req => {
-    if (activeDomain && req.category !== activeDomain) return false;
+    if (activeDomain) {
+      const activeDomainObj = domains.find((d: any) => d.name === activeDomain);
+      const matchById = activeDomainObj && req.domainId === activeDomainObj.id;
+      const matchByName = req.category === activeDomain;
+      if (!matchById && !matchByName) return false;
+    }
     if (activeTab === 'pendientes') {
       if (!['Nuevo', 'En revisión', 'Pendiente de información', 'En ejecución', 'Bloqueado', 'Escalado'].includes(req.status)) return false;
     } else if (activeTab === 'mis') {
@@ -1469,17 +1493,31 @@ export default function Workflows() {
                         <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 700, marginBottom: '6px' }}>Dominio</span>
                         <select 
                           style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} 
-                          value={selectedReq.category} 
-                          onChange={e => setSelectedReq({ ...selectedReq, category: e.target.value })}
+                          value={selectedReq.domainId || selectedReq.category}
+                          onChange={e => {
+                            const byId = domains.find((d: any) => d.id === e.target.value);
+                            const byName = domains.find((d: any) => d.name === e.target.value);
+                            const dom = byId || byName;
+                            setSelectedReq({
+                              ...selectedReq,
+                              category: dom ? dom.name : e.target.value,
+                              domainId: dom ? dom.id : undefined
+                            });
+                          }}
                         >
                           {domains.length > 0 ? (
-                            domains.map(d => <option key={d.id} value={d.name}>{d.name}</option>)
+                            domains.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)
                           ) : (
                             ['General', 'Seguridad', 'Financiero', 'Calidad', 'Operaciones', 'Cumplimiento'].map(d => (
                               <option key={d} value={d}>{d}</option>
                             ))
                           )}
                         </select>
+                        {selectedReq.domainId && (
+                           <span style={{ fontSize: '0.7rem', color: '#22c55e', display: 'block', marginTop: '3px', fontWeight: 700 }}>
+                             ✓ Vinculado a dominio real
+                           </span>
+                        )}
                       </div>
 
                       <div>
