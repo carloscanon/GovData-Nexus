@@ -467,10 +467,23 @@ export default function Team() {
           
           const openIncidentsList = freshIncidents
             .filter(i => {
+              // 1. If member owns the asset of the incident, it is under their management
               if (assetIds.includes(i.asset_id)) return true;
-              if (!i.assigned_to) return false;
-              const assignedLower = i.assigned_to.toLowerCase().trim();
-              return assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower);
+              
+              // 2. Match by explicit assignee name
+              if (i.assigned_to) {
+                const assignedLower = i.assigned_to.toLowerCase().trim();
+                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) {
+                  return true;
+                }
+                
+                // 3. Match by role (e.g. if incident is assigned to 'Data Steward' and the member is a Data Steward)
+                const mRoleLower = (m.role || '').toLowerCase().trim();
+                if (assignedLower === mRoleLower) {
+                  return true;
+                }
+              }
+              return false;
             })
             .map(i => {
               const asset = freshAssets.find(a => a.id === i.asset_id);
