@@ -330,6 +330,7 @@ export default function Team() {
   const [teamMaturityScore, setTeamMaturityScore] = useState(0);
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const [teamForm, setTeamForm] = useState({ capacity: 50, maturity: 50, details: '' });
+  const [teamCapacityHistory, setTeamCapacityHistory] = useState<any[]>([]);
 
   const [members, setMembers] = useState<any[]>([]);
   const [raciMatrix, setRaciMatrix] = useState<any[]>(DEFAULT_RACI);
@@ -410,18 +411,22 @@ export default function Team() {
         supabase.from('quality_incidents').select('id, asset_id, issue_type, severity, status, assigned_to').eq('tenant_id', currentTenant.id).neq('status', 'Cerrado'),
         supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status').eq('tenant_id', currentTenant.id),
-        supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }).limit(1),
+        supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }),
         supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true })
       ]);
 
-      if (teamCapacityRes && teamCapacityRes.data && teamCapacityRes.data.length > 0) {
-        setTeamCapacityScore(teamCapacityRes.data[0].capacity_score || 0);
-        setTeamMaturityScore(teamCapacityRes.data[0].maturity_score || 0);
-        setTeamForm({
-          capacity: teamCapacityRes.data[0].capacity_score || 50,
-          maturity: teamCapacityRes.data[0].maturity_score || 50,
-          details: teamCapacityRes.data[0].details?.notas || ''
-        });
+      if (teamCapacityRes && teamCapacityRes.data) {
+        setTeamCapacityHistory(teamCapacityRes.data);
+        if (teamCapacityRes.data.length > 0) {
+          const latest = teamCapacityRes.data[0];
+          setTeamCapacityScore(latest.capacity_score || 0);
+          setTeamMaturityScore(latest.maturity_score || 0);
+          setTeamForm({
+            capacity: latest.capacity_score || 50,
+            maturity: latest.maturity_score || 50,
+            details: latest.details?.notas || ''
+          });
+        }
       }
 
       if (raciRes && raciRes.data && raciRes.data.length > 0) {
@@ -1748,6 +1753,7 @@ export default function Team() {
                       if (error) throw error;
                       setTeamCapacityScore(teamForm.capacity);
                       setTeamMaturityScore(teamForm.maturity);
+                      await fetchAllData();
                       alert('✅ Evaluación de Capacidad y Madurez guardada exitosamente en la base de datos.');
                     } catch (err: any) {
                       alert('❌ Error al guardar en base de datos. Verifica si corriste el script SQL. Detalle: ' + err.message);
@@ -1759,8 +1765,49 @@ export default function Team() {
                 >
                   {isSavingTeam ? 'Guardando...' : 'Guardar Evaluación'}
                 </button>
-             </div>
-          </motion.div>
+              </div>
+
+              {/* Historial de Evaluaciones */}
+              <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: '1px solid #f1f5f9' }}>
+                <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={18} style={{ color: '#6366f1' }} /> Historial de Evaluaciones de Capacidad y Madurez
+                </h4>
+                {teamCapacityHistory && teamCapacityHistory.length > 0 ? (
+                  <div style={{ overflowX: 'auto', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Fecha</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Capacidad</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Madurez</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Promedio</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Notas / Justificación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamCapacityHistory.map((item, idx) => {
+                          const dateStr = item.assessment_date ? new Date(item.assessment_date).toLocaleDateString('es-CO') : 'Reciente';
+                          const avg = Math.round(((item.capacity_score || 0) + (item.maturity_score || 0)) / 2);
+                          return (
+                            <tr key={item.id || idx} style={{ borderBottom: idx < teamCapacityHistory.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                              <td style={{ padding: '12px 16px', color: '#1e293b', fontWeight: 500 }}>{dateStr}</td>
+                              <td style={{ padding: '12px 16px', color: '#f97316', fontWeight: 600 }}>{item.capacity_score || 0}%</td>
+                              <td style={{ padding: '12px 16px', color: '#10b981', fontWeight: 600 }}>{item.maturity_score || 0}%</td>
+                              <td style={{ padding: '12px 16px', color: '#6366f1', fontWeight: 700 }}>{avg}%</td>
+                              <td style={{ padding: '12px 16px', color: '#64748b' }}>{item.details?.notas || '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px dotted #cbd5e1' }}>
+                    No hay evaluaciones anteriores registradas.
+                  </div>
+                )}
+              </div>
+           </motion.div>
         )}
 
       </div>
