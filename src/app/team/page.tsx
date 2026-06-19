@@ -402,9 +402,8 @@ export default function Team() {
       const freshUsers = usersData || [];
       setTenantUsers(freshUsers);
 
-      // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
-      // 2. Fetch members, domains, assets, incidents, policies, and workflows in parallel
-      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes, teamCapacityRes, raciRes] = await Promise.all([
+       // 2. Fetch members, domains, assets, incidents, policies, workflows, capacity, and raci in parallel
+      const [membersRes, domainsRes, assetsRes, incidentsRes, policiesRes, workflowsRes, teamCapacityRes, raciRes, secIncidentsRes] = await Promise.all([
         supabase.from('team_members').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('team_domains').select('*').eq('tenant_id', currentTenant.id),
         supabase.from('data_assets').select('id, name, data_owner').eq('tenant_id', currentTenant.id),
@@ -412,7 +411,8 @@ export default function Team() {
         supabase.from('data_policies').select('id, title, owner, data_custodian, auditor_designado').eq('tenant_id', currentTenant.id),
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status, title, category, description, priority').eq('tenant_id', currentTenant.id),
         supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }),
-        supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true })
+        supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true }),
+        supabase.from('security_incidents').select('id, type, severity, status, assigned_to, description, asset_id').eq('tenant_id', currentTenant.id).neq('status', 'Resuelto').neq('status', 'Cerrado')
       ]);
 
       if (teamCapacityRes && teamCapacityRes.data) {
@@ -441,92 +441,118 @@ export default function Team() {
         setRaciMatrix(DEFAULT_RACI);
       }
 
-      if (membersRes.data) {
-        const freshAssets = assetsRes.data || [];
-        const freshIncidents = incidentsRes.data || [];
-        const freshPolicies = policiesRes.data || [];
-        const freshWorkflows = workflowsRes.data || [];
+        if (membersRes.data) {
+          const freshAssets = assetsRes.data || [];
+          const freshIncidents = incidentsRes.data || [];
+          const freshPolicies = policiesRes.data || [];
+          const freshWorkflows = workflowsRes.data || [];
+          const freshSecIncidents = secIncidentsRes.data || [];
 
-        const mappedMembers = membersRes.data.map(m => {
-          const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
-          // Look up by email first (more reliable), then by name
-          const tenantUser = freshUsers.find(u =>
-            (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
-            (m.name && u.name && u.name.toLowerCase() === m.name.toLowerCase())
-          );
+          const mappedMembers = membersRes.data.map(m => {
+            const seed = encodeURIComponent((m.name || '').replace(/\s+/g, '').substring(0, 30));
+            // Look up by email first (more reliable), then by name
+            const tenantUser = freshUsers.find(u =>
+              (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
+              (m.name && u.name && u.name.toLowerCase() === m.name.toLowerCase())
+            );
 
-          // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
-          const isReal = (url: string | null | undefined) =>
-            !!url && !url.includes('dicebear') && !url.includes('/initials/') && 
-            (url.startsWith('http') || url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:'));
-          const fixedAvatar =
-            isReal(tenantUser?.avatar) ? tenantUser!.avatar :
-            isReal(m.avatar)           ? m.avatar :
-            `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+            // Prefer tenant user's real photo; fallback to member avatar; last resort: dicebear
+            const isReal = (url: string | null | undefined) =>
+              !!url && !url.includes('dicebear') && !url.includes('/initials/') && 
+              (url.startsWith('http') || url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:'));
+            const fixedAvatar =
+              isReal(tenantUser?.avatar) ? tenantUser!.avatar :
+              isReal(m.avatar)           ? m.avatar :
+              `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
-          // Calculate real assets and incidents managed by the member
-          const mNameLower = (m.name || '').toLowerCase().trim();
-          const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
-          const assetsManaged = memberAssets.length;
-          const assetIds = memberAssets.map(a => a.id);
-          
-          const openIncidentsList = freshIncidents
-            .filter(i => {
-              // 1. Match if assigned directly to member name or generic role
-              if (i.assigned_to) {
-                const assignedLower = i.assigned_to.toLowerCase().trim();
-                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
-                
-                const mRoleLower = (m.role || '').toLowerCase().trim();
-                if (assignedLower === mRoleLower) return true;
-              }
-              // 2. If member owns the asset under incident, it's also theirs
-              if (assetIds.includes(i.asset_id)) return true;
-              return false;
-            })
-            .map(i => {
-              const asset = freshAssets.find(a => a.id === i.asset_id);
-              return {
-                id: i.id,
-                issue_type: i.issue_type,
-                severity: i.severity || 'media',
-                asset_name: asset ? asset.name : 'Activo'
-              };
-            });
-
-          // Match Quality Workflows (workflow_requests) that are open as incidents too
-          const qualityWorkflows = freshWorkflows
-            .filter(w => {
-              if (w.status === 'Cerrado' || w.status === 'Aprobado') return false;
-              if (w.category !== 'Calidad') return false;
-              if (w.assigned_to) {
-                const assignedLower = w.assigned_to.toLowerCase().trim();
-                if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
-                
-                const mRoleLower = (m.role || '').toLowerCase().trim();
-                if (assignedLower === mRoleLower) return true;
-              }
-              return false;
-            });
-
-          // Merge actual quality incidents and Quality workflows to ensure they show up in both places
-          qualityWorkflows.forEach(w => {
-            const descriptionStr = w.description || '';
-            const incidentIdMatch = descriptionStr.match(/ID Incidente:\s*([a-f0-9-]+)/i);
-            const incId = incidentIdMatch ? incidentIdMatch[1] : w.id;
+            // Calculate real assets and incidents managed by the member
+            const mNameLower = (m.name || '').toLowerCase().trim();
+            const memberAssets = freshAssets.filter(a => (a.data_owner || '').toLowerCase().trim() === mNameLower);
+            const assetsManaged = memberAssets.length;
+            const assetIds = memberAssets.map(a => a.id);
             
-            // If not already in the incidents list, add it
-            if (!openIncidentsList.some(inc => inc.id === incId || inc.id === incId.substring(0, 8))) {
-              openIncidentsList.push({
-                id: incId.substring(0, 8),
-                issue_type: w.title.replace('[Incidente Calidad] ', ''),
-                severity: w.priority || 'media',
-                asset_name: 'Activo'
+            const openIncidentsList = freshIncidents
+              .filter(i => {
+                // 1. Match if assigned directly to member name or generic role
+                if (i.assigned_to) {
+                  const assignedLower = i.assigned_to.toLowerCase().trim();
+                  if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  
+                  const mRoleLower = (m.role || '').toLowerCase().trim();
+                  if (assignedLower === mRoleLower) return true;
+                }
+                // 2. If member owns the asset under incident, it's also theirs
+                if (assetIds.includes(i.asset_id)) return true;
+                return false;
+              })
+              .map(i => {
+                const asset = freshAssets.find(a => a.id === i.asset_id);
+                return {
+                  id: i.id,
+                  issue_type: i.issue_type,
+                  severity: i.severity || 'media',
+                  asset_name: asset ? asset.name : 'Activo'
+                };
               });
-            }
-          });
-          
-          const openIncidents = openIncidentsList.length;
+
+            // Map and merge security incidents assigned to this member or their assets
+            const openSecIncidentsMapped = freshSecIncidents
+              .filter(si => {
+                if (si.assigned_to) {
+                  const assignedLower = si.assigned_to.toLowerCase().trim();
+                  if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  
+                  const mRoleLower = (m.role || '').toLowerCase().trim();
+                  if (assignedLower === mRoleLower) return true;
+                }
+                if (si.asset_id && assetIds.includes(si.asset_id)) return true;
+                return false;
+              })
+              .map(si => {
+                const asset = freshAssets.find(a => a.id === si.asset_id);
+                return {
+                  id: si.id,
+                  issue_type: `[Seguridad] ${si.type || si.description || 'Brecha/Riesgo'}`,
+                  severity: si.severity || 'alta',
+                  asset_name: asset ? asset.name : 'Activo'
+                };
+              });
+
+            openIncidentsList.push(...openSecIncidentsMapped);
+
+            // Match Quality Workflows (workflow_requests) that are open as incidents too
+            const qualityWorkflows = freshWorkflows
+              .filter(w => {
+                if (w.status === 'Cerrado' || w.status === 'Aprobado') return false;
+                if (w.category !== 'Calidad') return false;
+                if (w.assigned_to) {
+                  const assignedLower = w.assigned_to.toLowerCase().trim();
+                  if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
+                  
+                  const mRoleLower = (m.role || '').toLowerCase().trim();
+                  if (assignedLower === mRoleLower) return true;
+                }
+                return false;
+              });
+
+            // Merge actual quality incidents and Quality workflows to ensure they show up in both places
+            qualityWorkflows.forEach(w => {
+              const descriptionStr = w.description || '';
+              const incidentIdMatch = descriptionStr.match(/ID Incidente:\s*([a-f0-9-]+)/i);
+              const incId = incidentIdMatch ? incidentIdMatch[1] : w.id;
+              
+              // If not already in the incidents list, add it
+              if (!openIncidentsList.some(inc => inc.id === incId || inc.id === incId.substring(0, 8))) {
+                openIncidentsList.push({
+                  id: incId.substring(0, 8),
+                  issue_type: w.title.replace('[Incidente Calidad] ', ''),
+                  severity: w.priority || 'media',
+                  asset_name: 'Activo'
+                });
+              }
+            });
+            
+            const openIncidents = openIncidentsList.length;
 
           const memberPolicies = freshPolicies
             .filter(p => {
