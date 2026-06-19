@@ -698,9 +698,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // Superadmin siempre empieza en el primer tenant disponible
+          // Superadmin: usar el tenant guardado si existe, o el primero por defecto
           if (userRole === 'superadmin') {
-            setCurrentTenantState(parsed[0]);
+            const active = parsed.find(t => t.id === savedCurrentTenantId) || parsed[0];
+            setCurrentTenantState(active);
+            localStorage.setItem('govdata_current_tenant_id', active.id);
             return;
           }
 

@@ -607,6 +607,47 @@ export default function MetadataPage() {
         })}
       </div>
 
+      {/* Buscador Global Prominente */}
+      <div 
+        style={{ 
+          background: '#ffffff', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '16px', 
+          padding: '16px 24px', 
+          marginBottom: '24px',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ background: '#eff6ff', color: '#3b82f6', borderRadius: '10px', padding: '8px' }}>
+            <Search size={20} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>Buscador Inteligente de Metadatos</h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Encuentra campos, conceptos de negocio, dueños o reglas de calidad de manera inmediata.</p>
+          </div>
+        </div>
+        <div style={{ position: 'relative' }}>
+          <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={18} />
+          <input 
+            type="text" 
+            className={styles.input} 
+            style={{ width: '100%', paddingLeft: '40px', borderRadius: '10px', border: '1px solid #cbd5e1', height: '42px' }}
+            placeholder="Escribe el nombre de un campo, concepto o tabla... (ej: 'email', 'cliente_id', 'monto')"
+            value={searchQuery}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              if (activeTab !== 'search') {
+                setActiveTab('search');
+              }
+            }}
+          />
+        </div>
+      </div>
+
       {/* Horizontal Tab Layout */}
       <div className={styles.tabs} style={{ display: 'flex', overflowX: 'auto', paddingBottom: '4px', gap: '16px', borderBottom: '1px solid #e2e8f0', marginBottom: '24px' }}>
         {[
