@@ -63,6 +63,7 @@ interface WorkflowReq {
   impactScore?: number; // 1 to 10
   riskLevel?: 'Bajo' | 'Medio' | 'Alto' | 'Crítico';
   dependencies?: string;
+  slaRuleId?: string; // FK to sla_rules
 }
 
 interface SlaRule {
@@ -245,7 +246,8 @@ export default function Workflows() {
               timeline: r.timeline || [{ step: 'Solicitud Creada', user: 'Sistema', date: new Date(r.created_at).toISOString().split('T')[0], status: 'done' }],
               impactScore: r.impact_score || (r.priority === 'Crítica' ? 10 : r.priority === 'Alta' ? 8 : r.priority === 'Media' ? 5 : 3),
               riskLevel: r.risk_level || (r.priority === 'Crítica' ? 'Crítico' : r.priority === 'Alta' ? 'Alto' : 'Medio'),
-              dependencies: r.dependencies || 'Ninguna'
+              dependencies: r.dependencies || 'Ninguna',
+              slaRuleId: r.sla_rule_id || undefined
             };
           });
           setRequests(loadedReqs);
@@ -406,7 +408,9 @@ export default function Workflows() {
         sla: updatedReq.sla,
         category: updatedReq.category,
         impact_score: updatedReq.impactScore,
-        risk_level: updatedReq.riskLevel
+        risk_level: updatedReq.riskLevel,
+        // sla_rule_id may not exist yet — guarded via try/catch
+        ...(updatedReq.slaRuleId !== undefined ? { sla_rule_id: updatedReq.slaRuleId || null } : {})
       }).eq('id', updatedReq.id);
 
       setRequests(requests.map(r => r.id === updatedReq.id ? updatedReq : r));
@@ -441,20 +445,25 @@ export default function Workflows() {
   const handleCreateRequest = async () => {
     if (!newReq.title || !currentTenant?.id) return;
 
-    let assignedHours = 48;
-    const matchingRule = slaRules.find(r => r.priority === newReq.priority && r.domain === newReq.category);
-    if (matchingRule) assignedHours = matchingRule.hours;
+    // Find best matching SLA rule: exact match (priority + domain) > domain only > priority only > any
+    let matchingRule = slaRules.find(r => r.priority === newReq.priority && r.domain === newReq.category);
+    if (!matchingRule) matchingRule = slaRules.find(r => r.domain === newReq.category && r.priority === 'Cualquiera');
+    if (!matchingRule) matchingRule = slaRules.find(r => r.priority === newReq.priority && r.domain === 'General');
+    if (!matchingRule) matchingRule = slaRules.find(r => r.domain === 'General' && r.priority === 'Cualquiera');
+    if (!matchingRule && slaRules.length > 0) matchingRule = slaRules[0];
+
+    const assignedHours = matchingRule ? matchingRule.hours : 48;
 
     const timeline = [
       { step: 'Creado y Priorizado', user: 'Usuario Operaciones', date: new Date().toISOString().split('T')[0], status: 'done' }
     ];
 
     try {
-      const { data, error } = await supabase.from('workflow_requests').insert([{
+      const payload: any = {
         tenant_id: currentTenant.id,
         title: newReq.title,
         description: newReq.description,
-        category: newReq.category,
+        category: newReq.category || 'General',
         priority: newReq.priority,
         status: 'Nuevo',
         sla: `${assignedHours}h`,
@@ -464,67 +473,133 @@ export default function Workflows() {
         impact_score: newReq.impactScore,
         risk_level: newReq.riskLevel,
         dependencies: newReq.dependencies
-      }]).select();
+      };
+      // persist sla_rule_id if column exists
+      if (matchingRule) payload.sla_rule_id = matchingRule.id;
+
+      const { data, error } = await supabase.from('workflow_requests').insert([payload]).select();
+
+      if (error) {
+        // If sla_rule_id column doesn't exist yet, retry without it
+        if (error.message?.includes('sla_rule_id')) {
+          delete payload.sla_rule_id;
+          const { data: d2, error: e2 } = await supabase.from('workflow_requests').insert([payload]).select();
+          if (e2) { alert('❌ Error al crear caso: ' + e2.message); return; }
+          if (d2 && d2.length > 0) {
+            setRequests([buildReq(d2[0], assignedHours, matchingRule, timeline, newReq), ...requests]);
+            setIsNewRequestModalOpen(false);
+            setNewReq({ title: '', category: '', priority: 'Media', description: '', impactScore: 5, riskLevel: 'Medio', dependencies: '' });
+          }
+          return;
+        }
+        alert('❌ Error al crear caso: ' + error.message);
+        return;
+      }
 
       if (data && data.length > 0) {
-        const mapped: WorkflowReq = {
-          id: data[0].id,
-          title: data[0].title,
-          requester: 'Usuario Operaciones',
-          type: 'Solicitud',
-          category: data[0].category,
-          status: 'Nuevo',
-          priority: data[0].priority,
-          date: new Date().toISOString().split('T')[0],
-          sla: data[0].sla,
-          slaStatus: 'Ok',
-          description: data[0].description,
-          assignee: '',
-          expirationDate: new Date(Date.now() + assignedHours * 3600 * 1000).toLocaleString('es-CO'),
-          currentStep: 'Validación Inicial',
-          timeline: timeline,
-          impactScore: newReq.impactScore,
-          riskLevel: newReq.riskLevel,
-          dependencies: newReq.dependencies
-        };
-        setRequests([mapped, ...requests]);
+        setRequests([buildReq(data[0], assignedHours, matchingRule, timeline, newReq), ...requests]);
         setIsNewRequestModalOpen(false);
         setNewReq({ title: '', category: '', priority: 'Media', description: '', impactScore: 5, riskLevel: 'Medio', dependencies: '' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert('❌ Error inesperado: ' + e?.message);
     }
   };
+
+  // Helper to map a DB row to WorkflowReq
+  const buildReq = (row: any, assignedHours: number, matchingRule: SlaRule | undefined, timeline: any[], form: any): WorkflowReq => ({
+    id: row.id,
+    title: row.title,
+    requester: 'Usuario Operaciones',
+    type: 'Solicitud',
+    category: row.category || 'General',
+    status: 'Nuevo',
+    priority: row.priority,
+    date: new Date().toISOString().split('T')[0],
+    sla: row.sla,
+    slaStatus: 'Ok',
+    description: row.description,
+    assignee: '',
+    expirationDate: new Date(Date.now() + assignedHours * 3600 * 1000).toLocaleString('es-CO'),
+    currentStep: 'Validación Inicial',
+    timeline,
+    impactScore: form.impactScore,
+    riskLevel: form.riskLevel,
+    dependencies: form.dependencies,
+    slaRuleId: matchingRule?.id
+  });
 
   // 7. Config SLA Rule
   const handleCreateSlaRule = async () => {
     if (!newSlaRule.name || !newSlaRule.hours || !currentTenant?.id) return;
     try {
-      const { data } = await supabase.from('sla_rules').insert([{
+      // Build payload — include optional columns only if they exist
+      const payload: any = {
         tenant_id: currentTenant.id,
         name: newSlaRule.name,
-        priority: newSlaRule.priority,
-        domain: newSlaRule.domain,
-        hours: Number(newSlaRule.hours),
-        alert_threshold: newSlaRule.alertThreshold,
-        working_hours_only: newSlaRule.workingHoursOnly
-      }]).select();
+        priority: newSlaRule.priority || 'Cualquiera',
+        domain: newSlaRule.domain || 'General',
+        hours: Number(newSlaRule.hours)
+      };
 
-      if (data) {
+      // Try to include extended columns (may not exist in older DB schemas)
+      if (newSlaRule.alertThreshold !== undefined) payload.alert_threshold = newSlaRule.alertThreshold;
+      if (newSlaRule.workingHoursOnly !== undefined) payload.working_hours_only = newSlaRule.workingHoursOnly;
+
+      const { data, error } = await supabase.from('sla_rules').insert([payload]).select();
+
+      if (error) {
+        console.error('Error creando regla SLA:', error);
+        // If it's the missing column issue, try without those columns
+        if (error.message?.includes('alert_threshold') || error.message?.includes('working_hours_only')) {
+          const { data: data2, error: error2 } = await supabase.from('sla_rules').insert([{
+            tenant_id: currentTenant.id,
+            name: newSlaRule.name,
+            priority: newSlaRule.priority || 'Cualquiera',
+            domain: newSlaRule.domain || 'General',
+            hours: Number(newSlaRule.hours)
+          }]).select();
+          if (error2) {
+            alert('❌ Error al guardar el SLA: ' + error2.message);
+            return;
+          }
+          if (data2 && data2.length > 0) {
+            setSlaRules([...slaRules, {
+              id: data2[0].id,
+              name: data2[0].name,
+              priority: data2[0].priority || 'Cualquiera',
+              domain: data2[0].domain || 'General',
+              hours: data2[0].hours,
+              alertThreshold: newSlaRule.alertThreshold || 75,
+              workingHoursOnly: newSlaRule.workingHoursOnly !== false
+            }]);
+            setNewSlaRule({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48, alertThreshold: 75, workingHoursOnly: true });
+            alert('✅ Regla de SLA registrada.\n\n⚠ Nota: Para guardar el umbral de alerta y horas hábiles, ejecuta el SQL de migración en Supabase (ver consola).');
+            console.warn('MIGRACIÓN PENDIENTE - Ejecuta en Supabase SQL Editor:\nALTER TABLE public.sla_rules\n  ADD COLUMN IF NOT EXISTS alert_threshold INTEGER DEFAULT 75,\n  ADD COLUMN IF NOT EXISTS working_hours_only BOOLEAN DEFAULT true;');
+          }
+        } else {
+          alert('❌ Error al guardar el SLA: ' + error.message);
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
         setSlaRules([...slaRules, {
           id: data[0].id,
           name: data[0].name,
-          priority: data[0].priority,
-          domain: data[0].domain,
+          priority: data[0].priority || 'Cualquiera',
+          domain: data[0].domain || 'General',
           hours: data[0].hours,
-          alertThreshold: data[0].alert_threshold || 75,
-          workingHoursOnly: data[0].working_hours_only !== false
+          alertThreshold: data[0].alert_threshold || newSlaRule.alertThreshold || 75,
+          workingHoursOnly: data[0].working_hours_only !== undefined ? data[0].working_hours_only : (newSlaRule.workingHoursOnly !== false)
         }]);
         setNewSlaRule({ name: '', priority: 'Cualquiera', domain: 'General', hours: 48, alertThreshold: 75, workingHoursOnly: true });
         alert('✅ Regla de SLA registrada exitosamente en las políticas.');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('Error inesperado creando SLA:', e);
+      alert('❌ Error inesperado: ' + (e?.message || String(e)));
     }
   };
 
@@ -1422,17 +1497,41 @@ export default function Workflows() {
                       </div>
                     </div>
 
-                    {/* SLA + Impact Score */}
+                    {/* SLA Rule Selector + Impact Score */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 700, marginBottom: '6px' }}>SLA (horas, ej: 48h)</span>
-                        <input
-                          type="text"
-                          style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                          value={selectedReq.sla}
-                          onChange={e => setSelectedReq({ ...selectedReq, sla: e.target.value })}
-                          placeholder="Ej: 24h"
-                        />
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 700, marginBottom: '6px' }}>Acuerdo de Nivel de Servicio (SLA)</span>
+                        {slaRules.length > 0 ? (
+                          <select
+                            style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                            value={selectedReq.slaRuleId || ''}
+                            onChange={e => {
+                              const rule = slaRules.find(r => r.id === e.target.value);
+                              setSelectedReq({
+                                ...selectedReq,
+                                slaRuleId: e.target.value || undefined,
+                                sla: rule ? `${rule.hours}h` : selectedReq.sla
+                              });
+                            }}
+                          >
+                            <option value="">-- Sin regla asignada --</option>
+                            {slaRules.map(rule => (
+                              <option key={rule.id} value={rule.id}>
+                                {rule.name} ({rule.hours}h • {rule.priority} • {rule.domain})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div style={{ padding: '8px 12px', borderRadius: '8px', background: '#fef9c3', border: '1px solid #fde68a', fontSize: '0.82rem', color: '#92400e' }}>
+                            No hay SLAs configurados.
+                            <button onClick={() => setActiveView('sla-config')} style={{ background: 'none', border: 'none', color: '#6366f1', fontWeight: 700, cursor: 'pointer', marginLeft: '4px' }}>Configurar →</button>
+                          </div>
+                        )}
+                        {selectedReq.sla && (
+                          <span style={{ display: 'block', marginTop: '4px', fontSize: '0.75rem', color: '#6366f1', fontWeight: 700 }}>
+                            ⏱ Tiempo asignado: {selectedReq.sla}
+                          </span>
+                        )}
                       </div>
 
                       <div>
@@ -1604,6 +1703,45 @@ export default function Workflows() {
                         <option>Crítico</option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* SLA Rule Selector */}
+                  <div style={{ padding: '14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '8px', color: '#1e293b' }}>
+                      ⏱ Acuerdo de Nivel de Servicio (SLA)
+                    </label>
+                    {slaRules.length > 0 ? (
+                      <>
+                        <select
+                          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                          defaultValue=""
+                          onChange={e => {
+                            const rule = slaRules.find(r => r.id === e.target.value);
+                            if (rule) setNewReq({ ...newReq, category: newReq.category });
+                            // Store rule id in a temp var via data attr (handled by handleCreateRequest via auto-match)
+                          }}
+                        >
+                          <option value="">Auto-seleccionar según dominio y prioridad</option>
+                          {slaRules.map(rule => (
+                            <option key={rule.id} value={rule.id}>
+                              {rule.name} — {rule.hours}h · {rule.priority} · {rule.domain}
+                            </option>
+                          ))}
+                        </select>
+                        <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                          Si no seleccionas, se asignará automáticamente la regla que mejor coincida con el dominio y prioridad elegidos.
+                        </p>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#92400e' }}>No hay reglas SLA configuradas para esta empresa.</span>
+                        <button
+                          type="button"
+                          onClick={() => { setIsNewRequestModalOpen(false); setActiveView('sla-config'); }}
+                          style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', padding: '4px 12px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                        >Configurar SLA →</button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>Dependencias de Activos / Sistemas</label>
