@@ -968,11 +968,16 @@ export default function Workflows() {
                       <th>Prioridad e Impacto</th>
                       <th>Riesgo</th>
                       <th>Score Prioridad</th>
+                      <th>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRequests.map(req => {
                       const score = getPriorityScore(req);
+                      const cleanStr = (str?: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+                      const assigneeUser = req.assignee 
+                        ? teamMembers.find(m => cleanStr(m.name) === cleanStr(req.assignee))
+                        : null;
                       return (
                         <tr key={req.id} className={styles.tableRow} onClick={() => { setSelectedReq(req); setDetailTab('general'); }}>
                           <td>
@@ -996,6 +1001,52 @@ export default function Workflows() {
                               </span>
                             )}
                             <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '2px' }}>ID: {req.id.slice(0,8)} • {req.requester}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                              <div style={{ width: '80px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                  width: `${
+                                    req.status === 'Nuevo' ? 15 :
+                                    req.status === 'En revisión' ? 35 :
+                                    req.status === 'Pendiente de información' ? 50 :
+                                    req.status === 'En ejecución' ? 70 :
+                                    req.status === 'Escalado' ? 85 :
+                                    req.status === 'Bloqueado' ? 85 :
+                                    100
+                                  }%`,
+                                  background: 
+                                    req.status === 'Bloqueado' ? '#ef4444' :
+                                    req.status === 'Escalado' ? '#f59e0b' :
+                                    req.status === 'Aprobado' ? '#10b981' :
+                                    req.status === 'Rechazado' ? '#dc2626' :
+                                    req.status === 'Cerrado' ? '#64748b' :
+                                    '#6366f1',
+                                  height: '100%',
+                                  borderRadius: '3px',
+                                  transition: 'width 0.3s ease'
+                                }} />
+                              </div>
+                              <span style={{ 
+                                fontSize: '0.72rem', 
+                                fontWeight: 700, 
+                                color: 
+                                  req.status === 'Bloqueado' ? '#ef4444' :
+                                  req.status === 'Escalado' ? '#d97706' :
+                                  req.status === 'Aprobado' ? '#166534' :
+                                  req.status === 'Rechazado' ? '#dc2626' :
+                                  req.status === 'Cerrado' ? '#475569' :
+                                  '#4f46e5'
+                              }}>
+                                {req.status} ({
+                                  req.status === 'Nuevo' ? '15%' :
+                                  req.status === 'En revisión' ? '35%' :
+                                  req.status === 'Pendiente de información' ? '50%' :
+                                  req.status === 'En ejecución' ? '70%' :
+                                  req.status === 'Escalado' ? '85%' :
+                                  req.status === 'Bloqueado' ? '85%' :
+                                  '100%'
+                                })
+                              </span>
+                            </div>
                           </td>
                           <td>
                             <span className={styles.statusBadge} style={{ background: '#f0f9ff', color: '#0369a1' }}>{req.category}</span>
@@ -1031,12 +1082,46 @@ export default function Workflows() {
                               <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>/ 100</span>
                             </div>
                           </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+                              {req.assignee ? (
+                                <>
+                                  {assigneeUser?.avatar && assigneeUser.avatar.startsWith('http') ? (
+                                    <img 
+                                      src={assigneeUser.avatar} 
+                                      alt={req.assignee} 
+                                      style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }} 
+                                    />
+                                  ) : (
+                                    <div style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '50%',
+                                      background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                                      color: 'white',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      border: '1px solid #cbd5e1'
+                                    }}>
+                                      {req.assignee[0].toUpperCase()}
+                                    </div>
+                                  )}
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>{req.assignee}</span>
+                                </>
+                              ) : (
+                                <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin asignar</span>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
                     {filteredRequests.length === 0 && (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No hay solicitudes de gobierno en esta bandeja.</td>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No hay solicitudes de gobierno en esta bandeja.</td>
                       </tr>
                     )}
                   </tbody>

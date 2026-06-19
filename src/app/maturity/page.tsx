@@ -401,6 +401,8 @@ export default function Maturity() {
     expiredPolicies: 0,
     totalCommittees: 0,
     totalResolutions: 0,
+    openQualityIncidents: 0,
+    resolvedQualityIncidents: 0,
   });
 
   const [wizardStep, setWizardStep] = React.useState(0);
@@ -586,7 +588,7 @@ export default function Maturity() {
         }
       }
 
-      const openQualityIncidents = incidents.filter(i => i.status !== 'Cerrado' && i.status !== 'Resuelto').length;
+      const openQualityIncidents = incidents.filter(i => i.status !== 'Cerrado' && i.status !== 'Resuelto' && i.status !== 'Corregido').length;
       const openWorkflows = workflows.filter(w => 
         w.status === 'Pendiente' || 
         w.status === 'En Progreso' || 
@@ -596,7 +598,7 @@ export default function Maturity() {
       ).length;
       const openIncidents = openQualityIncidents + openWorkflows;
 
-      const resolvedQualityIncidents = incidents.filter(i => i.status === 'Resuelto' || i.status === 'Cerrado').length;
+      const resolvedQualityIncidents = incidents.filter(i => i.status === 'Resuelto' || i.status === 'Cerrado' || i.status === 'Corregido').length;
       const resolvedWorkflows = workflows.filter(w => 
         w.status === 'Aprobado' || 
         w.status === 'Cerrado' || 
@@ -634,6 +636,8 @@ export default function Maturity() {
         expiredPolicies,
         totalCommittees,
         totalResolutions,
+        openQualityIncidents,
+        resolvedQualityIncidents,
       });
 
     } catch (e) {
@@ -649,7 +653,7 @@ export default function Maturity() {
 
   // ------- Dynamic hybrid scores recalculator -------
   React.useEffect(() => {
-    const calidad = Math.max(0, dbStats.averageQuality - (dbStats.openIncidents * 5));
+    const calidad = Math.max(0, dbStats.averageQuality - (dbStats.openQualityIncidents * 5));
 
     const ownerRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithOwner / dbStats.totalAssets) * 60 : 30;
     const stewardRatio = dbStats.totalAssets > 0 ? (dbStats.assetsWithSteward / dbStats.totalAssets) * 40 : 20;
@@ -722,7 +726,7 @@ export default function Maturity() {
       status: maturityScores.calidad >= 80 ? 'Optimizado' : maturityScores.calidad >= 60 ? 'Gestionado' : 'Definido',
       capabilities: [
         { name: 'Reglas de Calidad',   score: dbStats.averageQuality, type: 'auto' },
-        { name: 'Monitoreo Auto.',     score: Math.max(0, 100 - (dbStats.openIncidents * 10)), type: 'auto' },
+        { name: 'Monitoreo Auto.',     score: Math.max(0, 100 - (dbStats.openQualityIncidents * 10)), type: 'auto' },
         { name: 'Gestión Incidentes',  score: Math.min(100, Math.round(dbStats.totalIncidents > 0 ? (dbStats.resolvedIncidents / dbStats.totalIncidents) * 100 : 80)), type: 'auto' },
       ],
     },
