@@ -467,11 +467,12 @@ export default function Team() {
             isReal(m.avatar)           ? m.avatar :
             `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
-          // Calculate real assets and incidents managed by the member
-          const mNameLower = (m.name || '').toLowerCase().trim();
+          const cleanStr = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+          const mNameLower = cleanStr(m.name || '');
           const mEmailLower = (m.email || '').toLowerCase().trim();
           const memberAssets = freshAssets.filter(a => {
-            const oLower = (a.data_owner || '').toLowerCase().trim();
+            const oLower = cleanStr(a.data_owner || '');
             return oLower === mNameLower || (mEmailLower && oLower.includes(mEmailLower));
           });
           const assetsManaged = memberAssets.length;
@@ -480,22 +481,22 @@ export default function Team() {
           // Map team member to possible related database tenant user
           const relatedTenantUser = freshUsers.find(u =>
             (m.email && u.email && u.email.toLowerCase().trim() === m.email.toLowerCase().trim()) ||
-            (m.name && u.name && u.name.toLowerCase().trim() === m.name.toLowerCase().trim())
+            (m.name && u.name && cleanStr(u.name) === mNameLower)
           );
-          const rUserNameLower = (relatedTenantUser?.name || '').toLowerCase().trim();
+          const rUserNameLower = cleanStr(relatedTenantUser?.name || '');
           const rUserEmailLower = (relatedTenantUser?.email || '').toLowerCase().trim();
 
           const openIncidentsList = freshIncidents
             .filter(i => {
               // 1. Match if assigned directly to member name, email or their generic role
               if (i.assigned_to) {
-                const assignedLower = i.assigned_to.toLowerCase().trim();
+                const assignedLower = cleanStr(i.assigned_to);
                 if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
                 if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
                 if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
                 if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                 
-                const mRoleLower = (m.role || '').toLowerCase().trim();
+                const mRoleLower = cleanStr(m.role || '');
                 if (assignedLower === mRoleLower) return true;
               }
               // 2. If member owns the asset under incident, it's also theirs
@@ -516,13 +517,13 @@ export default function Team() {
           const openSecIncidentsMapped = freshSecIncidents
             .filter(si => {
               if (si.assigned_to) {
-                const assignedLower = si.assigned_to.toLowerCase().trim();
+                const assignedLower = cleanStr(si.assigned_to);
                 if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
                 if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
                 if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
                 if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                 
-                const mRoleLower = (m.role || '').toLowerCase().trim();
+                const mRoleLower = cleanStr(m.role || '');
                 if (assignedLower === mRoleLower) return true;
               }
               if (si.asset_id && assetIds.includes(si.asset_id)) return true;
@@ -532,7 +533,7 @@ export default function Team() {
               const asset = freshAssets.find(a => a.id === si.asset_id);
               return {
                 id: si.id,
-                issue_type: `[Seguridad] ${si.type || si.description || 'Brecha/Riesgo'}`,
+                issue_type: si.type ? `[Seguridad] ${si.type}` : `[Seguridad] ${si.description || 'Brecha/Riesgo'}`,
                 severity: si.severity || 'alta',
                 asset_name: asset ? asset.name : 'Activo'
               };
@@ -546,13 +547,13 @@ export default function Team() {
               if (w.status === 'Cerrado' || w.status === 'Aprobado') return false;
               if (w.category !== 'Calidad') return false;
               if (w.assigned_to) {
-                const assignedLower = w.assigned_to.toLowerCase().trim();
+                const assignedLower = cleanStr(w.assigned_to);
                 if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
                 if (rUserNameLower && (assignedLower.includes(rUserNameLower) || rUserNameLower.includes(assignedLower))) return true;
                 if (mEmailLower && assignedLower.includes(mEmailLower)) return true;
                 if (rUserEmailLower && assignedLower.includes(rUserEmailLower)) return true;
                 
-                const mRoleLower = (m.role || '').toLowerCase().trim();
+                const mRoleLower = cleanStr(m.role || '');
                 if (assignedLower === mRoleLower) return true;
               }
               return false;
