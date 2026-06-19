@@ -412,7 +412,7 @@ export default function Team() {
         supabase.from('workflow_requests').select('id, requested_by, assigned_to, created_at, sla, sla_status, status, title, category, description, priority').eq('tenant_id', currentTenant.id),
         supabase.from('team_capacity_assessments').select('*').eq('tenant_id', currentTenant.id).order('assessment_date', { ascending: false }),
         supabase.from('team_raci_matrix').select('*').eq('tenant_id', currentTenant.id).order('created_at', { ascending: true }),
-        supabase.from('security_incidents').select('id, type, severity, status, assigned_to, description, asset_id').eq('tenant_id', currentTenant.id).neq('status', 'Resuelto').neq('status', 'Cerrado')
+        supabase.from('security_incidents').select('id, type, severity, status, assigned_to, description, asset_id').eq('tenant_id', currentTenant.id)
       ]);
 
       if (teamCapacityRes && teamCapacityRes.data) {
@@ -516,6 +516,12 @@ export default function Team() {
           // Map and merge security incidents assigned to this member or their assets
           const openSecIncidentsMapped = freshSecIncidents
             .filter(si => {
+              // Filter out resolved or closed incidents
+              const statusClean = cleanStr(si.status || '');
+              if (statusClean === 'cerrado' || statusClean === 'resuelto' || statusClean === 'mitigado' || statusClean === 'solucionado') {
+                return false;
+              }
+
               if (si.assigned_to) {
                 const assignedLower = cleanStr(si.assigned_to);
                 if (assignedLower.includes(mNameLower) || mNameLower.includes(assignedLower)) return true;
