@@ -39,7 +39,7 @@ import {
 import * as XLSX from 'xlsx';
 
 export default function CentralizedAuditPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'connections' | 'activity' | 'alerts' | 'settings'>('connections');
+  const [activeTab, setActiveTab] = useState<'overview' | 'connections' | 'activity' | 'alerts' | 'settings' | 'loginViews'>('connections');
   const [loading, setLoading] = useState(true);
   const [tenantFilter, setTenantFilter] = useState('all');
   
@@ -48,6 +48,7 @@ export default function CentralizedAuditPage() {
   const [connections, setConnections] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [loginViews, setLoginViews] = useState<any[]>([]);
   const [settings, setSettings] = useState({ retention_days: 8 });
   const [stats, setStats] = useState<any>({
     activeSessionsCount: 0,
@@ -79,6 +80,7 @@ export default function CentralizedAuditPage() {
         setConnections(data.data.connections || []);
         setLogs(data.data.logs || []);
         setAlerts(data.data.alerts || []);
+        setLoginViews(data.data.loginViews || []);
         setSettings(data.data.settings || { retention_days: 8 });
         setTenants(data.data.tenants || []);
         setStats(data.data.stats || {});
@@ -236,6 +238,20 @@ export default function CentralizedAuditPage() {
     return matchesUser && matchesIp && matchesDate;
   });
 
+  const filteredLoginViews = loginViews.filter(lv => {
+    const matchesIp = (lv.ip_address || '').toLowerCase().includes(ipSearch.toLowerCase());
+    const matchesUser = (lv.user_email || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+                        (lv.browser || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+                        (lv.os || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+                        (lv.device || '').toLowerCase().includes(userSearch.toLowerCase());
+
+    let matchesDate = true;
+    if (dateStart) matchesDate = matchesDate && new Date(lv.created_at) >= new Date(dateStart);
+    if (dateEnd) matchesDate = matchesDate && new Date(lv.created_at) <= new Date(dateEnd + 'T23:59:59');
+
+    return matchesUser && matchesIp && matchesDate;
+  });
+
   // Recharts Data Prep
   const pieData = [
     { name: 'Críticas', value: alerts.filter(a => a.severity === 'critical').length, color: '#ef4444' },
@@ -345,6 +361,12 @@ export default function CentralizedAuditPage() {
           style={{ padding: '10px 20px', border: 'none', borderBottom: activeTab === 'alerts' ? '3px solid #38bdf8' : '3px solid transparent', background: 'none', color: activeTab === 'alerts' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'alerts' ? 700 : 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <ShieldAlert size={16} /> Alertas de Seguridad
+        </button>
+        <button 
+          onClick={() => setActiveTab('loginViews')} 
+          style={{ padding: '10px 20px', border: 'none', borderBottom: activeTab === 'loginViews' ? '3px solid #38bdf8' : '3px solid transparent', background: 'none', color: activeTab === 'loginViews' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'loginViews' ? 700 : 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <Eye size={16} /> Monitoreo de Login
         </button>
         <button 
           onClick={() => setActiveTab('settings')} 
@@ -918,6 +940,129 @@ export default function CentralizedAuditPage() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Monitoreo de Login (Page view vs actual login) */}
+      {activeTab === 'loginViews' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* KPI metrics cards inside the tab */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div style={{ padding: '16px', background: '#111827', border: '1px solid #1e293b', borderRadius: '12px', display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Visitas Totales a Login</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#38bdf8', margin: '4px 0' }}>
+                {filteredLoginViews.length}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Cargadas de página registradas</span>
+            </div>
+            <div style={{ padding: '16px', background: '#111827', border: '1px solid #1e293b', borderRadius: '12px', display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Ingresos Exitosos</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#10b981', margin: '4px 0' }}>
+                {filteredLoginViews.filter(lv => lv.logged_in).length}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Usuarios que iniciaron sesión</span>
+            </div>
+            <div style={{ padding: '16px', background: '#111827', border: '1px solid #1e293b', borderRadius: '12px', display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Visitas Abandonadas (Sin Entrar)</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ef4444', margin: '4px 0' }}>
+                {filteredLoginViews.filter(lv => !lv.logged_in).length}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Llegaron sin iniciar sesión</span>
+            </div>
+            <div style={{ padding: '16px', background: '#111827', border: '1px solid #1e293b', borderRadius: '12px', display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Tasa de Conversión</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#eab308', margin: '4px 0' }}>
+                {filteredLoginViews.length > 0 
+                  ? ((filteredLoginViews.filter(lv => lv.logged_in).length / filteredLoginViews.length) * 100).toFixed(1)
+                  : '0.0'}%
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Efectividad del portal de acceso</span>
+            </div>
+          </div>
+
+          {/* Graph: Conversion vs Abandoned timeline */}
+          <div style={{ background: '#111827', border: '1px solid #1e293b', padding: '20px', borderRadius: '16px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={18} color="#38bdf8" /> Historial de Embudo de Conversión en el Login (Últimos 7 Días)
+            </h3>
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={(() => {
+                  const dates = Array.from(new Set(filteredLoginViews.map(v => new Date(v.created_at).toDateString()))).reverse();
+                  return dates.slice(-7).map(dateStr => {
+                    const dayViews = filteredLoginViews.filter(v => new Date(v.created_at).toDateString() === dateStr);
+                    const dateObj = new Date(dateStr);
+                    return {
+                      date: dateObj.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
+                      'Con Acceso': dayViews.filter(v => v.logged_in).length,
+                      'Sin Acceso (Rebote)': dayViews.filter(v => !v.logged_in).length,
+                    };
+                  });
+                })()}>
+                  <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} />
+                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }} />
+                  <Bar dataKey="Con Acceso" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Sin Acceso (Rebote)" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Table: Detailed log of abandoned visits */}
+          <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Laptop size={18} color="#f43f5e" /> Registro Detallado de Rebotes (Visitas sin inicio de sesión)
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8', background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.2)', padding: '4px 10px', borderRadius: '20px' }}>
+                {filteredLoginViews.filter(lv => !lv.logged_in).length} Registros
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: '#1f2937', color: '#94a3b8', borderBottom: '1px solid #374151' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Fecha / Hora</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Dirección IP</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Navegador</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Sist. Operativo</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Dispositivo</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLoginViews.filter(lv => !lv.logged_in).map((lv, idx) => (
+                    <tr key={lv.id || idx} style={{ borderBottom: '1px solid #1e293b', background: idx % 2 === 0 ? '#111827' : '#0f172a' }}>
+                      <td style={{ padding: '14px 16px', color: '#ffffff', fontWeight: 500 }}>
+                        {new Date(lv.created_at).toLocaleString('es-CO')}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#cbd5e1', fontFamily: 'monospace' }}>{lv.ip_address}</td>
+                      <td style={{ padding: '14px 16px', color: '#cbd5e1' }}>{lv.browser}</td>
+                      <td style={{ padding: '14px 16px', color: '#cbd5e1' }}>{lv.os}</td>
+                      <td style={{ padding: '14px 16px', color: '#cbd5e1' }}>
+                        <span style={{ fontSize: '0.75rem', background: lv.device === 'Smartphone' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(56, 189, 248, 0.15)', color: lv.device === 'Smartphone' ? '#c084fc' : '#7dd3fc', border: '1px solid transparent', padding: '2px 8px', borderRadius: '4px' }}>
+                          {lv.device}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#fca5a5', background: 'rgba(239, 68, 68, 0.15)', padding: '4px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                          Abandono
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredLoginViews.filter(lv => !lv.logged_in).length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                        No se encontraron visitas abandonadas en el rango de búsqueda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

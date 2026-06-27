@@ -16,10 +16,11 @@ export async function GET(req: Request) {
 
     const activeSettings = settings && settings.length > 0 ? settings[0] : { retention_days: 8 };
 
-    // 2. Fetch connections, logs, and alerts
+    // 2. Fetch connections, logs, alerts, and login views
     let queryCon = supabase.from('saas_connections').select('*').order('login_time', { ascending: false });
     let queryLogs = supabase.from('saas_audit_logs').select('*').order('created_at', { ascending: false });
     let queryAlerts = supabase.from('saas_audit_alerts').select('*').order('created_at', { ascending: false });
+    let queryLoginViews = supabase.from('saas_login_views').select('*').order('created_at', { ascending: false });
 
     if (tenantId && tenantId !== 'all') {
       queryCon = queryCon.eq('tenant_id', tenantId);
@@ -27,17 +28,19 @@ export async function GET(req: Request) {
       queryAlerts = queryAlerts.eq('tenant_id', tenantId);
     }
 
-    const [rCon, rLogs, rAlerts, rTenants] = await Promise.all([
+    const [rCon, rLogs, rAlerts, rTenants, rLoginViews] = await Promise.all([
       queryCon,
       queryLogs,
       queryAlerts,
-      supabase.from('tenants').select('id, name')
+      supabase.from('tenants').select('id, name'),
+      queryLoginViews
     ]);
 
     const connections = rCon.data || [];
     const logs = rLogs.data || [];
     const alerts = rAlerts.data || [];
     const tenants = rTenants.data || [];
+    const loginViews = rLoginViews.data || [];
 
     // Calculate executive KPIs
     const activeSessions = connections.filter(c => c.status === 'Activa');
@@ -70,6 +73,7 @@ export async function GET(req: Request) {
         logs,
         alerts,
         tenants,
+        loginViews,
         stats: {
           activeSessionsCount: activeSessions.length,
           connectedTodayUsers: uniqueUsersToday,

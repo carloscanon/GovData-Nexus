@@ -138,6 +138,44 @@ export default function Login() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const reason = searchParams?.get('reason');
 
+  const trackLoginView = async () => {
+    try {
+      if (sessionStorage.getItem('govdata_login_tracked')) return;
+
+      const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+      let browser = 'Chrome';
+      if (userAgent.indexOf('Firefox') > -1) browser = 'Firefox';
+      else if (userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
+      else if (userAgent.indexOf('Edge') > -1) browser = 'Edge';
+
+      let os = 'Windows 11';
+      if (userAgent.indexOf('Macintosh') > -1) os = 'macOS';
+      else if (userAgent.indexOf('Linux') > -1) os = 'Linux';
+      else if (userAgent.indexOf('Android') > -1) os = 'Android';
+      else if (userAgent.indexOf('iPhone') > -1 || userAgent.indexOf('iPad') > -1) os = 'iOS';
+
+      let device = 'Desktop PC';
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)) {
+        device = 'Smartphone';
+      }
+
+      const { data, error } = await supabase.from('saas_login_views').insert({
+        ip_address: '186.116.15.24',
+        browser,
+        os,
+        device,
+        logged_in: false
+      }).select();
+
+      if (!error && data && data.length > 0) {
+        sessionStorage.setItem('govdata_login_tracked', 'true');
+        sessionStorage.setItem('govdata_login_view_id', data[0].id);
+      }
+    } catch (e) {
+      console.warn('Error tracking login view:', e);
+    }
+  };
+
   // Load config: show localStorage cache instantly, then fetch from DB
   useEffect(() => {
     if (reason === 'inactivity') {
@@ -169,6 +207,7 @@ export default function Login() {
       } catch {}
     };
     fetchFromDB();
+    trackLoginView();
   }, []);
 
   // ── Play login sound ─────────────────────────────────────────────
@@ -353,6 +392,19 @@ export default function Login() {
         console.error('[Login] Error inserting session into saas_connections:', insertError);
       } else {
         console.log('[Login] Session registered in saas_connections for:', normalizedEmail);
+      }
+
+      // If we have a tracked view ID, update it to logged_in = true
+      const loginViewId = sessionStorage.getItem('govdata_login_view_id');
+      if (loginViewId) {
+        await supabase
+          .from('saas_login_views')
+          .update({
+            logged_in: true,
+            login_time: new Date().toISOString(),
+            user_email: normalizedEmail
+          })
+          .eq('id', loginViewId);
       }
     } catch (e) {
       console.warn('Error inserting saas_connections row on login:', e);
