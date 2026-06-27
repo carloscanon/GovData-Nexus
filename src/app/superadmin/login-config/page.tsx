@@ -101,7 +101,7 @@ export const DEFAULT_LOGIN_CONFIG: LoginPageConfig = {
 };
 
 export const STORAGE_KEY = 'govdata_login_config';
-const SUPABASE_TENANT_ID = 'global';
+const SUPABASE_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const SUPABASE_CONFIG_KEY = 'govdata_login_config';
 
 export function loadLoginConfig(): LoginPageConfig {
