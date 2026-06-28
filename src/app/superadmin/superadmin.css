@@ -1,5 +1,5 @@
-
-:root {
+/* Theme configurations */
+.sa-layout.theme-classic {
   --sa-background: #050b14;
   --sa-card: #090f1d;
   --sa-border: #16223f;
@@ -7,10 +7,53 @@
   --sa-text: #ffffff;
   --sa-sidebar-text: #94a3b8;
   --sa-btn-text: #ffffff;
+  --sa-sidebar-bg: #090f1d;
+  --sa-header-bg: rgba(9, 15, 29, 0.4);
+  --sa-card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --sa-accent-glow: rgba(59, 130, 246, 0.05);
 }
-/* ==============================================================================
-   GovData Nexus - Superadmin Premium Dark Stylesheet
-   ============================================================================== */
+
+.sa-layout.theme-mediora {
+  --sa-background: #f3f4f6;
+  --sa-card: #ffffff;
+  --sa-border: #e5e7eb;
+  --sa-primary: #10b981;
+  --sa-text: #0f172a;
+  --sa-sidebar-text: #94a3b8;
+  --sa-btn-text: #ffffff;
+  --sa-sidebar-bg: #0b0f19;
+  --sa-header-bg: #0b0f19;
+  --sa-card-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+  --sa-accent-glow: rgba(16, 185, 129, 0.05);
+}
+
+.sa-layout.theme-cyberpunk {
+  --sa-background: #07000d;
+  --sa-card: #0f011a;
+  --sa-border: #ec4899;
+  --sa-primary: #f43f5e;
+  --sa-text: #00f0ff;
+  --sa-sidebar-text: #f472b6;
+  --sa-btn-text: #ffffff;
+  --sa-sidebar-bg: #0c0014;
+  --sa-header-bg: #0c0014;
+  --sa-card-shadow: 0 0 15px rgba(236, 72, 153, 0.2);
+  --sa-accent-glow: rgba(244, 63, 94, 0.08);
+}
+
+.sa-layout.theme-luxury {
+  --sa-background: #080808;
+  --sa-card: #141414;
+  --sa-border: #b45309;
+  --sa-primary: #d97706;
+  --sa-text: #ffffff;
+  --sa-sidebar-text: #d97706;
+  --sa-btn-text: #000000;
+  --sa-sidebar-bg: #141414;
+  --sa-header-bg: #141414;
+  --sa-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  --sa-accent-glow: rgba(217, 119, 6, 0.04);
+}
 
 /* Layout & Containers */
 .sa-layout {
@@ -20,16 +63,18 @@
   display: flex;
   overflow: hidden;
   font-family: var(--sa-font, 'Inter'), system-ui, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .sa-sidebar {
   width: 280px;
-  background-color: var(--sa-card);
+  background-color: var(--sa-sidebar-bg);
   border-right: 1px solid var(--sa-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   z-index: 20;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .sa-main {
@@ -42,20 +87,22 @@
 .sa-header {
   height: 80px;
   border-bottom: 1px solid var(--sa-border);
-  background-color: rgba(9, 15, 29, 0.4);
+  background-color: var(--sa-header-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
   backdrop-filter: blur(12px);
   z-index: 10;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .sa-content {
   flex: 1;
   overflow-y: auto;
   padding: 2rem;
-  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 400px), var(--sa-background);
+  background: radial-gradient(circle at top right, var(--sa-accent-glow), transparent 400px), var(--sa-background);
+  transition: background-color 0.3s ease;
 }
 
 /* Sidebar Custom Elements */
@@ -246,7 +293,7 @@
   padding: 1.5rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+  box-shadow: var(--sa-card-shadow);
   transition: all 0.3s;
 }
 

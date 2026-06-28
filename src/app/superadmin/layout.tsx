@@ -49,6 +49,14 @@ export default function SuperAdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+  const [theme, setTheme] = useState<string>('classic');
+
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('govdata_sa_theme');
+      if (savedTheme) setTheme(savedTheme);
+    } catch {}
+  }, []);
 
   // Sidebar navigation items (key, icon, href)
   const sidebarItems = [
@@ -126,7 +134,7 @@ export default function SuperAdminLayout({
   };
 
   return (
-    <div className="sa-layout">
+    <div className={`sa-layout theme-${theme}`}>
       {/* Backdrop for mobile */}
       {isMobileSidebarOpen && (
         <div className="sa-sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />
@@ -214,10 +222,30 @@ const label = moduleNames[item.key] ?? DEFAULT_LABELS[item.key] ?? item.key;
 
       {/* Main Content Area */}
       <main className="sa-main">
-        <header className="sa-header">
-          <span className="sa-badge sa-badge-blue">
-            SaaS Multiempresa Activo
-          </span>
+         <header className="sa-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span className="sa-badge sa-badge-blue">
+              SaaS Multiempresa Activo
+            </span>
+            
+            {/* Theme Selector */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--sa-border)', padding: '4px 12px', borderRadius: '20px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>UX TEMA:</span>
+              <select 
+                value={theme} 
+                onChange={(e) => {
+                  setTheme(e.target.value);
+                  localStorage.setItem('govdata_sa_theme', e.target.value);
+                }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--sa-text)', fontSize: '0.75rem', fontWeight: 800, outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                <option value="classic" style={{ background: '#0b0f19', color: '#fff' }}>Classic Dark</option>
+                <option value="mediora" style={{ background: '#0b0f19', color: '#fff' }}>Mediora (UX Hybrid)</option>
+                <option value="cyberpunk" style={{ background: '#0b0f19', color: '#fff' }}>Cyberpunk Neon</option>
+                <option value="luxury" style={{ background: '#0b0f19', color: '#fff' }}>Luxury Gold</option>
+              </select>
+            </div>
+          </div>
           
           <div className="sa-user-badge">
             <div className="sa-user-avatar">
