@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { usePlatform } from '@/contexts/PlatformContext';
 
 import {
   LayoutDashboard,
@@ -49,6 +50,7 @@ export default function SuperAdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+  const { saTheme, setSaTheme } = usePlatform();
   const [theme, setTheme] = useState<string>('classic');
 
   useEffect(() => {
@@ -57,6 +59,53 @@ export default function SuperAdminLayout({
       if (savedTheme) setTheme(savedTheme);
     } catch {}
   }, []);
+
+  const themePresets: Record<string, any> = {
+    classic: {
+      background: '#050b14',
+      card: '#090f1d',
+      border: '#16223f',
+      primary: '#3b82f6',
+      text: '#ffffff',
+      sidebarText: '#94a3b8',
+      btnText: '#ffffff',
+    },
+    mediora: {
+      background: '#f3f4f6',
+      card: '#ffffff',
+      border: '#cbd5e1',
+      primary: '#10b981',
+      text: '#0f172a',
+      sidebarText: '#94a3b8',
+      btnText: '#ffffff',
+    },
+    cyberpunk: {
+      background: '#07000d',
+      card: '#0f011a',
+      border: '#ec4899',
+      primary: '#f43f5e',
+      text: '#00f0ff',
+      sidebarText: '#f472b6',
+      btnText: '#ffffff',
+    },
+    luxury: {
+      background: '#080808',
+      card: '#141414',
+      border: '#b45309',
+      primary: '#d97706',
+      text: '#ffffff',
+      sidebarText: '#d97706',
+      btnText: '#000000',
+    }
+  };
+
+  const handleDropdownThemeChange = (selectedTheme: string) => {
+    setTheme(selectedTheme);
+    localStorage.setItem('govdata_sa_theme', selectedTheme);
+    if (themePresets[selectedTheme]) {
+      setSaTheme(themePresets[selectedTheme]);
+    }
+  };
 
   // Sidebar navigation items (key, icon, href)
   const sidebarItems = [
@@ -133,8 +182,22 @@ export default function SuperAdminLayout({
     router.push(redirectTo);
   };
 
+  const styleVariables = {
+    '--sa-background': saTheme.background || '#050b14',
+    '--sa-card': saTheme.card || '#090f1d',
+    '--sa-border': saTheme.border || '#16223f',
+    '--sa-primary': saTheme.primary || '#3b82f6',
+    '--sa-text': saTheme.text || '#ffffff',
+    '--sa-sidebar-text': saTheme.sidebarText || '#94a3b8',
+    '--sa-btn-text': saTheme.btnText || '#ffffff',
+    '--sa-sidebar-bg': saTheme.card === '#ffffff' ? '#0b0f19' : (saTheme.card || '#090f1d'),
+    '--sa-header-bg': saTheme.card === '#ffffff' ? '#0b0f19' : (saTheme.card || '#090f1d'),
+    '--sa-card-shadow': saTheme.card === '#ffffff' ? '0 4px 18px rgba(15, 23, 42, 0.04)' : '0 10px 15px -3px rgba(0,0,0,0.3)',
+    '--sa-accent-glow': saTheme.primary === '#10b981' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(59, 130, 246, 0.05)',
+  } as React.CSSProperties;
+
   return (
-    <div className={`sa-layout theme-${theme}`}>
+    <div className="sa-layout" style={styleVariables}>
       {/* Backdrop for mobile */}
       {isMobileSidebarOpen && (
         <div className="sa-sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />
@@ -233,10 +296,7 @@ const label = moduleNames[item.key] ?? DEFAULT_LABELS[item.key] ?? item.key;
               <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>UX TEMA:</span>
               <select 
                 value={theme} 
-                onChange={(e) => {
-                  setTheme(e.target.value);
-                  localStorage.setItem('govdata_sa_theme', e.target.value);
-                }}
+                onChange={(e) => handleDropdownThemeChange(e.target.value)}
                 style={{ background: 'transparent', border: 'none', color: 'var(--sa-text)', fontSize: '0.75rem', fontWeight: 800, outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
               >
                 <option value="classic" style={{ background: '#0b0f19', color: '#fff' }}>Classic Dark</option>
