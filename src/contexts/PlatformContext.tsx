@@ -847,7 +847,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (brandColors.secondary.startsWith('#') && brandColors.secondary.length === 7) {
       document.documentElement.style.setProperty('--secondary-rgb', hexToRgb(brandColors.secondary));
     }
-    document.documentElement.setAttribute('data-theme', brandColors.theme);
+    if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', brandColors.theme);
+    }
   }, [brandColors]);
 
   useEffect(() => {
