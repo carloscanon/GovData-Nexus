@@ -178,6 +178,10 @@ export default function Login() {
 
   // Load config: show localStorage cache instantly, then fetch from DB
   useEffect(() => {
+    // Save current theme and force light theme for login styling
+    const originalTheme = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'light');
+
     if (reason === 'inactivity') {
       setError('Su sesión ha expirado por inactividad. Por favor, ingrese de nuevo.');
     }
@@ -208,6 +212,15 @@ export default function Login() {
     };
     fetchFromDB();
     trackLoginView();
+
+    return () => {
+      // Restore original theme on unmount
+      if (originalTheme) {
+        document.documentElement.setAttribute('data-theme', originalTheme);
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    };
   }, []);
 
   // ── Play login sound ─────────────────────────────────────────────
