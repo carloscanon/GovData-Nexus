@@ -53,7 +53,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         const { data } = await supabase
           .from('tenant_config')
           .select('config_value')
-          .eq('tenant_id', 'global')
+          .eq('tenant_id', '00000000-0000-0000-0000-000000000001')
           .eq('config_key', 'govdata_login_config')
           .single();
         if (data?.config_value) {
